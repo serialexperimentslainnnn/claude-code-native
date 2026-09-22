@@ -42,37 +42,21 @@ internal class NavigateTools(private val project: Project) {
         val query = args.string("query")
         val max = args.int("max", DEFAULT_MAX)
         val libraries = args.boolean("libraries", false)
-        val rows = indexed {
+        val (outcome, rows) = indexed {
             val scope = if (libraries) GlobalSearchScope.allScope(project) else GlobalSearchScope.projectScope(project)
             val parameters = FindSymbolParameters.simple(project, libraries)
-            val items = LinkedHashSet<NavigationItem>()
-            for (contributor in contributors()) {
-                val names = LinkedHashSet<String>()
-                contributor.processNames(
-                    { name ->
-                        if (name.contains(query, ignoreCase = true)) names += name
-                        names.size < max
-                    },
-                    scope,
-                    null,
-                )
-                for (name in names) {
-                    if (items.size >= max) break
-                    contributor.processElementsWithName(
-                        name,
-                        { item ->
-                            items += item
-                            items.size < max
-                        },
-                        parameters,
-                    )
-                }
-                if (items.size >= max) break
-            }
-            items.filter { it is PsiElement && Locations.located(it) }.map(::symbolRow)
+            val sources = contributors().map { ContributorSymbolSource(it, scope, parameters) }
+            val outcome = SymbolSearch.collect(sources, query, max)
+            if (outcome.noneAnswered) throw ToolException(noSymbolIndex(outcome))
+            outcome to outcome.items.filter { it is PsiElement && Locations.located(it) }.map(::symbolRow)
         }
         return buildJsonObject {
             put("query", query)
+            if (outcome.incomplete) {
+                put("refused", outcome.refused)
+                put("contributors", outcome.sources)
+                if (rows.isEmpty()) put("note", refusedNote(outcome))
+            }
             table("symbols", rows, rows.size >= max)
         }
     }
@@ -113,6 +97,18 @@ internal class NavigateTools(private val project: Project) {
         }
         return buildJsonObject { table("implementations", rows, rows.size >= max) }
     }
+
+    private fun noSymbolIndex(outcome: SymbolSearch.Outcome): String =
+        "every one of the ${outcome.sources} symbol contributors refused the call: this IDE serves its symbols " +
+            "from a backend the platform's name index does not reach, as Rider does through ReSharper. Use " +
+            "search_text, find_files or file_outline instead; definition, references and implementations work " +
+            "as usual."
+
+    private fun refusedNote(outcome: SymbolSearch.Outcome): String =
+        "${outcome.refused} of the ${outcome.sources} symbol contributors refused the call, so what they hold was " +
+            "never searched: those symbols live in a backend the platform's name index does not reach, as Rider's " +
+            "do through ReSharper. An empty result here does not mean the symbol is absent, and does not mean the " +
+            "index is stale; search_text and file_outline see what they hold."
 
     private fun resolved(args: ToolArgs): PsiElement = Locations.declarationAt(project, args)
 

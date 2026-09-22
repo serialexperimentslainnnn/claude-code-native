@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.1] — 2026-09-22
+
+### Fixed
+- **`find_symbols` no longer fails outright in Rider.** A contributor that refuses the platform's
+  `processNames` call — which Rider's do, because its symbols live in the ReSharper backend and are
+  served only over its own protocol — is skipped instead of taking the whole tool down with
+  `UnsupportedOperationException: Use RdChooseByNameContributor.processNamesLifetimed`. An answer
+  reached by asking fewer contributors than the IDE has carries `refused` and `contributors`, and when
+  it is also empty it carries a `note`, so an empty list is not read as an absent symbol or a stale
+  index. Only when every contributor refuses does the tool fail, naming what does work there
+  (`search_text`, `find_files`, `file_outline`, `definition`, `references`, `implementations`).
+
 ## [6.0.0] — 2026-09-12
 
 **Claude becomes one with your IDE.** The plugin now runs four MCP servers of its own inside the IDE
