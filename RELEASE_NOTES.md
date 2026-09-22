@@ -1,3 +1,15 @@
+## v6.0.1 — 2026-09-22
+
+**`find_symbols` works in Rider again.** Asking Claude for a symbol there failed outright with
+`UnsupportedOperationException: Use RdChooseByNameContributor.processNamesLifetimed`: Rider keeps its
+symbols in the ReSharper backend and its contributors refuse the platform call the tool was making. A
+contributor that refuses is now skipped rather than taking the tool down with it, and the answer says how
+many refused out of how many the IDE has — with a note when the result is also empty — so Claude does not
+read an empty list as "this symbol does not exist" or "the index is still warming up". The tool only fails
+when every contributor refuses, and then it names the tools that do work there.
+
+Nothing else changed.
+
 ## v6.0.0 — 2026-09-12
 
 **Claude becomes one with your IDE.** This release gives Claude the IDE itself as its instrument.

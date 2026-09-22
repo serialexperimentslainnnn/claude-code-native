@@ -2,7 +2,7 @@ package dev.lain.claudejb.util
 
 object PluginIdentity {
 
-    const val PLUGIN_VERSION = "6.0.0"
+    const val PLUGIN_VERSION = "6.0.1"
 
     const val NOTIFICATION_GROUP = "Claude Code"
 
