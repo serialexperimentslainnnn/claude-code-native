@@ -15,7 +15,7 @@ class SymbolSearchTest {
 
         assertEquals(listOf("Alpha"), outcome.items.map { it.name })
         assertEquals(1, outcome.refused)
-        assertFalse(outcome.refusedEverywhere)
+        assertFalse(outcome.nothingAnswered)
         assertTrue(outcome.partial) { "a list missing a whole contributor must not read as the complete answer" }
     }
 
@@ -24,7 +24,19 @@ class SymbolSearchTest {
         val outcome = SymbolSearch.collect(listOf(refusing(), refusing()), "a", 10)
 
         assertTrue(outcome.items.isEmpty())
-        assertTrue(outcome.refusedEverywhere) { "Rider refuses every contributor; an empty list there would be a lie" }
+        assertTrue(outcome.nothingAnswered) { "Rider refuses every contributor; an empty list there would be a lie" }
+        assertFalse(outcome.partial) { "partial belongs to a shortened answer, not to no answer at all" }
+    }
+
+    @Test
+    fun `a refusal next to a source with nothing to say is still no answer, not an empty project`() {
+        val outcome = SymbolSearch.collect(listOf(answering(), refusing()), "a", 10)
+
+        assertTrue(outcome.items.isEmpty())
+        assertTrue(outcome.nothingAnswered) {
+            "this is the Rider case: something answered with nothing while the contributors that hold the " +
+                "symbols refused, and an empty list there reads as a stale index"
+        }
         assertFalse(outcome.partial)
     }
 

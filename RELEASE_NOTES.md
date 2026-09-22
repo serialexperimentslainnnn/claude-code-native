@@ -3,9 +3,10 @@
 **`find_symbols` works in Rider again.** Asking Claude for a symbol there failed outright with
 `UnsupportedOperationException: Use RdChooseByNameContributor.processNamesLifetimed`: Rider keeps its
 symbols in the ReSharper backend and its contributors refuse the platform call the tool was making. A
-contributor that refuses is now skipped rather than taking the tool down with it, and when every one of
-them refuses Claude is told which tools do work there instead of being handed an empty list it would
-read as "this project has no symbols". A partial answer is marked as partial.
+contributor that refuses is now skipped rather than taking the tool down with it, and when the refusals
+leave nothing to return Claude is told so, with the count and with the tools that do work there, instead
+of being handed an empty list it would read as "this project has no symbols" or "the index is still
+warming up". An answer that did come back, shortened by a refusal, is marked as partial.
 
 Nothing else changed.
 

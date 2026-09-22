@@ -10,10 +10,11 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`find_symbols` no longer fails outright in Rider.** A contributor that refuses the platform's
   `processNames` call — which Rider's do, because its symbols live in the ReSharper backend and are
   served only over its own protocol — is skipped instead of taking the whole tool down with
-  `UnsupportedOperationException: Use RdChooseByNameContributor.processNamesLifetimed`. When every
-  contributor refuses, the tool says so and names what does work there (`search_text`, `find_files`,
-  `file_outline`, `definition`, `references`, `implementations`) rather than answering as though the
-  project had no symbols; when only some refuse, the answer carries `partial`.
+  `UnsupportedOperationException: Use RdChooseByNameContributor.processNamesLifetimed`. When the
+  refusals leave nothing to return, the tool says how many contributors refused and names what does
+  work there (`search_text`, `find_files`, `file_outline`, `definition`, `references`,
+  `implementations`), rather than returning an empty list that reads as an empty project or a stale
+  index; an answer that did come back, shortened by a refusal, carries `partial`.
 
 ## [6.0.0] — 2026-09-12
 

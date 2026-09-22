@@ -47,7 +47,7 @@ internal class NavigateTools(private val project: Project) {
             val parameters = FindSymbolParameters.simple(project, libraries)
             val sources = contributors().map { ContributorSymbolSource(it, scope, parameters) }
             val outcome = SymbolSearch.collect(sources, query, max)
-            if (outcome.refusedEverywhere) throw ToolException(NO_SYMBOL_INDEX)
+            if (outcome.nothingAnswered) throw ToolException(noSymbolIndex(outcome))
             outcome to outcome.items.filter { it is PsiElement && Locations.located(it) }.map(::symbolRow)
         }
         return buildJsonObject {
@@ -94,6 +94,12 @@ internal class NavigateTools(private val project: Project) {
         return buildJsonObject { table("implementations", rows, rows.size >= max) }
     }
 
+    private fun noSymbolIndex(outcome: SymbolSearch.Outcome): String =
+        "nothing answered and ${outcome.refused} of ${outcome.sources} symbol contributors refused the call, so " +
+            "this is not an empty project and not a stale index: this IDE serves its symbols from a backend the " +
+            "platform's name index does not reach, as Rider does through ReSharper. Use search_text, find_files " +
+            "or file_outline instead; definition, references and implementations work as usual."
+
     private fun resolved(args: ToolArgs): PsiElement = Locations.declarationAt(project, args)
 
     private fun symbolRow(item: NavigationItem): JsonObject = buildJsonObject {
@@ -123,11 +129,6 @@ internal class NavigateTools(private val project: Project) {
     companion object {
 
         private const val DEFAULT_MAX = 50
-
-        private const val NO_SYMBOL_INDEX =
-            "this IDE keeps its symbols outside the platform's name index, so no contributor answered: Rider " +
-                "serves them from the ReSharper backend, over its own protocol. Use search_text, find_files or " +
-                "file_outline instead; definition, references and implementations work as usual."
 
         val FIND_SYMBOLS = ToolSpec(
             "find_symbols",
