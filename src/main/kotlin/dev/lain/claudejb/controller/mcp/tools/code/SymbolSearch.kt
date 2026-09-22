@@ -44,9 +44,9 @@ internal object SymbolSearch {
 
     data class Outcome(val items: List<NavigationItem>, val sources: Int, val refused: Int) {
 
-        val nothingAnswered: Boolean = refused > 0 && items.isEmpty()
+        val noneAnswered: Boolean = sources > 0 && refused == sources
 
-        val partial: Boolean = refused > 0 && items.isNotEmpty()
+        val incomplete: Boolean = refused > 0
     }
 
     fun collect(sources: List<SymbolSource>, query: String, max: Int): Outcome {
