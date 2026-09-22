@@ -42,37 +42,17 @@ internal class NavigateTools(private val project: Project) {
         val query = args.string("query")
         val max = args.int("max", DEFAULT_MAX)
         val libraries = args.boolean("libraries", false)
-        val rows = indexed {
+        val (outcome, rows) = indexed {
             val scope = if (libraries) GlobalSearchScope.allScope(project) else GlobalSearchScope.projectScope(project)
             val parameters = FindSymbolParameters.simple(project, libraries)
-            val items = LinkedHashSet<NavigationItem>()
-            for (contributor in contributors()) {
-                val names = LinkedHashSet<String>()
-                contributor.processNames(
-                    { name ->
-                        if (name.contains(query, ignoreCase = true)) names += name
-                        names.size < max
-                    },
-                    scope,
-                    null,
-                )
-                for (name in names) {
-                    if (items.size >= max) break
-                    contributor.processElementsWithName(
-                        name,
-                        { item ->
-                            items += item
-                            items.size < max
-                        },
-                        parameters,
-                    )
-                }
-                if (items.size >= max) break
-            }
-            items.filter { it is PsiElement && Locations.located(it) }.map(::symbolRow)
+            val sources = contributors().map { ContributorSymbolSource(it, scope, parameters) }
+            val outcome = SymbolSearch.collect(sources, query, max)
+            if (outcome.refusedEverywhere) throw ToolException(NO_SYMBOL_INDEX)
+            outcome to outcome.items.filter { it is PsiElement && Locations.located(it) }.map(::symbolRow)
         }
         return buildJsonObject {
             put("query", query)
+            if (outcome.partial) put("partial", true)
             table("symbols", rows, rows.size >= max)
         }
     }
@@ -143,6 +123,11 @@ internal class NavigateTools(private val project: Project) {
     companion object {
 
         private const val DEFAULT_MAX = 50
+
+        private const val NO_SYMBOL_INDEX =
+            "this IDE keeps its symbols outside the platform's name index, so no contributor answered: Rider " +
+                "serves them from the ReSharper backend, over its own protocol. Use search_text, find_files or " +
+                "file_outline instead; definition, references and implementations work as usual."
 
         val FIND_SYMBOLS = ToolSpec(
             "find_symbols",
