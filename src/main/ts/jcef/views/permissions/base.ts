@@ -13,9 +13,12 @@
     return s == null ? '' : String(s);
   };
 
-  PM.md = function (s: unknown): string {
-    if (typeof CC.markdown === 'function') return CC.markdown(s == null ? '' : String(s));
-    return PM.esc(s);
+  PM.md = function (s: unknown): DocumentFragment {
+    const text = s == null ? '' : String(s);
+    if (typeof CC.markdownFragment === 'function') return CC.markdownFragment(text);
+    const frag = document.createDocumentFragment();
+    frag.appendChild(document.createTextNode(text));
+    return frag;
   };
 
   PM.send = function (obj: unknown): void {

@@ -85,3 +85,33 @@ describe('question options say whether they are chosen', () => {
     expect(options.map((o) => o.getAttribute('aria-pressed'))).toEqual(['true', 'true']);
   });
 });
+
+describe('a permission card takes one resolution', () => {
+  it('disables Accept, Reject and Always allow after the first activation', () => {
+    const win = loadFrontend(['app-permissions.js']);
+    const sent = [];
+    win.CC.send = (m) => sent.push(m);
+    win.cc.permissions([bash()]);
+    const byText = (t) => [...win.CC.els.permissions.querySelectorAll('button')].find((b) => b.textContent === t);
+
+    byText('Reject').click();
+    byText('Always allow').click();
+    byText('Accept').click();
+
+    expect(sent).toEqual([{ type: 'resolvePermission', id: 'r1', allow: false }]);
+    expect(['Accept', 'Reject', 'Always allow'].map((t) => byText(t).disabled)).toEqual([true, true, true]);
+  });
+
+  it('is live again when the host rebuilds it with new content', () => {
+    const win = loadFrontend(['app-permissions.js']);
+    win.CC.send = () => {};
+    win.cc.permissions([bash()]);
+    const accept = () =>
+      [...win.CC.els.permissions.querySelectorAll('button')].find((b) => b.textContent === 'Accept');
+    accept().click();
+    expect(accept().disabled).toBe(true);
+
+    win.cc.permissions([bash({ decisionReason: 'asked again' })]);
+    expect(accept().disabled).toBe(false);
+  });
+});

@@ -9,7 +9,7 @@
   PM.buildPlanCard = function (card: PermissionCard): HTMLElement {
     const id = card.id;
     const body = h('div', { class: 'perm-body' });
-    body.innerHTML = PM.md(card.planText || '');
+    body.appendChild(PM.md(card.planText || ''));
     return h(
       'div',
       { class: 'perm-card plan-card' },
@@ -86,7 +86,7 @@
     if (summary) bodyChildren.push(h('div', { class: 'perm-summary', text: summary }));
     if (description && description !== summary) {
       const descEl = h('div', { class: 'perm-desc' });
-      descEl.innerHTML = PM.md(description);
+      descEl.appendChild(PM.md(description));
       bodyChildren.push(descEl);
     }
     if (card.blockedPath)
@@ -100,13 +100,28 @@
       bodyChildren.push(renderPermDiff(String(card.diff)));
     }
 
+    const decisions: HTMLButtonElement[] = [];
+    let root: HTMLElement | null = null;
+    function decision(props: HProps, message: Record<string, unknown>): HTMLElement {
+      const btn = PM.button(props, function () {
+        if (btn.disabled) return;
+        const hadFocus = decisions.indexOf(document.activeElement as HTMLButtonElement) >= 0;
+        decisions.forEach(function (b) {
+          b.disabled = true;
+        });
+        if (hadFocus && root) {
+          root.setAttribute('tabindex', '-1');
+          root.focus({ preventScroll: true });
+        }
+        PM.sendFor(card, message);
+      }) as HTMLButtonElement;
+      decisions.push(btn);
+      return btn;
+    }
+
     const actions = [
-      PM.button({ class: 'btn primary', text: 'Accept' }, function () {
-        PM.sendFor(card, { type: 'resolvePermission', id: id, allow: true });
-      }),
-      PM.button({ class: 'btn danger', text: 'Reject' }, function () {
-        PM.sendFor(card, { type: 'resolvePermission', id: id, allow: false });
-      }),
+      decision({ class: 'btn primary', text: 'Accept' }, { type: 'resolvePermission', id: id, allow: true }),
+      decision({ class: 'btn danger', text: 'Reject' }, { type: 'resolvePermission', id: id, allow: false }),
     ];
     if (card.reviewable) {
       actions.push(
@@ -117,24 +132,24 @@
     }
     if (card.guard) {
       actions.push(
-        PM.button({ class: 'btn ghost perm-always', text: 'Always allow this command' }, function () {
-          PM.sendFor(card, { type: 'guardAllowAlways', id: id });
-        })
+        decision(
+          { class: 'btn ghost perm-always', text: 'Always allow this command' },
+          { type: 'guardAllowAlways', id: id }
+        )
       );
     } else if (tool) {
       actions.push(
-        PM.button({ class: 'btn ghost perm-always', text: 'Always allow' }, function () {
-          PM.sendFor(card, { type: 'alwaysAllow', tool: tool, id: id });
-        })
+        decision({ class: 'btn ghost perm-always', text: 'Always allow' }, { type: 'alwaysAllow', tool: tool, id: id })
       );
     }
 
-    return h(
+    root = h(
       'div',
       { class: 'perm-card' },
       h('div', { class: 'perm-head', text: card.headline || card.title || tool || 'Permission' }),
       h('div', { class: 'perm-body' }, bodyChildren),
       h('div', { class: 'perm-actions' }, actions)
     );
+    return root;
   };
 })();
