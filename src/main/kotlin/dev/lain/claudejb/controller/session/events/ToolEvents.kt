@@ -14,6 +14,7 @@ import dev.lain.claudejb.model.session.transcript.ToolState
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.intOrNull
 
 class ToolEvents(
     private val s: ClaudeSession,
@@ -123,10 +124,7 @@ class ToolEvents(
     private fun ownResult(event: ClaudeEvent.ToolResult, own: Own) {
         val text = event.content.trim()
         val decoded = if (event.isError) null else OwnTools.decodeResult(text) as? JsonObject
-        val results: List<JsonObject?> = when {
-            !own.batch -> listOf(decoded)
-            else -> (decoded?.get("items") as? JsonArray)?.map { it as? JsonObject }.orEmpty()
-        }
+        val results: List<JsonObject?> = if (own.batch) batchResults(decoded, own.items.size) else listOf(decoded)
         own.items.forEachIndexed { index, item ->
             val result = results.getOrNull(index)
             val error = result?.let { errorOf(it) }
@@ -149,8 +147,16 @@ class ToolEvents(
         }
     }
 
+    private fun batchResults(decoded: JsonObject?, count: Int): List<JsonObject?> {
+        val rows = (decoded?.get("items") as? JsonArray)?.map { it as? JsonObject }.orEmpty()
+        if (decoded?.get(CLEAN) !is JsonArray) return rows
+        val byIndex = rows.filterNotNull().associateBy { (it[INDEX] as? JsonPrimitive)?.intOrNull }
+        return List(count) { index -> byIndex[index]?.let { JsonObject(it - INDEX) } ?: JsonObject(emptyMap()) }
+    }
+
     private fun ownOutput(call: OwnTools.Call, item: Item, result: JsonObject) {
         s.transcript.setToolPlaces(item.id, CardPlaces.of(call.argument ?: "", item.args, result))
+        if (result.isEmpty()) return
         val read = if (OwnTools.isRead(call)) OwnTools.readText(result) else null
         if (read != null) {
             s.transcript.addToolOutput(item.id, read)
@@ -174,6 +180,8 @@ class ToolEvents(
         const val TOON = "toon"
         const val DIFF = "diff"
         const val ERROR = "error"
+        const val CLEAN = "clean"
+        const val INDEX = "index"
     }
 
     fun labelAgentCards() {
