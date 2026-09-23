@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.session
 
+import dev.lain.claudejb.SourceLayout
 import dev.lain.claudejb.controller.session.control.SessionQueries
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -22,9 +23,5 @@ class InitializeOnEdtContractTest {
         }
     }
 
-    private fun source(name: String): File {
-        val path = "src/main/kotlin/dev/lain/claudejb/controller/session/$name"
-        return sequenceOf(File(path), File("../$path")).firstOrNull { it.isFile }
-            ?: error("could not locate $path from ${File("").absolutePath}")
-    }
+    private fun source(name: String): File = SourceLayout.source("controller/session/$name")
 }

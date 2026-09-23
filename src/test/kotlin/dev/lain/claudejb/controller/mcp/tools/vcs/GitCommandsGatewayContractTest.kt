@@ -1,6 +1,7 @@
 package dev.lain.claudejb.controller.mcp.tools.vcs
 
 import dev.lain.claudejb.MainSources
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -8,7 +9,7 @@ import java.io.File
 
 class GitCommandsGatewayContractTest {
 
-    private val sources: List<File> = MainSources.files()
+    private val sources: List<File> = SourceLayout.kotlinFiles()
 
     private val gateway: File = sources.single { it.name == GATEWAY }
 

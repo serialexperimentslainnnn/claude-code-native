@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.mcp
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -7,16 +8,12 @@ import java.io.File
 
 class FocusContractTest {
 
-    private val root = File("src/main/kotlin/dev/lain/claudejb/controller/mcp")
-
-    private val sources: List<File> = root.walkTopDown()
-        .filter { it.isFile && it.extension == "kt" && it.name !in CLICK_DRIVEN }
-        .toList()
-        .sortedBy { it.path }
+    private val sources: List<File> = SourceLayout.kotlinFiles()
+        .filter { "${SourceLayout.packagePath(it)}/".startsWith("$PACKAGE/") && it.name !in CLICK_DRIVEN }
 
     @Test
     fun `the scan sees the tool sources and the reveal seam`() {
-        assertTrue(sources.size >= MIN_SOURCES) { "only ${sources.size} sources under $root" }
+        assertTrue(sources.size >= MIN_SOURCES) { "only ${sources.size} sources under $PACKAGE" }
         assertTrue(sources.any { it.name == KEEPER }) { "$KEEPER is gone; the focus contract has no seam left" }
         assertTrue(sources.any { it.name == REVEAL }) { "$REVEAL is gone; tools reveal through it" }
     }
@@ -25,7 +22,7 @@ class FocusContractTest {
     fun `no tool takes the user's focus`() {
         val hits = sources.filter { it.name != KEEPER }.flatMap { file ->
             file.readLines().mapIndexedNotNull { index, line ->
-                STEALS.firstOrNull { it.containsMatchIn(line) }?.let { "${file.relativeTo(root)}:${index + 1}: ${line.trim()}" }
+                STEALS.firstOrNull { it.containsMatchIn(line) }?.let { "${SourceLayout.pathInRoot(file)}:${index + 1}: ${line.trim()}" }
             }
         }
         assertEquals(emptyList<String>(), hits) {
@@ -44,6 +41,7 @@ class FocusContractTest {
     }
 
     private companion object {
+        const val PACKAGE = "controller/mcp"
         const val KEEPER = "FocusKeeper.kt"
         const val REVEAL = "Reveal.kt"
         const val MIN_SOURCES = 40

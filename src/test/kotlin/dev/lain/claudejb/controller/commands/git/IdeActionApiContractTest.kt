@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.MainSources
+import dev.lain.claudejb.SourceLayout
 import dev.lain.claudejb.model.bridge.JcefBridge
 import dev.lain.claudejb.model.bridge.Msg
 import dev.lain.claudejb.model.session.agents.AgentStatus
@@ -16,7 +17,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.awt.event.InputEvent
-import java.io.File
 import java.lang.reflect.Method
 import java.nio.file.Path
 
@@ -121,7 +121,7 @@ class IdeActionApiContractTest {
 
     @Test
     fun `IdeActionInvoker invokes actions through performAction and nothing else`() {
-        val source = source("src/main/kotlin/dev/lain/claudejb/controller/commands/git/IdeActionInvoker.kt")
+        val source = source("controller/commands/git/IdeActionInvoker.kt")
         assertTrue(
             "ActionUtil.performAction(" in source,
             "IdeActionInvoker must invoke platform actions through ActionUtil.performAction.",
@@ -134,7 +134,7 @@ class IdeActionApiContractTest {
 
     @Test
     fun `the one command the plugin runs is a fixed argument vector, never a shell string`() {
-        val source = source("src/main/kotlin/dev/lain/claudejb/controller/commands/git/GitInit.kt")
+        val source = source("controller/commands/git/GitInit.kt")
         listOf("/bin/sh", "cmd.exe", "powershell", "-c\"", "ProcessBuilder", "Runtime.getRuntime").forEach {
             assertFalse(it in source, "GitInit must not reach a shell or spawn a process by hand: found '$it'")
         }
@@ -160,7 +160,7 @@ class IdeActionApiContractTest {
 
     @Test
     fun `nothing in this plugin decides how the IDE draws its popups`() {
-        val offenders = MainSources.files()
+        val offenders = SourceLayout.kotlinFiles()
             .flatMap { file -> MainSources.codeOf(file).map { file.name to it } }
             .filter { (_, line) -> "LightWeightPopupEnabled" in line || "System.setProperty(" in line }
             .map { (name, line) -> "$name: ${line.trim()}" }
@@ -187,14 +187,11 @@ class IdeActionApiContractTest {
 
     private fun actionUtil(): Class<*> = load("com.intellij.openapi.actionSystem.ex.ActionUtil")
 
-    private fun codeOf(relative: String): List<String> =
-        MainSources.codeOf(File(MainSources.root("src/main/kotlin"), "dev/lain/claudejb/$relative"))
+    private fun codeOf(relative: String): List<String> = MainSources.codeOf(SourceLayout.source(relative))
 
     private fun load(name: String): Class<*> = Class.forName(name, false, javaClass.classLoader)
 
-    private fun source(path: String): String =
-        sequenceOf(File(path), File("../$path")).firstOrNull { it.isFile }?.readText()
-            ?: error("could not locate $path from ${File("").absolutePath}")
+    private fun source(relative: String): String = SourceLayout.source(relative).readText()
 
     private fun Method.assertNotDeprecated(): Method = apply {
         assertFalse(

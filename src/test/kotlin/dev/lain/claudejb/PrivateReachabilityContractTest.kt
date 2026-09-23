@@ -7,7 +7,7 @@ import java.io.File
 
 class PrivateReachabilityContractTest {
 
-    private val files: List<File> = MainSources.files()
+    private val files: List<File> = SourceLayout.kotlinFiles()
 
     @Test
     fun `the scan reaches the sources and finds private declarations to judge`() {

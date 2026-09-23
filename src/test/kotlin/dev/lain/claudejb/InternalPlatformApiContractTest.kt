@@ -7,11 +7,7 @@ import java.io.File
 
 class InternalPlatformApiContractTest {
 
-    private val sources: List<File> = listOf("src/main/kotlin", "src/main/java")
-        .map(::File)
-        .filter { it.isDirectory }
-        .flatMap { it.walkTopDown().filter { f -> f.isFile && f.extension in setOf("kt", "java") } }
-        .sortedBy { it.path }
+    private val sources: List<File> = SourceLayout.jvmFiles()
 
     @Test
     fun `the sources exist and this test is actually looking at them`() {

@@ -1,16 +1,15 @@
 package dev.lain.claudejb.controller.mcp
 
+import dev.lain.claudejb.SourceLayout
 import dev.lain.claudejb.model.session.launch.IdeRule
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.io.File
 
 class IdeRuleCoverageContractTest {
 
-    private val declared: Set<String> = File("src/main/kotlin/dev/lain/claudejb/controller/mcp/tools")
-        .walkTopDown()
-        .filter { it.isFile && it.extension == "kt" }
+    private val declared: Set<String> = SourceLayout.kotlinFiles()
+        .filter { "${SourceLayout.packagePath(it)}/".startsWith("controller/mcp/tools/") }
         .flatMap { SPEC_NAME.findAll(it.readText()).map { match -> match.groupValues[1] } }
         .toSet()
 

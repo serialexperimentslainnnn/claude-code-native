@@ -7,8 +7,8 @@ import java.io.File
 
 class PackageDependencyContractTest {
 
-    private val imports: List<Import> = MainSources.files().flatMap { file ->
-        val from = layerOf(packageOf(file))
+    private val imports: List<Import> = SourceLayout.kotlinFiles().flatMap { file ->
+        val from = layerOf(SourceLayout.packagePath(file))
         MainSources.codeOf(file)
             .map { it.trim() }
             .filter { it.startsWith(IMPORT_PREFIX) }
@@ -17,13 +17,13 @@ class PackageDependencyContractTest {
 
     @Test
     fun `the scan sees the whole tree`() {
-        assertTrue(MainSources.files().size >= MIN_SOURCES) { "only ${MainSources.files().size} sources found" }
+        assertTrue(SourceLayout.kotlinFiles().size >= MIN_SOURCES) { "only ${SourceLayout.kotlinFiles().size} sources found" }
         assertTrue(imports.size >= MIN_IMPORTS) { "only ${imports.size} in-repo imports found" }
     }
 
     @Test
     fun `every package sits in a declared layer`() {
-        val orphans = MainSources.files().map { packageOf(it) }.distinct().filter { layerOf(it) == null }
+        val orphans = SourceLayout.kotlinFiles().map { SourceLayout.packagePath(it) }.distinct().filter { layerOf(it) == null }
         assertEquals(emptyList<String>(), orphans) {
             "A package exists that no layer claims; add it to LAYERS with the layers it may import."
         }
@@ -33,7 +33,7 @@ class PackageDependencyContractTest {
     fun `every layer imports only the layers below it`() {
         val offenders = imports
             .filter { it.from != null && it.to != null && it.to != it.from && it.to !in ALLOWED.getValue(it.from) }
-            .map { "${it.file.relativeTo(MainSources.root(SOURCE_ROOT))}: ${it.from} -> ${it.to}" }
+            .map { "${SourceLayout.pathInRoot(it.file)}: ${it.from} -> ${it.to}" }
         assertEquals(emptyList<String>(), offenders) {
             "A layer reaches above itself. model/ never imports controller/ or view/, controller/session and " +
                 "controller/mcp open diff editors and nothing else of view/, and the wire and the guard stay below everything: the " +
@@ -43,8 +43,8 @@ class PackageDependencyContractTest {
 
     @Test
     fun `the wire and the guard know nothing of the platform`() {
-        val offenders = MainSources.files()
-            .filter { file -> PLATFORM_FREE.any { packageOf(file).startsWith(it) } }
+        val offenders = SourceLayout.kotlinFiles()
+            .filter { file -> PLATFORM_FREE.any { SourceLayout.packagePath(file).startsWith(it) } }
             .flatMap { file ->
                 MainSources.codeOf(file).map { it.trim() }
                     .filter { line -> PLATFORM_IMPORTS.any { line.startsWith("import $it") } }
@@ -56,17 +56,10 @@ class PackageDependencyContractTest {
         }
     }
 
-    private fun packageOf(file: File): String {
-        val rel = file.relativeTo(MainSources.root(SOURCE_ROOT)).invariantSeparatorsPath
-        return rel.removePrefix("$PACKAGE_ROOT/").substringBeforeLast('/', "")
-    }
-
     private data class Import(val file: File, val from: String?, val to: String?)
 
     private companion object {
 
-        const val SOURCE_ROOT = "src/main/kotlin"
-        const val PACKAGE_ROOT = "dev/lain/claudejb"
         const val IMPORT_PREFIX = "import dev.lain.claudejb."
         const val MIN_SOURCES = 100
         const val MIN_IMPORTS = 300
@@ -104,6 +97,9 @@ class PackageDependencyContractTest {
         const val C_BRIDGE = "controller/bridge"
         const val C_COMMANDS = "controller/commands"
         const val C_ACTIONS = "controller/actions"
+        const val RPC = "rpc"
+        const val RPC_BACKEND = "rpc/backend"
+        const val FRONTEND = "frontend"
 
         val MODEL = setOf(PROTOCOL, PERMISSION, BRIDGE, SETTINGS, DIFF, CONTEXT, GIT, VULN, SESSION, MCP, UTIL)
 
@@ -128,10 +124,13 @@ class PackageDependencyContractTest {
             C_GIT to MODEL,
             C_SESSION to MODEL + setOf(C_PROCESS, C_VULN, C_GIT, C_CONTEXT, C_MCP, V_DIFF),
             V_DIFF to MODEL,
-            VIEW to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, C_COMMANDS, C_BRIDGE),
-            C_BRIDGE to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_COMMANDS),
-            C_COMMANDS to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_BRIDGE),
-            C_ACTIONS to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_BRIDGE, C_COMMANDS),
+            VIEW to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, C_COMMANDS, C_BRIDGE, RPC),
+            C_BRIDGE to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_COMMANDS, RPC),
+            C_COMMANDS to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_BRIDGE, RPC),
+            C_ACTIONS to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_BRIDGE, C_COMMANDS, RPC),
+            RPC to setOf(),
+            RPC_BACKEND to MODEL + setOf(C_SESSION, C_GIT, C_VULN, C_PROCESS, C_CONTEXT, V_DIFF, VIEW, C_BRIDGE, C_COMMANDS, RPC),
+            FRONTEND to setOf(RPC),
         )
 
         val PLATFORM_FREE = setOf(PROTOCOL, PERMISSION, BRIDGE, MCP)

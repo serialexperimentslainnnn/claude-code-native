@@ -1,5 +1,6 @@
 package dev.lain.claudejb.view.jcef
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -17,6 +18,11 @@ class RemoteDevApiContractTest {
     )
 
     private val bannedProperty = "idea.platform.prefix"
+
+    @Test
+    fun `the scan sees the sources`() {
+        assertTrue(ktFiles().size >= MIN_SOURCES) { "only ${ktFiles().size} sources found; this contract would pass vacuously" }
+    }
 
     @Test
     fun `no source file asks the platform whether this is remote development`() {
@@ -48,11 +54,9 @@ class RemoteDevApiContractTest {
         }
     }
 
-    private fun ktFiles(): List<File> =
-        sourceRoot().walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+    private fun ktFiles(): List<File> = SourceLayout.kotlinFiles()
 
-    private fun sourceRoot(): File =
-        sequenceOf(File("src/main/kotlin"), File("../src/main/kotlin"))
-            .firstOrNull { it.isDirectory }
-            ?: error("could not locate src/main/kotlin from ${File("").absolutePath}")
+    private companion object {
+        const val MIN_SOURCES = 100
+    }
 }
