@@ -2,6 +2,7 @@ package dev.lain.claudejb.controller.process.auth
 
 import com.pty4j.PtyProcessBuilder
 import dev.lain.claudejb.util.thisLogger
+import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
 
 class ClaudeLoginFlow(
@@ -17,7 +18,9 @@ class ClaudeLoginFlow(
 
         private const val PTY_ROWS = 50
 
-        private const val READ_BUFFER_BYTES = 4096
+        private const val READ_BUFFER_CHARS = 4096
+
+        private const val SCAN_WINDOW_CHARS = 16 * 1024
 
         fun spawnPty(command: List<String>, env: Map<String, String>, cwd: String?): Process {
             val builder = PtyProcessBuilder(command.toTypedArray())
@@ -67,14 +70,14 @@ class ClaudeLoginFlow(
 
     private fun pump(proc: Process, listener: Listener) {
         val acc = StringBuilder()
-        val buf = ByteArray(READ_BUFFER_BYTES)
+        val buf = CharArray(READ_BUFFER_CHARS)
         runCatching {
-            val input = proc.inputStream
+            val input = InputStreamReader(proc.inputStream, StandardCharsets.UTF_8)
             while (true) {
                 val n = input.read(buf)
                 if (n < 0) break
-                acc.append(String(buf, 0, n, StandardCharsets.UTF_8))
-                if (!(urlSeen && promptSeen && tokenSeen)) scan(acc.toString(), listener)
+                acc.append(buf, 0, n)
+                if (!(urlSeen && promptSeen && tokenSeen)) scan(acc.substring(maxOf(0, acc.length - SCAN_WINDOW_CHARS)), listener)
             }
         }.onFailure { log.debug { "login PTY reader stopped: $it" } }
 
