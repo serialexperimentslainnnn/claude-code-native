@@ -132,6 +132,8 @@
         });
       }
       cards.push(diagramCard(p));
+      const stop = actionButton(p);
+      if (stop) cards.push(stop);
     });
 
     const canvas = CC.h('div', { class: 'dg-canvas', style: { width: width + 'px', height: height + 'px' } });
@@ -142,20 +144,14 @@
     return canvas;
   };
 
-  const everSeen: Record<string, true> = {};
-
-  function nowMs(): number {
-    return Math.round(
-      typeof performance !== 'undefined' && performance && typeof performance.now === 'function'
-        ? performance.now()
-        : new Date().getTime()
-    );
-  }
+  const SEEN_MAX = 2000;
+  const everSeen = new Set<string>();
 
   function isNew(node: DiagramNode): boolean {
     const id = node && node.id != null ? String(node.id) : null;
-    if (!id || everSeen[id]) return false;
-    everSeen[id] = true;
+    if (!id || everSeen.has(id)) return false;
+    if (everSeen.size >= SEEN_MAX) everSeen.delete(everSeen.values().next().value as string);
+    everSeen.add(id);
     return true;
   }
 
@@ -177,14 +173,12 @@
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', d);
     path.setAttribute('class', 'dg-edge' + (running ? ' running' : ''));
-    if (running) path.style.animationDelay = '-' + (nowMs() % 1300) + 'ms';
     svg.appendChild(path);
     return path;
   }
 
   function diagramCard(p: Placed): HTMLElement {
     const n = p.node;
-    const action = n.action;
     return CC.h(
       'button',
       {
@@ -193,34 +187,33 @@
           (n.kind ? ' ' + n.kind : '') +
           (n.status ? ' ' + n.status : '') +
           (n.selected ? ' selected' : '') +
+          (n.action ? ' has-action' : '') +
           (p.fresh ? ' dg-pop' : ''),
-        style: {
-          left: p.x + 'px',
-          top: p.y + 'px',
-          width: p.w + 'px',
-          height: NODE_H + 'px',
-          animationDelay: n.status === 'running' ? '-' + (nowMs() % 1300) + 'ms' : null,
-        },
+        style: { left: p.x + 'px', top: p.y + 'px', width: p.w + 'px', height: NODE_H + 'px' },
         attrs: { type: 'button', title: n.title || n.label, 'aria-label': n.name || null },
         on: { click: n.onPick || function () {} },
       },
       n.status ? CC.h('span', { class: 'dg-dot ' + n.status, attrs: { 'aria-hidden': 'true' } }) : null,
       CC.h('span', { class: 'dg-label', text: text(n.label) }),
-      n.meta ? CC.h('span', { class: 'dg-meta', text: String(n.meta) }) : null,
-      action
-        ? CC.h('span', {
-            class: 'btn dg-action',
-            attrs: { role: 'button', tabindex: '0', 'aria-label': action.label },
-            text: action.label,
-            on: {
-              click: function (ev: Event) {
-                ev.preventDefault();
-                ev.stopPropagation();
-                action.onClick();
-              },
-            },
-          })
-        : null
+      n.meta ? CC.h('span', { class: 'dg-meta', text: String(n.meta) }) : null
     );
+  }
+
+  function actionButton(p: Placed): HTMLElement | null {
+    const action = p.node.action;
+    if (!action) return null;
+    return CC.h('button', {
+      class: 'btn dg-action',
+      text: action.label,
+      style: { left: p.x + p.w - 6 + 'px', top: p.y + NODE_H / 2 + 'px' },
+      attrs: { type: 'button', 'aria-label': action.label + ' ' + text(p.node.name || p.node.label) },
+      on: {
+        click: function (ev: Event) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          action.onClick();
+        },
+      },
+    });
   }
 })();

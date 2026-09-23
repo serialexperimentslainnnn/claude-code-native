@@ -107,8 +107,12 @@
     const hash = row.hash;
     const short = G.text(c.short, hash.slice(0, 7));
     const refs = byHash[hash] || [];
-    const meta = [G.textOrNull(c.author), G.ageSince(c.authoredAtMillis), G.fileCount(c.files)].filter(
-      Boolean
+    const at = c.authoredAtMillis;
+    const age = typeof at === 'number' && isFinite(at) && at > 0 ? D.relTime('git', at) : null;
+    const meta = ([G.textOrNull(c.author), age, G.fileCount(c.files)].filter(Boolean) as Child[]).flatMap(
+      function (part, i) {
+        return i ? [' · ', part] : [part];
+      }
     );
     return h(
       'li',
@@ -127,7 +131,7 @@
           }),
           h('span', { class: 'git-subject', text: G.text(c.subject, '(no message)') })
         ),
-        meta.length ? h('div', { class: 'git-meta', text: meta.join(' · ') }) : null,
+        meta.length ? h('div', { class: 'git-meta' }, meta) : null,
         commitActionBar(actions, hash)
       )
     );

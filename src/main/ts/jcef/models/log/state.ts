@@ -6,6 +6,7 @@
   const L = (D.log = D.log || ({} as LogNs));
 
   const LOG_POLL_MS = 1000;
+  const FALLBACK_CAP = 2000;
   const RANK: Record<string, number> = { warn: 0, info: 1, debug: 2 };
 
   L.lines = [];
@@ -57,6 +58,11 @@
     const ring = payload.ring || {};
     L.ring = { max: L.num(ring.max), dropped: L.num(ring.dropped) };
     L.append(added);
+    const excess = L.lines.length - (L.ring.max > 0 ? L.ring.max : FALLBACK_CAP);
+    if (excess > 0) {
+      L.lines.splice(0, excess);
+      L.dropHead(excess);
+    }
   };
 
   L.setVisible = function (visible: boolean): void {

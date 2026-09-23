@@ -30,6 +30,8 @@
     return Math.floor(hours / 24) + 'd ago';
   }
 
+  D.relFormat('vuln', agoText);
+
   V.bullets = function (title: string, list: unknown): HTMLElement | null {
     if (!Array.isArray(list) || !list.length) return null;
     const items: HTMLElement[] = [];
@@ -127,11 +129,12 @@
     if (state === 'scanning') body.push(progressRow(v));
     if (v.report) {
       body.push(
-        h('div', {
-          class: 'vuln-asof',
-          text:
-            'As of ' + whenText(v.report.asOfMillis) + ' · ' + agoText(Date.now() - num(v.report.asOfMillis)),
-        })
+        h(
+          'div',
+          { class: 'vuln-asof' },
+          'As of ' + whenText(v.report.asOfMillis) + ' · ',
+          D.relTime('vuln', num(v.report.asOfMillis))
+        )
       );
     }
     if (v.note && state !== 'scanning') body.push(h('div', { class: 'vuln-note', text: text(v.note) }));

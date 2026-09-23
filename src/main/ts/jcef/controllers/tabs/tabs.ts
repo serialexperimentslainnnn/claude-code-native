@@ -84,11 +84,34 @@
     });
   }
 
+  function focusedPill(rows: HTMLElement): string | null {
+    const active = document.activeElement as HTMLElement | null;
+    if (!active || !rows.contains(active)) return null;
+    if (active.classList.contains('pill-x')) return 'x|' + active.getAttribute('aria-label');
+    const label = active.querySelector('.pill-label');
+    return 'p|' + (label ? label.textContent : '');
+  }
+
+  function refocusPill(rows: HTMLElement, key: string): void {
+    const close = key.charAt(0) === 'x';
+    const wanted = key.slice(2);
+    const nodes = rows.querySelectorAll<HTMLElement>(close ? '.pill-x' : 'button.pill');
+    for (let i = 0; i < nodes.length; i++) {
+      const label = nodes[i].querySelector('.pill-label');
+      const text = close ? nodes[i].getAttribute('aria-label') : label ? label.textContent : '';
+      if (text === wanted) {
+        nodes[i].focus({ preventScroll: true });
+        return;
+      }
+    }
+  }
+
   function render(): void {
     const bar = T.bar();
     if (!bar) return;
     T.pruneSelection();
-    if (T.drawnSignature() === T.drawn && bar.querySelector('.tab-row')) return;
+    const signature = T.drawnSignature();
+    if (signature === T.drawn && bar.querySelector('.tab-row')) return;
     let rows = bar.querySelector<HTMLElement>('.tab-rows');
     if (!rows) {
       rows = h('div', { class: 'tab-rows' });
@@ -103,6 +126,7 @@
       const owner = el.getAttribute('data-branch');
       if (owner) priorBranchScroll[owner] = el.scrollLeft;
     });
+    const refocus = focusedPill(rows);
     while (rows.firstChild) rows.removeChild(rows.firstChild);
     const host = rows;
     lastCentred = centred;
@@ -170,8 +194,9 @@
     });
 
     bar.hidden = !chatPills.length && !work.length;
+    if (refocus) refocusPill(host, refocus);
 
-    T.drawn = T.drawnSignature();
+    T.drawn = signature;
   }
 
   c.tabs = function (payload?: unknown): void {

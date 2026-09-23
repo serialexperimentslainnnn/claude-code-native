@@ -80,7 +80,10 @@
 }
 
 .dg-card.running {
-  animation: toolRun 1.3s ease-in-out infinite;
+  border-color: color-mix(in srgb, var(--info) 60%, var(--border));
+}
+.dg-card.has-action {
+  padding-right: 58px;
 }
 .dg-card.completed {
   border-color: color-mix(in srgb, var(--success) 55%, var(--border));
@@ -113,24 +116,9 @@
 .dg-card.dg-pop {
   animation: dgPop 0.22s var(--ease) 0.24s both;
 }
-.dg-card.dg-pop.running {
-  animation:
-    dgPop 0.22s var(--ease) 0.24s both,
-    toolRun 1.3s ease-in-out 0.46s infinite;
-}
 
 .dg-edge.running {
   stroke: color-mix(in srgb, var(--info) 70%, transparent);
-  animation: edgeRun 1.3s ease-in-out infinite;
-}
-@keyframes edgeRun {
-  0%,
-  100% {
-    stroke: color-mix(in srgb, var(--info) 75%, transparent);
-  }
-  50% {
-    stroke: color-mix(in srgb, var(--warning) 75%, transparent);
-  }
 }
 .dg-label {
   min-width: 0;
@@ -149,8 +137,9 @@
   white-space: nowrap;
 }
 .dg-action {
+  position: absolute;
   flex: 0 0 auto;
-  margin-left: auto;
+  transform: translate(-100%, -50%);
   padding: 2px 8px;
   font-size: 10.5px;
 }

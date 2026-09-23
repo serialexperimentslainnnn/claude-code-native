@@ -53,18 +53,21 @@
       apply();
     }
 
-    function fitOrRestore(): void {
+    function restore(): boolean {
       const saved = key ? viewState[key] : undefined;
-      if (saved) {
-        at.x = saved.x;
-        at.y = saved.y;
-        zoom = saved.zoom;
-        apply();
-        return;
-      }
-      fit();
+      if (!saved) return false;
+      at.x = saved.x;
+      at.y = saved.y;
+      zoom = saved.zoom;
+      apply();
+      return true;
+    }
+
+    function fitOrRestore(): void {
+      if (!restore()) fit();
     }
     view.__fit = fitOrRestore;
+    restore();
 
     function onDrag(ev: MouseEvent): void {
       if (!from) return;

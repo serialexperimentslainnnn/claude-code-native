@@ -76,12 +76,11 @@
     if (!canvas) return control ? card('Workloads', [control, emptyNote()], true, 'workloads') : null;
     const view = CC.panView(canvas, 'Workloads diagram — drag to move, wheel to zoom', 'workloads');
     requestAnimationFrame(function () {
-      if (view.__fit) view.__fit();
-      requestAnimationFrame(function () {
-        if (view.__fit) view.__fit();
-      });
+      if (view.__fit && view.isConnected) view.__fit();
     });
-    return card('Workloads', [control, view], true, 'workloads');
+    const built = card('Workloads', [control, view], true, 'workloads');
+    if (built) built.setAttribute('data-sig', JSON.stringify([roots, payload.workloadWindow || null]));
+    return built;
   }
 
   function emptyNote(): HTMLElement {

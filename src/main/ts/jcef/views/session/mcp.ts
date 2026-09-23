@@ -65,9 +65,9 @@
     return h(
       'div',
       { class: 'mcp-tools' },
-      h('span', {
+      h('button', {
         class: 'btn',
-        attrs: { role: 'button', tabindex: '0', title: 'Ask the binary for the servers it sees now' },
+        attrs: { type: 'button', title: 'Ask the binary for the servers it sees now' },
         text: 'Refresh',
         on: {
           click: function (ev: Event) {
@@ -78,6 +78,21 @@
         },
       })
     );
+  }
+
+  function onReconnect(ev: Event): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const btn = ev.currentTarget as HTMLElement;
+    send({ type: 'mcpReconnect', name: btn.getAttribute('data-server') });
+  }
+
+  function onToggle(ev: Event): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const btn = ev.currentTarget as HTMLElement;
+    const enabled = btn.getAttribute('aria-checked') === 'true';
+    send({ type: 'mcpToggle', name: btn.getAttribute('data-server'), enabled: !enabled });
   }
 
   function buildMcpCard(payload: unknown): HTMLElement | null {
@@ -95,37 +110,25 @@
       if (extra) dotClass += ' ' + extra;
 
       const disabled = statusLower === 'disabled';
-      const enabledNext = disabled;
 
-      const reconnectBtn = h('span', {
+      const reconnectBtn = h('button', {
         class: 'btn',
-        attrs: { role: 'button', tabindex: '0' },
+        attrs: { type: 'button', 'data-server': srv.name, 'aria-label': 'Reconnect ' + srv.name },
         text: 'Reconnect',
-        on: {
-          click: function (ev: Event) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            send({ type: 'mcpReconnect', name: srv.name });
-          },
-        },
+        on: { click: onReconnect },
       });
 
-      const toggleEl = h('span', {
+      const toggleEl = h('button', {
         class: disabled ? 'toggle' : 'toggle on',
         attrs: {
+          type: 'button',
           role: 'switch',
-          tabindex: '0',
+          'data-server': srv.name,
           'aria-checked': disabled ? 'false' : 'true',
-          'aria-label': disabled ? 'Enable server' : 'Disable server',
+          'aria-label': srv.name + ' enabled',
         },
         title: disabled ? 'Enable' : 'Disable',
-        on: {
-          click: function (ev: Event) {
-            ev.preventDefault();
-            ev.stopPropagation();
-            send({ type: 'mcpToggle', name: srv.name, enabled: enabledNext });
-          },
-        },
+        on: { click: onToggle },
       });
 
       rows.push(

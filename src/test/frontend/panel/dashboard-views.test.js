@@ -228,7 +228,8 @@ describe('dashboard views', () => {
       const task = panel().querySelector('.dg-card.task');
       expect(parseFloat(task.style.width)).toBe(230);
       expect(task.querySelector('.dg-meta')).not.toBeNull();
-      expect(task.textContent).toContain('Stop');
+      expect(task.nextElementSibling.textContent).toBe('Stop');
+      expect(task.querySelector('button, [role="button"]')).toBeNull();
       expect(shrinkOf('.dg-meta')).toBeGreaterThan(0);
       expect(rule('.dg-meta')).toMatch(/min-width:\s*0/);
       expect(shrinkOf('.dg-action')).toBe(0);
@@ -422,8 +423,13 @@ describe('dashboard views', () => {
     openView('workloads');
     const tasks = panel().querySelectorAll('.dg-card.task');
     expect(tasks.length).toBe(2);
-    expect(tasks[0].textContent).toContain('Stop');
-    expect(tasks[1].textContent).not.toContain('Stop');
+    const actionAfter = (card) => {
+      const next = card.nextElementSibling;
+      return next && next.classList.contains('dg-action') ? next : null;
+    };
+    expect(actionAfter(tasks[0]).textContent).toBe('Stop');
+    expect(actionAfter(tasks[0]).tagName).toBe('BUTTON');
+    expect(actionAfter(tasks[1])).toBeNull();
     expect(tasks[1].classList.contains('completed')).toBe(true);
   });
 

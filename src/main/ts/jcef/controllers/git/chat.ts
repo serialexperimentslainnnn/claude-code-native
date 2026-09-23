@@ -143,6 +143,12 @@
     if (!drawn) draw();
   };
 
+  cc.setGitSubView = function (view?: unknown): void {
+    if ((view === 'chat' || view === 'overview') && typeof D.setGitSubView === 'function') {
+      D.setGitSubView(view);
+    }
+  };
+
   cc.gitChat = function (payload?: unknown): void {
     last =
       payload && typeof payload === 'object' ? (payload as { rows?: unknown; starting?: boolean }) : null;

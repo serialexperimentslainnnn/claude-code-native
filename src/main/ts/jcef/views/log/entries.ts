@@ -42,6 +42,11 @@
     if (atTail) list.scrollTop = list.scrollHeight;
   };
 
+  L.dropHead = function (count: number): void {
+    const list = L.list();
+    for (let i = 0; i < count && list.firstChild; i++) list.removeChild(list.firstChild);
+  };
+
   L.reset = function (): void {
     const list = L.list();
     while (list.firstChild) list.removeChild(list.firstChild);

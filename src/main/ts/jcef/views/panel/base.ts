@@ -76,6 +76,40 @@
       .replace(/^-|-$/g, '');
   }
 
+  const RELATIVE_TICK_MS = 30000;
+  const relFormats: Record<string, (ms: number) => string | null> = {};
+  let relTimer = 0;
+
+  function relText(node: Element): string {
+    const format = relFormats[node.getAttribute('data-rel') || ''];
+    const at = Number(node.getAttribute('data-at'));
+    return (format && isFinite(at) && format(Date.now() - at)) || '';
+  }
+
+  function refreshRelative(): void {
+    const nodes = document.querySelectorAll('[data-rel]');
+    if (!nodes.length) {
+      window.clearInterval(relTimer);
+      relTimer = 0;
+      return;
+    }
+    for (let i = 0; i < nodes.length; i++) {
+      const next = relText(nodes[i]);
+      if (nodes[i].textContent !== next) nodes[i].textContent = next;
+    }
+  }
+
+  D.relFormat = function (kind: string, format: (ms: number) => string | null): void {
+    relFormats[kind] = format;
+  };
+
+  D.relTime = function (kind: string, atMillis: number): HTMLElement {
+    const node = h('span', { class: 'rel-time', attrs: { 'data-rel': kind, 'data-at': String(atMillis) } });
+    node.textContent = relText(node);
+    if (!relTimer) relTimer = window.setInterval(refreshRelative, RELATIVE_TICK_MS);
+    return node;
+  };
+
   D.core = core;
   D.conversation = conversation;
   D.appRoot = appRoot;

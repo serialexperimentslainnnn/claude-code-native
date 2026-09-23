@@ -123,7 +123,6 @@ interface GitNs {
   actionButton(action: GitAction): HTMLElement;
   gutter(row: LaneRow, lanes: number): HTMLElement;
   fileCount(n: unknown): string | null;
-  ageSince(atMillis: unknown): string | null;
   ageText(ms: unknown): string | null;
 }
 
@@ -285,6 +284,7 @@ interface LogNs {
   list(): HTMLElement;
   lineNode(line: LogLine): HTMLElement;
   append(lines: LogLine[]): void;
+  dropHead(count: number): void;
   reset(): void;
   applyFilter(): void;
 }
@@ -326,6 +326,8 @@ interface DashNs {
   statRow(label: string, value: unknown): HTMLElement | null;
   card(title: string, body: unknown, wide?: boolean, anchor?: string): HTMLElement | null;
   leaveDashboard(): void;
+  relFormat(kind: string, format: (ms: number) => string | null): void;
+  relTime(kind: string, atMillis: number): HTMLElement;
   buildPlanCard(plan: unknown): HTMLElement | null;
   buildUsageCard(usage: unknown): HTMLElement | null;
   buildContextCard(ctx: unknown): HTMLElement | null;

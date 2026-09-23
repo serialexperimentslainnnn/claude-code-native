@@ -44,11 +44,6 @@
     return Math.round(n) === 1 ? '1 file' : Math.round(n) + ' files';
   };
 
-  G.ageSince = function (atMillis: unknown): string | null {
-    if (typeof atMillis !== 'number' || !isFinite(atMillis) || atMillis <= 0) return null;
-    return G.ageText(Date.now() - atMillis);
-  };
-
   G.ageText = function (ms: unknown): string | null {
     if (typeof ms !== 'number' || !isFinite(ms) || ms < 0) return null;
     const mins = Math.floor(ms / 60000);
@@ -62,6 +57,8 @@
     if (months < 12) return months + 'mo ago';
     return Math.floor(days / 365) + 'y ago';
   };
+
+  D.relFormat('git', G.ageText);
 
   function buildGitHeadCard(git: unknown): HTMLElement | null {
     const g = G.gitOf(git);

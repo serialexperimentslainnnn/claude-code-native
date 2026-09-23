@@ -30,6 +30,9 @@
   font-size: 11px;
   line-height: 1.35;
 }
+.rel-time {
+  white-space: nowrap;
+}
 .git-files {
   margin: 4px 0 0;
   padding: 0;
