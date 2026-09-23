@@ -3,13 +3,13 @@ import dev.detekt.gradle.Detekt
 import dev.detekt.gradle.DetektCreateBaselineTask
 import dev.detekt.gradle.extensions.DetektExtension
 
-val pluginModules = listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal")
+val pluginModules = listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks")
 
 configure<DetektExtension> {
     buildUponDefaultConfig.set(true)
     config.setFrom(files("config/detekt/detekt.yml"))
     baseline.set(file("config/detekt/baseline.xml"))
-    source.setFrom(pluginModules.map { "$it/src/main/kotlin" } + "src/test/kotlin")
+    source.setFrom(pluginModules.map { "$it/src/main/kotlin" } + "src/main/kotlin" + "src/test/kotlin")
     parallel.set(true)
 }
 
