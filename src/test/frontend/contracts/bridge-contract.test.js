@@ -21,6 +21,7 @@ function scanCalls(sources) {
     code.split('\n').forEach((line, index) => {
       for (const match of line.matchAll(BRIDGE_CALL)) {
         const name = match[1] || match[2];
+        if (name.charAt(0) === '$') continue;
         if (!calls.has(name)) calls.set(name, new Set());
         calls.get(name).add(`${file}:${index + 1}`);
       }
@@ -87,6 +88,12 @@ describe('Kotlin↔JS bridge — every host call reaches a real implementation',
 
     expect(fallbacks).not.toEqual([]);
     expect(fallbacks.filter((m) => !isNoOp(m[2])).map((m) => `cc.${m[1]}`)).toEqual([]);
+  });
+
+  it('skips a Kotlin string template, which names no method', () => {
+    const calls = scanCalls([{ file: 'Host.kt', text: 'exec("window.cc.$method && window.cc.$method($json)")' }]);
+
+    expect([...calls.keys()]).toEqual([]);
   });
 
   it('reads a push by method name with strict JSON as a call too', () => {

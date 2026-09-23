@@ -56,10 +56,14 @@ describe('cc.append', () => {
     const frames = [];
     win.requestAnimationFrame = (fn) => frames.push(fn);
     win.cc.batch([row(1, 0, 'ASSISTANT', 'Hello', { state: 'RUNNING' })]);
+    frames.length = 0;
+    const render = vi.spyOn(win.CC.transcript, 'setBody');
     win.cc.append({ id: 1, delta: ', wor' });
     win.cc.append({ id: 1, delta: 'ld' });
     expect(frames.length).toBe(1);
-    frames[0]();
+    expect(render).not.toHaveBeenCalled();
+    frames.shift()();
+    expect(render).toHaveBeenCalledTimes(1);
     expect(body(win).textContent).toBe('Hello, world');
   });
 
@@ -69,7 +73,7 @@ describe('cc.append', () => {
     win.cc.batch([row(1, 0, 'ASSISTANT', 'final')]);
     win.cc.append({ id: 1, delta: ' extra' });
     win.cc.append({ id: 9, delta: 'x' });
-    expect(body(win).textContent).toBe('final');
+    expect(body(win).textContent.trim()).toBe('final');
   });
 
   it('settles with full markdown when the batch that closes it carries the same text', () => {
@@ -94,7 +98,7 @@ describe('cc.batch', () => {
       },
     });
     win.cc.batch([row(1, 0, 'USER', 'first'), bad, row(3, 2, 'USER', 'third')]);
-    const bodies = [...win.document.querySelectorAll('.msg.user .body')].map((b) => b.textContent);
+    const bodies = [...win.document.querySelectorAll('.msg.user .body')].map((b) => b.textContent.trim());
     expect(bodies).toEqual(['first', 'third']);
     expect(sent.some((m) => m.type === 'diag' && /boom/.test(m.report))).toBe(true);
   });

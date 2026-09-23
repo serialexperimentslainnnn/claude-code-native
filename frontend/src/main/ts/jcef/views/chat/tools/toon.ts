@@ -33,6 +33,9 @@
 
   function lineOf(row: Row): unknown {
     if (row.line != null) return row.line;
+    if ('from' in row || 'to' in row || 'text' in row) {
+      return typeof row.from === 'number' && row.from > 1 ? row.from : null;
+    }
     if (typeof row.lines === 'number') return row.lines;
     if (typeof row.lines !== 'string') return null;
     const first = row.lines.trim().split(/\s+/)[0];
