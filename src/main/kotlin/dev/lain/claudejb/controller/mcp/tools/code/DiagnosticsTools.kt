@@ -1,8 +1,5 @@
 package dev.lain.claudejb.controller.mcp.tools.code
 
-import com.intellij.analysis.problemsView.FileProblem
-import com.intellij.analysis.problemsView.Problem
-import com.intellij.analysis.problemsView.ProblemsCollector
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewTab
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
 import com.intellij.openapi.application.EDT
@@ -44,7 +41,7 @@ internal class DiagnosticsTools(
     private suspend fun problemsOne(args: ToolArgs): JsonObject {
         val path = args.string("path")
         val severity = Severities.minimum(args)
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_PROBLEMS)
         val (file, document) = readAction {
             val file = ReadTools.resolveFile(project, path)
             file to Locations.document(project, file)
@@ -75,22 +72,11 @@ internal class DiagnosticsTools(
     }
 
     private suspend fun projectProblems(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_PROBLEMS)
         val group = args.optionalString("group")
-        val (rows, total) = withContext(Dispatchers.EDT) {
-            val collector = ProblemsCollector.getInstance(project)
-            val all = collector.getProblemFiles().flatMap { collector.getFileProblems(it) } + collector.getOtherProblems()
-            val matching = all.filter { group == null || it.group?.contains(group, ignoreCase = true) == true }
-            matching.take(max).map(::row) to matching.size
-        }
+        val snapshot = readAction { ProjectProblems.snapshot(project, group, max) }
         if (reveal.mirroring) reveal.problems("")
-        return ToolResult.toon(
-            buildJsonObject {
-                put("count", total)
-                put("truncated", total > rows.size)
-                put("problems", buildJsonArray { rows.forEach { add(it) } })
-            },
-        )
+        return ToolResult.toon(snapshot.toJson(max))
     }
 
     private suspend fun problemsView(args: ToolArgs): ToolResult {
@@ -137,18 +123,10 @@ internal class DiagnosticsTools(
         tabs.firstOrNull { it.id.equals(name, ignoreCase = true) || it.name.equals(name, ignoreCase = true) }
             ?: throw ToolException("no Problems tab named $name; the tabs are ${tabs.joinToString { it.id }}")
 
-    private fun row(problem: Problem): JsonObject = buildJsonObject {
-        val inFile = problem as? FileProblem
-        put("file", inFile?.let { Locations.relative(project, it.file) } ?: "")
-        put("line", inFile?.line?.takeIf { it >= 0 }?.plus(1) ?: 0)
-        put("column", inFile?.column?.takeIf { it >= 0 }?.plus(1) ?: 0)
-        put("group", problem.group ?: "")
-        put("message", problem.text)
-    }
-
     companion object {
 
         private const val DEFAULT_MAX = 100
+        private const val MAX_PROBLEMS = 500
         private val WHITESPACE = Regex("\\s+")
 
         val PROBLEMS = ToolSpec(
@@ -157,18 +135,20 @@ internal class DiagnosticsTools(
                 "that raised each. Opens the file in an editor tab, since the IDE analyses open files.",
             listOf(
                 Param("path", "File path, absolute or relative to the project root", required = false),
-                Batch.paths("every touched file in one call"),
+                Batch.paths("every touched file in one call; files with nothing to report are folded into one clean line"),
                 Severities.PARAM,
-                Param("max", "Maximum problems to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("problems", DEFAULT_MAX, MAX_PROBLEMS),
             ),
+            parallel = false,
         )
 
         val PROJECT_PROBLEMS = ToolSpec(
             "project_problems",
-            "Everything the Problems view lists right now across the project: file problems with their positions, " +
-                "and problems with no file. Filter by group to isolate what one inspection family or plugin reports.",
+            "Everything the Problems view lists right now across the project: one entry per file with its problems " +
+                "(line and message), then the problems with no file under other. Filter by group to isolate what one " +
+                "inspection family or plugin reports.",
             listOf(
-                Param("max", "Maximum problems to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("problems", DEFAULT_MAX, MAX_PROBLEMS),
                 Param("group", "Only problems whose group contains this text, e.g. an inspection family or a plugin", required = false),
             ),
         )
