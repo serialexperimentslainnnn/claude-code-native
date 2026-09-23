@@ -23,7 +23,11 @@ class PromptQueueTest {
         canSend = { ready },
         onSent = {},
         fireState = { stateFired++ },
+        offload = { job -> if (holdWrites) held.add(job) else job.run() },
     )
+
+    private var holdWrites = false
+    private val held = mutableListOf<Runnable>()
 
     private fun sessionReady() {
         ready = true
@@ -67,6 +71,25 @@ class PromptQueueTest {
         queue.pump()
         assertEquals(emptyList<String>(), queue.queued())
         assertEquals(listOf("lost?"), transcript.entries.map { it.text })
+    }
+
+    @Test
+    fun `a write still in flight holds the next prompt back and keeps the row until it lands`() {
+        holdWrites = true
+        queue.enqueue("first", emptyList(), "first")
+        queue.enqueue("second", emptyList(), "second")
+
+        assertEquals(1, held.size)
+        assertEquals(listOf("first", "second"), queue.queued())
+        assertEquals(emptyList<String>(), transcript.entries.map { it.text })
+
+        held.removeAt(0).run()
+        assertEquals(listOf("first"), transcript.entries.map { it.text })
+        assertEquals(1, held.size)
+
+        held.removeAt(0).run()
+        assertEquals(listOf("first", "second"), transcript.entries.map { it.text })
+        assertEquals(listOf(true, true), listOf("first" in written[0], "second" in written[1]))
     }
 
     @Test
