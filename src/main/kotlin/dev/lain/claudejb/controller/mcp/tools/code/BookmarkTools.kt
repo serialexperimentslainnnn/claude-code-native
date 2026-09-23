@@ -5,7 +5,6 @@ import com.intellij.ide.bookmark.BookmarkType
 import com.intellij.ide.bookmark.BookmarksManager
 import com.intellij.ide.bookmark.FileBookmark
 import com.intellij.ide.bookmark.LineBookmark
-import com.intellij.ide.bookmark.providers.LineBookmarkProvider
 import com.intellij.ide.projectView.ProjectView
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
@@ -91,7 +90,7 @@ internal class BookmarkTools(private val project: Project, private val reveal: R
     }
 
     private fun bookmark(file: VirtualFile, line: Int): Bookmark? =
-        LineBookmarkProvider.Util.find(project)?.createBookmark(file, line - 1) ?: manager().createBookmark(file)
+        LineBookmarks.of(project)?.create(file, line - 1) ?: manager().createBookmark(file)
 
     private suspend fun remove(args: ToolArgs): ToolResult {
         val path = args.string("path")

@@ -1,6 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.extensions.intellijPlatform
 
-rootProject.name = "claude-code-native"
+rootProject.name = "dev.lain.claudejb"
 
 pluginManagement {
     repositories {
@@ -29,4 +29,4 @@ dependencyResolutionManagement {
     }
 }
 
-include("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal")
+include("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks")

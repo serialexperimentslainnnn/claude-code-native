@@ -15,9 +15,10 @@ internal object SourceLayout {
         "java" to "dev.lain.claudejb.java",
         "intellilang" to "dev.lain.claudejb.intellilang",
         "terminal" to "dev.lain.claudejb.terminal",
+        "bookmarks" to "dev.lain.claudejb.bookmarks",
     )
 
-    private val MODULES = listOf("backend", "frontend", "shared", "git", "github", "java", "intellilang", "terminal", "")
+    private val MODULES = listOf("backend", "frontend", "shared", "git", "github", "java", "intellilang", "terminal", "bookmarks", "")
 
     fun roots(kind: String): List<File> = MODULES.mapNotNull { dir("${prefix(it)}src/main/$kind") }
 

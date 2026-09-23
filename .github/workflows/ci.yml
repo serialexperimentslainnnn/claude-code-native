@@ -522,7 +522,7 @@ jobs:
         run: |
           zip=$(ls build/distributions/*.zip)
           unzip -o -q "$zip" -d /tmp/artifact
-          ls /tmp/artifact/*/lib/claude-code-native-*.jar /tmp/artifact/*/lib/modules/dev.lain.claudejb.*.jar 2>/dev/null \
+          ls /tmp/artifact/*/lib/dev.lain.claudejb-*.jar /tmp/artifact/*/lib/modules/dev.lain.claudejb.*.jar 2>/dev/null \
             | grep -v searchableOptions > /tmp/jars.txt || true
           if [ "$(wc -l < /tmp/jars.txt)" -lt 4 ]; then
             echo "::error::expected the plugin jar and the shared, frontend and backend module jars"
@@ -534,7 +534,7 @@ jobs:
             unzip -Z -1 "$jar" | grep -v '/$' \
               | grep -vE '^dev/lain/claudejb/.*\.class$' \
               | grep -vE '^META-INF/' \
-              | grep -vE '^dev\.lain\.claudejb\.(shared|frontend|backend)\.xml$' \
+              | grep -vE '^dev\.lain\.claudejb\.(shared|frontend|backend|git|github|java|intellilang|terminal|bookmarks)\.xml$' \
               | grep -vE '^icons/[^/]+\.svg$' \
               | grep -vE '^jcef/(.+\.(js|html)|css/.+\.css)$' >> /tmp/unexpected.txt || true
           done < /tmp/jars.txt
@@ -565,7 +565,7 @@ jobs:
 
           zip=$(ls build/distributions/*.zip)
           unzip -o -q "$zip" -d /tmp/dist
-          jar=$(ls /tmp/dist/*/lib/claude-code-native-*.jar | grep -v searchableOptions | head -1)
+          jar=$(ls /tmp/dist/*/lib/dev.lain.claudejb-*.jar | grep -v searchableOptions | head -1)
 
           # ONE listing, read by every assertion below. `-Z1` prints one entry name per line, so names are
           # matched WHOLE (`grep -qxF`) instead of as substrings of `unzip -l`'s formatted table — where

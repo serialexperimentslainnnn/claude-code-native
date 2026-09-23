@@ -143,5 +143,6 @@
         <module name="dev.lain.claudejb.java" loading="optional"/>
         <module name="dev.lain.claudejb.intellilang" loading="optional"/>
         <module name="dev.lain.claudejb.terminal" loading="optional"/>
+        <module name="dev.lain.claudejb.bookmarks" loading="optional"/>
     </content>
 </idea-plugin>

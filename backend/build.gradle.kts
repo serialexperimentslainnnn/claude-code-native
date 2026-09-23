@@ -15,7 +15,6 @@ dependencies {
             "intellij.platform.vcs.log",
             "intellij.platform.vcs.log.impl",
             "intellij.platform.smRunner",
-            "intellij.platform.bookmarks",
         )
         bundledPlugin("Git4Idea")
     }
