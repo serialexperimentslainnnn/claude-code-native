@@ -297,6 +297,7 @@ class ProtocolParserTest {
             ProtocolParser.parse("""{"type":"stream_event","event":{"type":"content_block_stop","index":0}}"""),
         )
     }
+
     @Test
     fun `result end of turn carries cost and session`() {
         val line = """{"type":"result","subtype":"success","result":"ok","total_cost_usd":0.12,"session_id":"s9"}"""

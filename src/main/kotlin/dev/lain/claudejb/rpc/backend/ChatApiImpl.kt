@@ -13,9 +13,9 @@ import dev.lain.claudejb.view.window.ChatPresenter
 import dev.lain.claudejb.view.window.ChatRegistry
 import dev.lain.claudejb.view.window.PushSink
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.completeWith
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.completeWith
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow

@@ -44,15 +44,20 @@ internal class ChatSnapshots(private val presenter: ChatPresenter) {
     private fun build(kind: Kind) {
         when (kind) {
             Kind.META -> send(kind, "meta", JcefState.metaJson(session))
+
             Kind.STATE -> send(kind, "state", JcefState.stateJson(session, presenter.feed.usage))
+
             Kind.SESSION -> send(kind, "session", sessionJson())
+
             Kind.MENU -> {
                 send(kind, "settingsMenu", menuJson())
                 build(Kind.THEME)
             }
 
             Kind.THEME -> send(kind, "theme", themeJson())
+
             Kind.PERMISSIONS -> presenter.exec("permissions", permissionsJson())
+
             Kind.TABS -> presenter.agentTabs.render()
         }
     }

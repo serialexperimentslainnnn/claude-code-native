@@ -117,7 +117,13 @@ internal class PushStream(
         )
 
         val TRANSCRIPT_METHODS: Set<String> = setOf(
-            "clear", "batch", "append", "trimRows", "revealAgentTab", "revealTaskTab", "clearAgentSelection",
+            "clear",
+            "batch",
+            "append",
+            "trimRows",
+            "revealAgentTab",
+            "revealTaskTab",
+            "clearAgentSelection",
         )
 
         fun kindOf(method: String): Kind = when (method) {

@@ -16,7 +16,12 @@ class HelperJarTest {
     lateinit var dir: Path
 
     private fun jar(name: String, vararg entries: String): File = File(dir.toFile(), name).apply {
-        JarOutputStream(outputStream()).use { out -> entries.forEach { out.putNextEntry(JarEntry(it)); out.closeEntry() } }
+        JarOutputStream(outputStream()).use { out ->
+            entries.forEach {
+                out.putNextEntry(JarEntry(it))
+                out.closeEntry()
+            }
+        }
     }
 
     @Test

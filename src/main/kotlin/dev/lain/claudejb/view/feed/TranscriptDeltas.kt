@@ -25,9 +25,12 @@ internal class TranscriptDeltas {
             val previous = sent[entry.id]
             when {
                 previous == null || previous.rest != rest -> rows += row
+
                 text.contentEquals(previous.text) -> Unit
+
                 entry.toolState == ToolState.RUNNING && text.length > previous.text.length && text.startsWith(previous.text) ->
                     appends += Append(entry.id, text.substring(previous.text.length))
+
                 else -> rows += row
             }
             sent[entry.id] = Sent(StringBuilder(text), rest)

@@ -41,7 +41,7 @@ class StdoutParseBenchTest {
             while (length < LINE_CHARS) append(BenchText.word(random)).append(' ')
         }
         return "{\"type\":\"assistant\",\"session_id\":\"bench\",\"message\":{\"id\":\"msg_bench\"," +
-                "\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"$text\"}]}}\n"
+            "\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"$text\"}]}}\n"
     }
 
     private companion object {

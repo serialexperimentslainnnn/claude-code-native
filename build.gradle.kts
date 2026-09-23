@@ -98,19 +98,27 @@ val npm = if (System.getProperty("os.name").startsWith("Windows")) "npm.cmd" els
 val fakeClaude: String = file("bin/fake-claude").absolutePath
 
 tasks {
-    val frontendTest = register<Exec>("frontendTest") {
-        dependsOn(":frontend:compileWeb")
-        inputs.dir("src/test/frontend")
-        inputs.dir("frontend/src/main/resources/jcef")
-        inputs.dir("frontend/src/main/ts/jcef")
-        outputs.dir(layout.buildDirectory.dir("reports/frontend"))
-        environment("CI", "true")
-        commandLine(npm, "test")
-    }
+    val frontendTest =
+        register<Exec>("frontendTest") {
+            dependsOn(":frontend:compileWeb")
+            inputs.dir("src/test/frontend")
+            inputs.dir("frontend/src/main/resources/jcef")
+            inputs.dir("frontend/src/main/ts/jcef")
+            outputs.dir(layout.buildDirectory.dir("reports/frontend"))
+            environment("CI", "true")
+            commandLine(npm, "test")
+        }
     check { dependsOn(frontendTest) }
     compileTestKotlin {
         friendPaths.from(pluginModules.map { project(":$it").layout.buildDirectory.dir("classes/kotlin/main") })
-        friendPaths.from(pluginModules.map { project(":$it").layout.buildDirectory.dir("libs").map { libs -> libs.asFileTree } })
+        friendPaths.from(
+            pluginModules.map {
+                project(":$it")
+                    .layout.buildDirectory
+                    .dir("libs")
+                    .map { libs -> libs.asFileTree }
+            },
+        )
     }
     processResources {
         from(file("THIRD-PARTY-NOTICES.md")) { into("META-INF") }

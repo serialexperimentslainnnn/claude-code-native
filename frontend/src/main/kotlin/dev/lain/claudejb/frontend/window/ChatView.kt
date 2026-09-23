@@ -47,7 +47,9 @@ internal class ChatView(
         val message = PageMessage.parse(json)
         when {
             message.type in FrontendChannel.clientMessages -> paste(message.type)
+
             message.type == PageMessage.OPEN && PageMessage.isSecureLink(message.url) -> BrowserUtil.browse(message.url.trim())
+
             else -> {
                 link.post(json)
                 if (message.type == PageMessage.READY) pageReady()

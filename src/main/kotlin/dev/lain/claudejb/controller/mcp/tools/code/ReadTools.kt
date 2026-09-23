@@ -10,12 +10,12 @@ import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.model.mcp.Batch
 import dev.lain.claudejb.model.mcp.OutputBudget
 import dev.lain.claudejb.model.mcp.Param
+import dev.lain.claudejb.model.mcp.TextWindow
 import dev.lain.claudejb.model.mcp.Tool
 import dev.lain.claudejb.model.mcp.ToolArgs
 import dev.lain.claudejb.model.mcp.ToolDomain
 import dev.lain.claudejb.model.mcp.ToolException
 import dev.lain.claudejb.model.mcp.ToolResult
-import dev.lain.claudejb.model.mcp.TextWindow
 import dev.lain.claudejb.model.mcp.ToolSpec
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
