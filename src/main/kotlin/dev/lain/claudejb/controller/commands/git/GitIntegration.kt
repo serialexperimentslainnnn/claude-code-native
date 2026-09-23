@@ -18,13 +18,14 @@ import dev.lain.claudejb.util.edt
 import dev.lain.claudejb.util.logger
 import dev.lain.claudejb.view.git.JcefGitData
 import dev.lain.claudejb.view.git.JcefGitData.ActionState
+import java.util.concurrent.ConcurrentHashMap
 
 @Service(Service.Level.PROJECT)
 internal class GitIntegration(private val project: Project) {
 
     private var snapshot: JcefGitData.Snapshot? = null
 
-    private val states = mutableMapOf<String, ActionState>()
+    private val states = ConcurrentHashMap<String, ActionState>()
 
     private var inFlight: List<() -> Unit>? = null
     private val queued = ArrayList<() -> Unit>()
@@ -127,8 +128,10 @@ internal class GitIntegration(private val project: Project) {
         val session = chat()
         states[id] = ActionState.RUNNING
         onChanged()
-        session.addListener(TurnWatch(id, session, onChanged))
+        val watch = TurnWatch(id, session, onChanged)
+        session.addListener(watch)
         session.send(text)
+        watch.onStateChanged()
     }
 
     private fun subject(): GitActionCatalog.PromptSubject? {
@@ -152,6 +155,10 @@ internal class GitIntegration(private val project: Project) {
 
         override fun onStateChanged() {
             if (session.turn.active) started = true
+            if (started || session.isRunning() || session.lifecycle.isStarting()) return
+            session.removeListener(this)
+            states.remove(id)
+            onChanged()
         }
 
         override fun onAttention(reason: AttentionReason, landing: AttentionLanding) {
