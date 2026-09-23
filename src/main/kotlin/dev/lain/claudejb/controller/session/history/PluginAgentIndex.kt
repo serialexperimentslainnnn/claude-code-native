@@ -1,23 +1,27 @@
 package dev.lain.claudejb.controller.session.history
 
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.util.concurrency.AppExecutorUtil
 import dev.lain.claudejb.model.session.agents.AgentMeta
 import dev.lain.claudejb.model.session.agents.AgentNode
+import dev.lain.claudejb.model.session.history.SessionStore
 import dev.lain.claudejb.model.settings.SecretStore
 import dev.lain.claudejb.model.settings.SettingsScope
 import dev.lain.claudejb.util.logger
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import org.jetbrains.annotations.TestOnly
+import java.util.concurrent.TimeUnit
 
 @Service(Service.Level.PROJECT)
 class PluginAgentIndex internal constructor(
     private val scope: SettingsScope,
     private val basePath: String?,
-) {
+    private val later: (Runnable) -> Unit = ::afterQuietPeriod,
+    private val sessionExists: (String) -> Boolean = SessionStore::exists,
+) : Disposable {
 
     constructor(project: Project) : this(SettingsScope.of(project), project.basePath)
 
@@ -56,6 +60,8 @@ class PluginAgentIndex internal constructor(
 
     private val cache = LinkedHashMap<String, SessionRecord>()
     private var loaded = false
+    private var dirty = false
+    private var flushQueued = false
 
     @Synchronized
     fun admit(sessionId: String, node: AgentNode) {
@@ -150,84 +156,52 @@ class PluginAgentIndex internal constructor(
             cache.putAll(decode(body))
             loaded = true
             if (body.isNotBlank() && !body.contains("\"version\":$FORMAT_VERSION")) flush()
+            val stored = cache.keys.toList()
+            if (stored.isNotEmpty()) later(Runnable { prune(stored) })
         }
         return cache
     }
 
+    private fun prune(stored: List<String>) {
+        val gone = stored.filterNot { runCatching { sessionExists(it) }.getOrDefault(true) }
+        if (gone.isEmpty()) return
+        synchronized(this) {
+            gone.forEach(cache::remove)
+            flush()
+        }
+    }
+
     private fun flush() {
+        dirty = true
+        if (flushQueued) return
+        flushQueued = true
+        later(Runnable { flushNow() })
+    }
+
+    @Synchronized
+    private fun flushNow() {
+        flushQueued = false
+        if (!dirty) return
+        dirty = false
         runCatching { SecretStore.set(scope.agentIndexName, encode(cache)) }
             .onFailure { log.warn("could not persist the agent index", it) }
     }
 
-    companion object {
-        private val JSON = Json {
-            ignoreUnknownKeys = true
-            prettyPrint = true
-            encodeDefaults = true
-        }
+    override fun dispose() = flushNow()
 
+    companion object {
         const val FORMAT_VERSION = 3
+
+        private const val QUIET_PERIOD_MS = 2_000L
+
+        private fun afterQuietPeriod(task: Runnable) {
+            AppExecutorUtil.getAppScheduledExecutorService().schedule(task, QUIET_PERIOD_MS, TimeUnit.MILLISECONDS)
+        }
 
         fun getInstance(project: Project): PluginAgentIndex = project.service()
 
-        fun encode(sessions: Map<String, SessionRecord>): String {
-            val withChildren = sessions.mapValues { (_, rec) ->
-                SessionRecord(
-                    rec.nodes.map { node ->
-                        node.copy(
-                            childs = rec.nodes
-                                .filter { it.parent?.id == node.id }
-                                .map { Ref(it.type, it.id) },
-                        )
-                    },
-                )
-            }
-            return runCatching { JSON.encodeToString(Index(FORMAT_VERSION, withChildren)) }.getOrDefault("")
-        }
+        fun encode(sessions: Map<String, SessionRecord>): String = AgentIndexCodec.encode(sessions)
 
-        fun decode(text: String): LinkedHashMap<String, SessionRecord> {
-            val out = LinkedHashMap<String, SessionRecord>()
-            if (text.isBlank()) return out
-            runCatching { JSON.decodeFromString<Index>(text) }.getOrNull()?.let { index ->
-                if (index.sessions.isNotEmpty()) {
-                    index.sessions.forEach { (id, rec) -> out[id] = rec.normalised(id) }
-                    return out
-                }
-            }
-            runCatching { JSON.decodeFromString<Map<String, List<LegacyRecord>>>(text) }.getOrNull()
-                ?.forEach { (id, legacy) ->
-                    out[id] = SessionRecord(
-                        legacy.map {
-                            Node(
-                                type = Kind.AGENT,
-                                id = AgentMeta.bareAgentId(it.agentId),
-                                parent = Ref(Kind.CHAT, id),
-                                open = it.open,
-                                closedByUser = it.closedByUser,
-                            )
-                        },
-                    ).normalised(id)
-                }
-            return out
-        }
-
-        @Serializable
-        private data class LegacyRecord(
-            val agentId: String,
-            val open: Boolean = true,
-            val closedByUser: Boolean = false,
-        )
-
-        private fun SessionRecord.normalised(sessionId: String): SessionRecord {
-            val seen = LinkedHashMap<String, Node>()
-            nodes.forEach { n ->
-                val id = if (n.type == Kind.TASK) n.id else AgentMeta.bareAgentId(n.id)
-                val parent = n.parent?.let {
-                    if (it.type == Kind.CHAT) Ref(Kind.CHAT, sessionId) else Ref(it.type, AgentMeta.bareAgentId(it.id))
-                }
-                seen.putIfAbsent(id, n.copy(id = id, parent = parent ?: Ref(Kind.CHAT, sessionId)))
-            }
-            return SessionRecord(seen.values.toList())
-        }
+        fun decode(text: String): LinkedHashMap<String, SessionRecord> = AgentIndexCodec.decode(text)
     }
 }
