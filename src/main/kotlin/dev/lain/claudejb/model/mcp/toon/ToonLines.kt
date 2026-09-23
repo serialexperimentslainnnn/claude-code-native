@@ -18,8 +18,12 @@ internal object ToonLines {
         if (options.strict && spaces % options.indentSize != 0) {
             toonError("indentation of line $number is not a multiple of ${options.indentSize}")
         }
-        return Line(number, spaces / options.indentSize + tabs, raw.substring(spaces + tabs))
+        val depth = spaces / options.indentSize + tabs
+        if (depth > MAX_DEPTH) toonError("line $number nests deeper than $MAX_DEPTH levels")
+        return Line(number, depth, raw.substring(spaces + tabs))
     }
+
+    const val MAX_DEPTH = 64
 
     private const val BOM = "﻿"
 }
