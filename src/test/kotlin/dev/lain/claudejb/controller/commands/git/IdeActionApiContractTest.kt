@@ -4,7 +4,6 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.Presentation
-import com.intellij.openapi.project.Project
 import dev.lain.claudejb.MainSources
 import dev.lain.claudejb.SourceLayout
 import dev.lain.claudejb.model.bridge.JcefBridge
@@ -69,15 +68,15 @@ class IdeActionApiContractTest {
             "ActionUiKind.TOOLBAR is deprecated — IdeActionInvoker names it on every IDE invocation.",
         )
         assertTrue(
-            codeOf("controller/commands/git/IdeActionInvoker.kt").any { "ActionUiKind.TOOLBAR" in it },
-            "IdeActionInvoker no longer names ActionUiKind.TOOLBAR; pin the kind it does name instead of this one.",
+            codeOf("frontend/window/IdeActionRunner.kt").any { "ActionUiKind.TOOLBAR" in it },
+            "IdeActionRunner no longer names ActionUiKind.TOOLBAR; pin the kind it does name instead of this one.",
         )
     }
 
     @Test
-    fun `the project data context and the action lookup are still one call each`() {
-        load("com.intellij.openapi.actionSystem.impl.SimpleDataContext")
-            .getMethod("getProjectContext", Project::class.java)
+    fun `the component data context and the action lookup are still one call each`() {
+        load("com.intellij.ide.DataManager")
+            .getMethod("getDataContext", java.awt.Component::class.java)
             .assertNotDeprecated()
         load("com.intellij.openapi.actionSystem.ActionManager")
             .getMethod("getAction", String::class.java)
@@ -120,11 +119,11 @@ class IdeActionApiContractTest {
     }
 
     @Test
-    fun `IdeActionInvoker invokes actions through performAction and nothing else`() {
-        val source = source("controller/commands/git/IdeActionInvoker.kt")
+    fun `IdeActionRunner invokes actions through performAction and nothing else`() {
+        val source = source("frontend/window/IdeActionRunner.kt")
         assertTrue(
             "ActionUtil.performAction(" in source,
-            "IdeActionInvoker must invoke platform actions through ActionUtil.performAction.",
+            "IdeActionRunner must invoke platform actions through ActionUtil.performAction.",
         )
         assertFalse(
             "ActionUtil.invokeAction(" in source,
@@ -146,15 +145,19 @@ class IdeActionApiContractTest {
 
     @Test
     fun `the IDE invocation is given the tool window's own component, not the project alone`() {
-        val code = codeOf("controller/commands/git/IdeActionInvoker.kt")
         assertTrue(
-            code.any { "ClaudeToolWindowFactory.contextComponent(" in it },
-            "IdeActionInvoker no longer builds its data context from the tool window's component.",
+            codeOf("frontend/window/ChatView.kt").any { "IdeActionRunner.run(component" in it },
+            "The chat view no longer runs IDE actions with its own component as the context.",
         )
         assertTrue(
-            code.any { "DataManager.getInstance().getDataContext(" in it },
-            "IdeActionInvoker no longer asks DataManager for the component's context, so every key the tool " +
+            codeOf("frontend/window/IdeActionRunner.kt").any { "DataManager.getInstance().getDataContext(" in it },
+            "IdeActionRunner no longer asks DataManager for the component's context, so every key the tool " +
                 "window's providers contribute is gone and the actions are back to deciding on one key.",
+        )
+        val invoker = codeOf("controller/commands/git/IdeActionInvoker.kt")
+        assertTrue(
+            invoker.any { "runIdeAction(" in it } && invoker.none { "SimpleDataContext" in it },
+            "IdeActionInvoker must hand the action to the frontend, where the tool window's component lives.",
         )
     }
 

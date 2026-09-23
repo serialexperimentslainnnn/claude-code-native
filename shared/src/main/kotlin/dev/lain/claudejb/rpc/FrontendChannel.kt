@@ -6,6 +6,7 @@ object FrontendChannel {
     const val BROWSE = "frontend.browse"
     const val VIBE = "frontend.vibe"
     const val FOCUS = "frontend.focus"
+    const val ACTION = "frontend.action"
     const val ATTACH_IMAGE = "attachImageData"
 
     val clientMessages: Set<String> = setOf("pasteClipboard", "pasteClipboardImage")

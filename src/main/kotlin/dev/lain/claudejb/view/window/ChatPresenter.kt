@@ -188,6 +188,8 @@ internal class ChatPresenter(
 
     fun copyToClient(text: String) = exec(FrontendChannel.COPY, JcefBridge.jsString(text))
 
+    fun runIdeAction(actionId: String) = exec(FrontendChannel.ACTION, JcefBridge.jsString(actionId))
+
     fun mentionCurrentFile() = tray.addCurrentFile()
 
     fun addAttachment(attachment: Attachment) = tray.add(attachment)

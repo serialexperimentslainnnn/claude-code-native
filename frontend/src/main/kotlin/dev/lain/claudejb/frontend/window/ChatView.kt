@@ -72,6 +72,7 @@ internal class ChatView(
             FrontendChannel.BROWSE -> PageMessage.string(push.json)?.takeIf(PageMessage::isWebLink)?.let { BrowserUtil.browse(it) }
             FrontendChannel.VIBE -> ChatTheme.setVibeMode(push.json.trim() == "true")
             FrontendChannel.FOCUS -> edtNow(onFocusRequest)
+            FrontendChannel.ACTION -> PageMessage.string(push.json)?.let { id -> edtNow { IdeActionRunner.run(component, id) } }
             else -> log.warn("Claude Code host sent a frontend push this client does not know: ${push.method}")
         }
     }
