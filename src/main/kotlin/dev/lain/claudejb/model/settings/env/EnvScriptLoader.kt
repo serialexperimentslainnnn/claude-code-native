@@ -34,8 +34,7 @@ object EnvScriptLoader {
                     "Get-ChildItem Env: | ForEach-Object { \"\$(\$_.Name)=\$(\$_.Value)\" }",
             )
         } else {
-            val shell = System.getenv("SHELL")?.takeIf { it.isNotBlank() } ?: "/bin/bash"
-            GeneralCommandLine(shell, "-lc", ". \"$1\" && env", shell, script.absolutePath)
+            GeneralCommandLine(posixArgv(script.absolutePath))
         }
         cmd.charset = StandardCharsets.UTF_8
         cmd.withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
@@ -54,6 +53,10 @@ object EnvScriptLoader {
             emptyMap()
         }
     }
+
+    internal fun posixArgv(scriptPath: String): List<String> = listOf(POSIX_SH, "-lc", ". \"$1\" && env", "sh", scriptPath)
+
+    private const val POSIX_SH = "/bin/sh"
 
     internal fun parse(dump: String): Map<String, String> =
         dump.lineSequence()
