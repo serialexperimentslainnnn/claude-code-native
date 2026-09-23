@@ -41,6 +41,7 @@ class ConversationEvents(
                 s.tokens.foldIntoSession()
                 s.turn.liveThinkingTokens = 0
                 s.reconciler.onMessageBoundary()
+                s.poll.pollQuota()
             }
 
             is ClaudeEvent.LocalCommandOutput -> edt {

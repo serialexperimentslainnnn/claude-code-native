@@ -35,7 +35,7 @@ class PollSchedule(
 
     private var quotaPollInFlight = false
 
-    private val outputTailTimer = javax.swing.Timer(QUOTA_POLL_MS) { pollLiveOutput() }.apply { isRepeats = true }
+    private val outputTailTimer = javax.swing.Timer(OUTPUT_TAIL_MS) { pollLiveOutput() }.apply { isRepeats = true }
 
     private fun pollLiveOutput() {
         if (!outputTail.anyTailable()) {
@@ -110,7 +110,9 @@ class PollSchedule(
     }
 
     companion object {
-        const val QUOTA_POLL_MS = 1_000
+        const val QUOTA_POLL_MS = 3_000
+
+        const val OUTPUT_TAIL_MS = 1_000
 
         const val AGENT_REVIVAL_POLL_MS = 5_000
 
