@@ -12,7 +12,7 @@
 
         <p>Works in any JetBrains IDE on the <b>2026.2 platform or newer</b> — IntelliJ IDEA, PyCharm,
         WebStorm, PhpStorm, GoLand, RubyMine, CLion, Rider, DataGrip, DataSpell and RustRover — locally,
-        in Remote Development and in Code With Me.</p>
+        in Remote Development, and for the host of a Code With Me session.</p>
 
         <p><em>Unofficial, community-built, open-source plugin. Not affiliated with, sponsored by, or
         endorsed by Anthropic or JetBrains. It requires the user's own separately-installed
@@ -121,7 +121,8 @@
         <ul>
             <li>JetBrains IDE <b>2026.2 or newer</b> (build 262.8665+). Earlier releases are <b>not</b>
                 supported: the plugin is split into a frontend and a backend so that it runs in Remote
-                Development and Code With Me, and 2026.2 is the platform that plugin model targets</li>
+                Development, and 2026.2 is the platform that plugin model targets. In Code With Me the
+                chat is the host's; guests do not get it</li>
             <li><a href="https://claude.ai/code"><code>claude</code> CLI</a> installed and on PATH or
                 <code>~/.local/bin/</code> (<code>npm install -g @anthropic-ai/claude-code</code>)</li>
             <li>A Claude subscription (Pro / Max / Team / Enterprise) or an <code>ANTHROPIC_API_KEY</code></li>

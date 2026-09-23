@@ -15,7 +15,7 @@ plugins {
 }
 
 group = "dev.lain"
-version = "6.0.1"
+version = "6.5.0"
 
 val platformBuild = "262.8665.258"
 val serialization = "1.9.0"
