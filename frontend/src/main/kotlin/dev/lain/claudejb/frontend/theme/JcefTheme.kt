@@ -1,13 +1,13 @@
-package dev.lain.claudejb.view.payload
+package dev.lain.claudejb.frontend.theme
 
-import com.intellij.ide.ui.UISettings
+import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
 import com.intellij.openapi.editor.colors.EditorColorsManager
 import com.intellij.openapi.editor.colors.EditorFontType
+import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.ui.JBColor
 import com.intellij.util.ui.JBUI
 import com.intellij.util.ui.NamedColorUtil
 import com.intellij.util.ui.UIUtil
-import dev.lain.claudejb.view.feed.ChatTheme
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -32,7 +32,7 @@ object JcefTheme {
     private const val SURFACE_NUDGE_UP = 18
     private const val SURFACE_NUDGE_DOWN = -12
 
-    fun vars(reduceMotion: Boolean = false): JsonObject {
+    fun vars(): JsonObject {
         val scheme = EditorColorsManager.getInstance().globalScheme
         val editorBg = scheme.defaultBackground
         val panelBg = UIUtil.getPanelBackground()
@@ -66,17 +66,16 @@ object JcefTheme {
             put("fontFamily", "\"${labelFont.family}\", system-ui, sans-serif")
             put("monoFamily", "\"$monoFamily\", \"JetBrains Mono\", monospace")
             put("fontSize", "${JBUI.scale(BASE_FONT_PX)}px")
-            val syn = { key: com.intellij.openapi.editor.colors.TextAttributesKey, fallback: Color ->
+            val syn = { key: TextAttributesKey, fallback: Color ->
                 hex(scheme.getAttributes(key)?.foregroundColor ?: fallback)
             }
-            put("synKeyword", syn(com.intellij.openapi.editor.DefaultLanguageHighlighterColors.KEYWORD, accent))
-            put("synString", syn(com.intellij.openapi.editor.DefaultLanguageHighlighterColors.STRING, text))
-            put("synComment", syn(com.intellij.openapi.editor.DefaultLanguageHighlighterColors.LINE_COMMENT, dim))
-            put("synNumber", syn(com.intellij.openapi.editor.DefaultLanguageHighlighterColors.NUMBER, text))
-            put("synFunction", syn(com.intellij.openapi.editor.DefaultLanguageHighlighterColors.FUNCTION_DECLARATION, text))
-            put("synType", syn(com.intellij.openapi.editor.DefaultLanguageHighlighterColors.CLASS_NAME, text))
+            put("synKeyword", syn(DefaultLanguageHighlighterColors.KEYWORD, accent))
+            put("synString", syn(DefaultLanguageHighlighterColors.STRING, text))
+            put("synComment", syn(DefaultLanguageHighlighterColors.LINE_COMMENT, dim))
+            put("synNumber", syn(DefaultLanguageHighlighterColors.NUMBER, text))
+            put("synFunction", syn(DefaultLanguageHighlighterColors.FUNCTION_DECLARATION, text))
+            put("synType", syn(DefaultLanguageHighlighterColors.CLASS_NAME, text))
             put("vibe", ChatTheme.vibeMode)
-            put("reducedMotion", reduceMotion)
         }
     }
 
