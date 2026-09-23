@@ -7,26 +7,33 @@
     return node ? '' + ((node as HTMLElement).className || '') : '';
   }
 
-  document.addEventListener(
-    'click',
-    function (ev: MouseEvent) {
-      let node = ev.target as Node | null;
-      while (node && node !== document) {
-        const el = node as HTMLElement;
-        if (el.tagName === 'A' && el.hasAttribute('href')) {
-          const url = el.getAttribute('href');
-          if (url && url !== '#') {
-            ev.preventDefault();
-            ev.stopPropagation();
-            CC.send({ type: 'open', url: url });
-          }
-          return;
-        }
-        node = node.parentNode;
+  const SCHEME = /^[A-Za-z][A-Za-z0-9+.-]+:/;
+
+  function forwardable(url: string): boolean {
+    const u = url.trim();
+    if (/^https?:\/\//i.test(u) || /^jb:\/\//i.test(u)) return true;
+    if (!u || SCHEME.test(u)) return false;
+    return u.charAt(0) !== '#' && !/^[\\/]{2}/.test(u);
+  }
+
+  function onLink(ev: MouseEvent): void {
+    if (ev.type === 'auxclick' && ev.button !== 1) return;
+    let node = ev.target as Node | null;
+    while (node && node !== document) {
+      const el = node as HTMLElement;
+      if (el.tagName === 'A' && el.hasAttribute('href')) {
+        const url = el.getAttribute('href') || '';
+        if (url.trim().charAt(0) === '#' && ev.type === 'click') return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (forwardable(url)) CC.send({ type: 'open', url: url });
+        return;
       }
-    },
-    true
-  );
+      node = node.parentNode;
+    }
+  }
+  document.addEventListener('click', onLink, true);
+  document.addEventListener('auxclick', onLink, true);
 
   function copyTargetText(copyEl: HTMLElement): string {
     let pre: Element | null = copyEl.closest ? copyEl.closest('pre') : null;
