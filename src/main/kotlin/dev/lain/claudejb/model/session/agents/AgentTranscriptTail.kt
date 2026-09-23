@@ -97,7 +97,9 @@ internal class AgentTranscriptTail(private val file: Path) {
                 offset = channel.position() - pending.size()
             }
         }
-        if (head.size < HEAD_BYTES && offset > head.size) head = runCatching { readAt(0, minOf(offset, HEAD_BYTES.toLong()).toInt()) }.getOrDefault(head)
+        if (head.size < HEAD_BYTES && offset > head.size) {
+            head = runCatching { readAt(0, minOf(offset, HEAD_BYTES.toLong()).toInt()) }.getOrDefault(head)
+        }
         trailing = if (pending.size() > 0) SessionTranscriptReader.parseRecord(pending.toString(Charsets.UTF_8)) else null
     }
 

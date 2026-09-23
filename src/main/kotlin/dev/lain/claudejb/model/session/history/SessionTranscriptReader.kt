@@ -47,9 +47,7 @@ object SessionTranscriptReader {
                 truncated = true
                 break
             }
-            val record = parseRecord(line) ?: continue
-            val entries = entriesOf(record, projectRoot)
-            if (entries.isEmpty()) continue
+            val entries = parseRecord(line)?.let { entriesOf(it, projectRoot) }.orEmpty()
             chunks += entries
             count += entries.size
         }
