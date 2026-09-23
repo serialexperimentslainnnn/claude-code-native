@@ -4,20 +4,24 @@ import com.intellij.openapi.application.readAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.model.mcp.Batch
+import dev.lain.claudejb.model.mcp.OutputBudget
 import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
 import dev.lain.claudejb.model.mcp.ToolArgs
 import dev.lain.claudejb.model.mcp.ToolDomain
 import dev.lain.claudejb.model.mcp.ToolException
 import dev.lain.claudejb.model.mcp.ToolResult
+import dev.lain.claudejb.model.mcp.TextWindow
 import dev.lain.claudejb.model.mcp.ToolSpec
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.nio.file.Path
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class ReadTools(private val project: Project, private val reveal: Reveal) {
 
@@ -27,30 +31,30 @@ internal class ReadTools(private val project: Project, private val reveal: Revea
         listOf(Tool(READ_FILE, ::readFile)),
     )
 
-    private suspend fun readFile(args: ToolArgs): ToolResult = ToolResult.toon(Batch.run(args, Batch.PATHS, ::readOne))
+    private suspend fun readFile(args: ToolArgs): ToolResult {
+        val share = (SHARED_BUDGET / (Batch.expand(args, Batch.PATHS)?.size ?: 1) - ROW_ROOM).coerceAtLeast(ROW_ROOM)
+        val revealed = AtomicBoolean(!reveal.mirroring)
+        return ToolResult.toon(Batch.run(args, Batch.PATHS) { readOne(it, share, revealed) })
+    }
 
-    private suspend fun readOne(args: ToolArgs): JsonObject {
+    private suspend fun readOne(args: ToolArgs, share: Int, revealed: AtomicBoolean): JsonObject {
         val path = args.string("path")
         val offset = args.int("offset", 1)
         val limit = args.int("limit", DEFAULT_LIMIT)
         if (offset < 1 || limit < 1) throw ToolException("offset and limit start at 1")
         val file = readAction { resolveFile(project, path) }
-        val (row, from) = readAction {
-            val text = FileDocumentManager.getInstance().getDocument(file)?.immutableCharSequence?.toString()
-                ?: String(file.contentsToByteArray(), file.charset)
-            val lines = text.lines()
-            val from = minOf(offset, lines.size + 1)
-            val to = minOf(from + limit - 1, lines.size)
-            buildJsonObject {
-                put("path", path)
-                put("lines", lines.size)
-                put("from", from)
-                put("to", to)
-                put("text", lines.subList(from - 1, to).joinToString("\n"))
-            } to from
+        val slice = readAction {
+            val text = FileDocumentManager.getInstance().getCachedDocument(file)?.immutableCharSequence ?: VfsUtilCore.loadText(file)
+            TextWindow.slice(text, offset, minOf(limit, TextWindow.MAX_LIMIT), share)
         }
-        if (reveal.mirroring) reveal.file(file, from, preview = true)
-        return row
+        if (revealed.compareAndSet(false, true)) reveal.file(file, slice.from, preview = true)
+        return buildJsonObject {
+            put("path", path)
+            put("lines", slice.lines)
+            put("from", slice.from)
+            put("to", slice.to)
+            put("text", slice.text)
+        }
     }
 
     companion object {
@@ -76,18 +80,22 @@ internal class ReadTools(private val project: Project, private val reveal: Revea
         }
 
         private const val DEFAULT_LIMIT = 400
+        private const val ROW_ROOM = 120
+        private const val SHARED_BUDGET = OutputBudget.DEFAULT_MAX_CHARS - 1_000
 
         val READ_FILE = ToolSpec(
             "read_file",
             "Reads a text file through the IDE, so unsaved editor changes are included, or several files at once with " +
-                "paths. Use offset and limit for large files. The file is shown in the editor's preview tab, without focus.",
+                "paths. Use offset and limit for large files. The files of one call share the output budget: each returns " +
+                "whole lines up to its share and to says where it stopped, so read on with offset=to+1. Lines longer than " +
+                "${TextWindow.MAX_LINE} characters end with …. The first file is shown in the editor's preview tab, without focus.",
             listOf(
                 Param("path", "File path, absolute or relative to the project root", required = false),
                 Batch.paths("offset and limit apply to each"),
                 Param("offset", "First line to return, 1-based (default 1)", type = "integer", required = false),
                 Param(
                     "limit",
-                    "Maximum number of lines to return (default $DEFAULT_LIMIT)",
+                    "Maximum number of lines to return (default $DEFAULT_LIMIT, at most ${TextWindow.MAX_LIMIT})",
                     type = "integer",
                     required = false,
                 ),
