@@ -141,8 +141,9 @@ class ClaudeProcess(
         }
     }
 
+    @Suppress("UNNECESSARY_SAFE_CALL")
     private fun endProcess(dying: KillableProcessHandler) {
         dying.destroyProcess()
-        runCatching { dying.processInput.close() }
+        runCatching { dying.processInput?.close() }
     }
 }
