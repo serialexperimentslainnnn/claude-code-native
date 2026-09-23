@@ -213,6 +213,10 @@
 .settings-item[role='menuitemradio'].selected::after {
   content: '●';
 }
+.settings-item.pending {
+  opacity: 0.6;
+  cursor: progress;
+}
 .menu-sep {
   height: 1px;
   margin: 4px 0;

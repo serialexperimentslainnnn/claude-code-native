@@ -119,6 +119,8 @@
       by[String(it.key)] = !!it.on;
     });
     ST.allRows().forEach(function (row) {
+      row.classList.remove('pending');
+      row.removeAttribute('aria-busy');
       if (row.__ccKey != null && Object.prototype.hasOwnProperty.call(by, row.__ccKey)) {
         ST.applyState(row, by[row.__ccKey]);
       }

@@ -40,10 +40,16 @@
     return row;
   }
 
+  function markPending(row: SettingsRow): void {
+    row.classList.add('pending');
+    row.setAttribute('aria-busy', 'true');
+  }
+
   function choose(it: SettingItem, row: SettingsRow, radio: boolean): void {
     const already = row.getAttribute('aria-checked') === 'true';
+    if (radio && already) return;
+    markPending(row);
     if (radio) {
-      if (already) return;
       clearGroup(row.__ccGroup, row.__ccKey);
       it.on = true;
       ST.applyState(row, true);
