@@ -41,15 +41,19 @@ object SessionTranscriptReader {
     private fun tailEntries(newestFirst: Sequence<String>, maxEntries: Int, projectRoot: String?): List<EntryDTO> {
         val chunks = ArrayList<List<EntryDTO>>()
         var count = 0
+        var truncated = false
         for (line in newestFirst) {
-            if (count >= maxEntries) break
+            if (count >= maxEntries) {
+                truncated = true
+                break
+            }
             val record = parseRecord(line) ?: continue
             val entries = entriesOf(record, projectRoot)
             if (entries.isEmpty()) continue
             chunks += entries
             count += entries.size
         }
-        return settle(chunks.asReversed().flatten(), maxEntries)
+        return settle(chunks.asReversed().flatten(), maxEntries, truncated)
     }
 
     fun parseRecord(line: String): JsonObject? =
@@ -80,8 +84,8 @@ object SessionTranscriptReader {
         }
     }
 
-    private fun settle(entries: List<EntryDTO>, maxEntries: Int?): List<EntryDTO> =
-        decodeOwnOutputs(capTail(markInFlight(tagCommandOutputs(entries)), maxEntries))
+    private fun settle(entries: List<EntryDTO>, maxEntries: Int?, truncated: Boolean = false): List<EntryDTO> =
+        decodeOwnOutputs(capTail(markInFlight(tagCommandOutputs(entries)), maxEntries, truncated))
 
     private fun decodeOwnOutputs(entries: List<EntryDTO>): List<EntryDTO> {
         val ownCalls = entries.asSequence()
@@ -126,9 +130,10 @@ object SessionTranscriptReader {
         }
     }
 
-    private fun capTail(entries: List<EntryDTO>, maxEntries: Int?): List<EntryDTO> {
-        if (maxEntries == null || maxEntries <= 0 || entries.size <= maxEntries) return entries
-        val window = entries.subList(entries.size - maxEntries, entries.size)
+    private fun capTail(entries: List<EntryDTO>, maxEntries: Int?, truncated: Boolean): List<EntryDTO> {
+        if (maxEntries == null || maxEntries <= 0) return entries
+        if (!truncated && entries.size <= maxEntries) return entries
+        val window = entries.takeLast(maxEntries)
         val seenToolIds = HashSet<String?>()
         for (e in window) if (e.speaker == "TOOL") seenToolIds += e.toolUseId
         return window.filterNot { e ->
