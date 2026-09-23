@@ -44,8 +44,8 @@ object JcefTheme {
         val link = JBUI.CurrentTheme.Link.Foreground.ENABLED
 
         val labelFont = UIUtil.getLabelFont()
-        val monoFamily = scheme.getFont(EditorFontType.PLAIN)?.family
-            ?.takeIf { it.isNotBlank() }
+        val monoFamily = scheme.getFont(EditorFontType.PLAIN).family
+            .takeIf { it.isNotBlank() }
             ?: "JetBrains Mono"
 
         return buildJsonObject {

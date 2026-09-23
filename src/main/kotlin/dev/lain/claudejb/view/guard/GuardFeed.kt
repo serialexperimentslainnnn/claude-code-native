@@ -26,7 +26,7 @@ internal class GuardFeed(private val presenter: ChatPresenter) {
                 recording = !SecretStore.inert(),
                 max = GuardAlertLog.MAX_ENTRIES,
             )
-            edt(presenter.project) { presenter.exec("guard", json) }
+            edt(presenter.project) { presenter.exec("guard", json.toString()) }
         }
     }
 

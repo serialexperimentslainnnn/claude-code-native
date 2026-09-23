@@ -182,7 +182,7 @@ intellijPlatform {
             sinceBuild = platformBuild
             untilBuild = "263.*"
         }
-        changeNotes = provider { extra["changeNotesHtml"] as String }
+        changeNotes = provider { project.extra["changeNotesHtml"] as String }
     }
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")

@@ -1,7 +1,7 @@
 dependencies {
     intellijPlatform {
         bundledModule("intellij.platform.backend")
-        bundledPlugin("org.intellij.intelliLang")
+        bundledModule("org.intellij.intelliLang")
     }
     implementation(project(":backend"))
 }

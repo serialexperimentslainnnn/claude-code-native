@@ -14,7 +14,7 @@ internal class LogFeed(private val presenter: ChatPresenter) {
 
     fun push(since: Long) = offEdt {
         val json = JcefLogData.logJson(LogRing.since(since), PluginLog.debugOn)
-        edt(presenter.project) { presenter.exec("log", json) }
+        edt(presenter.project) { presenter.exec("log", json.toString()) }
     }
 
     fun setDebug(on: Boolean) = PluginLog.setDebug(on)

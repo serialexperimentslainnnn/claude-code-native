@@ -50,4 +50,4 @@ fun releaseNotesHtml(lines: List<String>): String {
 
 val notes = file("RELEASE_NOTES.md")
 val section = if (notes.exists()) latestSection(notes.readLines()) else emptyList()
-extra["changeNotesHtml"] = if (section.isEmpty()) "See RELEASE_NOTES.md." else releaseNotesHtml(section)
+project.extra["changeNotesHtml"] = if (section.isEmpty()) "See RELEASE_NOTES.md." else releaseNotesHtml(section)

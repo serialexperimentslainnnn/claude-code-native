@@ -16,6 +16,7 @@ import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.DEFAULT_MAX
 import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.DEFAULT_STEP_WAIT
 import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.DEFAULT_VARIABLES
 import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.STEP_FRAMES
+import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
 import dev.lain.claudejb.model.mcp.ToolArgs
 import dev.lain.claudejb.model.mcp.ToolDomain
