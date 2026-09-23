@@ -19,7 +19,7 @@ version = "6.0.1"
 
 val platformBuild = "262.8665.258"
 val serialization = "1.9.0"
-val pluginModules = listOf("shared", "frontend", "backend")
+val pluginModules = listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal")
 
 allprojects {
     plugins.withId("org.jetbrains.kotlin.jvm") {
@@ -51,6 +51,13 @@ subprojects {
     }
 }
 
+sourceSets.main {
+    kotlin.setSrcDirs(emptyList<Any>())
+    java.setSrcDirs(emptyList<Any>())
+    resources.setSrcDirs(listOf("src/main/resources"))
+    resources.include("META-INF/**")
+}
+
 apply(from = "gradle/test-suites.gradle.kts")
 apply(from = "gradle/quality.gradle.kts")
 apply(from = "gradle/coverage.gradle.kts")
@@ -77,6 +84,7 @@ dependencies {
         )
         testFramework(TestFrameworkType.Platform)
     }
+    pluginModules.forEach { testImplementation(project(":$it")) }
     testImplementation("org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -99,6 +107,9 @@ tasks {
         commandLine(npm, "test")
     }
     check { dependsOn(frontendTest) }
+    compileTestKotlin {
+        friendPaths.from(pluginModules.map { project(":$it").layout.buildDirectory.dir("classes/kotlin/main") })
+    }
     processResources {
         from(file("THIRD-PARTY-NOTICES.md")) { into("META-INF") }
         from(file("LICENSE")) { into("META-INF") }

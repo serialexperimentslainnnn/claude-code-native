@@ -29,4 +29,4 @@ dependencyResolutionManagement {
     }
 }
 
-include("shared", "frontend", "backend")
+include("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal")

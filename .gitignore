@@ -32,6 +32,11 @@
 !/shared/**
 !/frontend/**
 !/backend/**
+!/git/**
+!/github/**
+!/java/**
+!/intellilang/**
+!/terminal/**
 !/bin/**
 !/gradle/**
 !/config/**
@@ -143,3 +148,4 @@ PROJECTMAP.md
 # under .claude/worktrees/, and an unanchored pattern would also hide a real directory of that name
 # somewhere in the tree. Committing it would commit a copy of the repository into the repository.
 /.claude/
+/.claudetools/

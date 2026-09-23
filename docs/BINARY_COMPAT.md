@@ -35,6 +35,15 @@ bundled plugin, and a module that does not declare it gets no `com.intellij.ui.j
 `JcefHost.<init>`. The dependency cannot be softened: an optional dependency that cannot be satisfied is
 skipped, which trades a clean refusal for a `NoClassDefFoundError`.
 
+**Every other plugin is an optional content module.** Git (`dev.lain.claudejb.git`), GitHub
+(`dev.lain.claudejb.github`), Java with UAST (`dev.lain.claudejb.java`) and IntelliLang
+(`dev.lain.claudejb.intellilang`) sit beside the backend; the Terminal (`dev.lain.claudejb.terminal`) sits beside
+the frontend, because its tab API lives in the terminal's frontend module. Each declares its plugin in
+`<dependencies>`, holds the only code that names that plugin's classes, and registers the implementation of an
+interface the backend or the frontend owns as a service; the owner looks it up with `serviceOrNull` and
+degrades when it is absent. The Database plugin stays reflective in `DbGateway`, through the class loaders of
+the plugin's own Services view contributors.
+
 `JcefDependencyContractTest` is the gate. It fails if a module's sources use JCEF and its descriptor does not
 declare it, if the declaration sits only in an optional module, if `sinceBuild` is a branch rather than a full
 build number, or if it is below the first build that ships the JCEF module. `verifyPlugin` does **not** catch

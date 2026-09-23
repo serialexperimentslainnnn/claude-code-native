@@ -53,7 +53,7 @@ code**, because it loses signatures, and an approximate signature is indistingui
 | The content factory's nested service holder | deprecated for removal | its instance getter |
 | The todo search helper's find-files | deprecated | its processing form |
 | The editor notifications' per-provider refresh, and its nested provider class | deprecated | refresh-all, and the provider extension point |
-| The plugin manager's descriptor lookups: by class, by id, and the plugin arrays | internal since 262 | the plugin-aware class loader's descriptor and id for the plugin a class came from; an optional dependency in `plugin.xml` for the classes of another plugin, loaded through this plugin's own class loader; the installed and loaded checks, which stay public |
+| The plugin manager's descriptor lookups: by class, by id, and the plugin arrays | internal since 262 | the plugin-aware class loader's descriptor and id for the plugin a class came from; an optional content module declaring the other plugin in its `<dependencies>` for that plugin's classes, which only that module's class loader sees; the installed and loaded checks, which stay public |
 | The terminal tool window manager's shell widget creator | deprecated since 261 | the terminal tool window tabs manager's tab builder, and the view's send-text builder |
 | The breakpoint manager's five-argument add-line-breakpoint | deprecated for removal since 262 | the four-argument form, then the breakpoint's temporary setter |
 | The terminal execution console's constructors and its LF-to-CRLF switch | deprecated since 261; the builder they name is 262-only | a console view from the text console builder factory, attached to the process handler |

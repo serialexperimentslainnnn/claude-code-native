@@ -3,7 +3,7 @@ import kotlinx.kover.gradle.plugin.dsl.GroupingEntityType
 import kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension
 
 dependencies {
-    listOf("shared", "frontend", "backend").forEach { "kover"(project(":$it")) }
+    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal").forEach { "kover"(project(":$it")) }
 }
 
 configure<KoverProjectExtension> {
@@ -39,7 +39,6 @@ configure<KoverProjectExtension> {
                     "dev.lain.claudejb.controller.mcp.IdeToolCatalog*",
                     "dev.lain.claudejb.controller.mcp.tools.*",
                     "dev.lain.claudejb.controller.db.*",
-                    "dev.lain.claudejb.controller.github.GitHubGateway*",
                 )
             }
         }

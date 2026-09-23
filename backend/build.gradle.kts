@@ -1,3 +1,10 @@
+sourceSets.main {
+    kotlin.srcDir(rootProject.file("src/main/kotlin"))
+    java.srcDir(rootProject.file("src/main/java"))
+    resources.srcDir(rootProject.file("src/main/resources"))
+    resources.exclude("META-INF/plugin.xml", "META-INF/pluginIcon*.svg")
+}
+
 dependencies {
     intellijPlatform {
         bundledModules(
@@ -5,12 +12,7 @@ dependencies {
             "intellij.platform.kernel.backend",
             "intellij.platform.rpc.backend",
         )
-        bundledPlugins(
-            "org.jetbrains.plugins.terminal",
-            "Git4Idea",
-            "org.jetbrains.plugins.github",
-            "com.intellij.java",
-        )
+        bundledPlugin("Git4Idea")
     }
     implementation(project(":shared"))
 }

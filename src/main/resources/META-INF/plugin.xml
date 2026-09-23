@@ -137,5 +137,10 @@
         <module name="dev.lain.claudejb.shared" loading="required"/>
         <module name="dev.lain.claudejb.frontend" required-if-available="intellij.platform.frontend"/>
         <module name="dev.lain.claudejb.backend" required-if-available="intellij.platform.backend"/>
+        <module name="dev.lain.claudejb.git" loading="optional"/>
+        <module name="dev.lain.claudejb.github" loading="optional"/>
+        <module name="dev.lain.claudejb.java" loading="optional"/>
+        <module name="dev.lain.claudejb.intellilang" loading="optional"/>
+        <module name="dev.lain.claudejb.terminal" loading="optional"/>
     </content>
 </idea-plugin>
