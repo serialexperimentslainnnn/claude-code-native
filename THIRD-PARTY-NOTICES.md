@@ -34,9 +34,9 @@ The inventory is **complete against the artifact, not against the source tree**:
 carries the vendored web assets), the two kotlinx.serialization jars listed below, and the generated
 `searchableOptions` jar. Everything with a third-party license in that list has an entry here.
 
-Last verified: 2026-08-11, against the upstream `LICENSE` files at the pinned tags
+Last verified: 2026-09-23, against the upstream `LICENSE` files at the pinned tags
 (`markedjs/marked@v18.0.14`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.12.0`,
-`Kotlin/kotlinx.serialization@v1.7.3`).
+`Kotlin/kotlinx.serialization@v1.9.0`).
 
 ---
 
@@ -106,17 +106,19 @@ intact and no edit of our own.
 
 ## Shipped as separate jars in `lib/`
 
-### kotlinx.serialization (`kotlinx-serialization-core-jvm`, `kotlinx-serialization-json-jvm`) — 1.7.3
+### kotlinx.serialization (`kotlinx-serialization-core-jvm`, `kotlinx-serialization-json-jvm`) — 1.9.0
 - **License:** Apache-2.0 (`SPDX-License-Identifier: Apache-2.0`)
-- **Copyright:** Copyright 2017-2024 JetBrains s.r.o.
+- **Copyright:** Copyright 2017-2025 JetBrains s.r.o.
 - **Project:** https://github.com/Kotlin/kotlinx.serialization
 - **Full text:** `LICENSES/Apache-2.0.txt`
 - **Verified:** the published jars carry no `META-INF/LICENSE` **and no `META-INF/NOTICE`** (checked
-  in `kotlinx-serialization-core-jvm-1.7.3.jar` and `-json-jvm-1.7.3.jar`), so the license was read
-  from the project's `LICENSE.txt` at tag `v1.7.3` rather than inferred from the artifact. That file
+  in `kotlinx-serialization-core-jvm-1.9.0.jar` and `-json-jvm-1.9.0.jar`), so the license was read
+  from the project's `LICENSE.txt` at tag `v1.9.0` rather than inferred from the artifact. That file
   is the bare Apache-2.0 text with no copyright line appended; the copyright above is the one the
-  project's own source headers carry (`Copyright 2017-<year> JetBrains s.r.o.`, latest year 2024).
-  The repository publishes **no `NOTICE` file**, so Apache-2.0 §4(d) adds no obligation here.
+  project's own source headers carry (`Copyright 2017-<year> JetBrains s.r.o.`, latest year 2025).
+- **NOTICE (Apache-2.0 §4(d)):** the repository carries `license/NOTICE.txt` at tag `v1.9.0`, which
+  reads, verbatim: *"kotlinx.serialization library. Copyright 2017-2019 JetBrains s.r.o and
+  respective authors and developers"*. It is reproduced here because the jars do not carry it.
 
 ---
 
