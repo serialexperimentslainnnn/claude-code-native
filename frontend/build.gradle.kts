@@ -3,6 +3,7 @@ val npm = if (System.getProperty("os.name").startsWith("Windows")) "npm.cmd" els
 dependencies {
     intellijPlatform {
         bundledModule("intellij.platform.frontend")
+        bundledModule("intellij.platform.ui.jcef")
         bundledPlugin("com.intellij.modules.jcef")
     }
     implementation(project(":shared"))

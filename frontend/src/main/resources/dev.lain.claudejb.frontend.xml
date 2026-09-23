@@ -3,6 +3,7 @@
         <module name="intellij.platform.frontend"/>
         <module name="dev.lain.claudejb.shared"/>
         <plugin id="com.intellij.modules.jcef"/>
+        <module name="intellij.platform.ui.jcef"/>
     </dependencies>
 
     <extensions defaultExtensionNs="com.intellij">
