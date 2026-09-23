@@ -1,15 +1,13 @@
-package dev.lain.claudejb.view.jcef
+package dev.lain.claudejb.frontend.jcef
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.util.Alarm
-import dev.lain.claudejb.util.edtNow
-import dev.lain.claudejb.util.logger
 
 internal class PageDelivery(
     private val browser: JBCefBrowser,
-    private val page: Page,
     parentDisposable: Disposable,
     private val webReady: () -> Boolean,
     private val onRedeliver: () -> Unit,
@@ -21,13 +19,24 @@ internal class PageDelivery(
 
     private val readyWatchdog = Alarm(Alarm.ThreadToUse.SWING_THREAD, parentDisposable)
 
+    private var page: Page? = null
+
     var route: PageRoute? = null
         private set
 
     @Volatile
     private var loopback: LoopbackPageServer? = null
 
-    fun start() = deliver(startRoute(schemeAvailable = SchemePageServer.register(page)))
+    fun start() {
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val assembled = PageAssembly.page
+            edtNow {
+                if (isDisposed()) return@edtNow
+                page = assembled
+                deliver(startRoute(schemeAvailable = SchemePageServer.register(assembled)))
+            }
+        }
+    }
 
     fun isOwnPage(url: String?): Boolean = isOwnPageUrl(url, SchemePageServer.PAGE_URL, loopback?.url)
 
@@ -73,8 +82,9 @@ internal class PageDelivery(
     }
 
     private fun serveOverLoopback() {
+        val served = page ?: return
         ApplicationManager.getApplication().executeOnPooledThread {
-            val server = LoopbackPageServer.start(page.html, page.headers)
+            val server = LoopbackPageServer.start(served.html, served.headers)
             edtNow {
                 if (isDisposed() || route != PageRoute.LOOPBACK) {
                     server?.stop()

@@ -1,4 +1,4 @@
-package dev.lain.claudejb.view.jcef
+package dev.lain.claudejb.frontend.jcef
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -43,7 +43,7 @@ class PageRouteTest {
     }
 
     private fun source(name: String): File {
-        val path = "src/main/kotlin/dev/lain/claudejb/view/jcef/$name"
+        val path = "frontend/src/main/kotlin/dev/lain/claudejb/frontend/jcef/$name"
         return sequenceOf(File(path), File("../$path")).firstOrNull { it.isFile }
             ?: error("could not locate $path from ${File("").absolutePath}")
     }

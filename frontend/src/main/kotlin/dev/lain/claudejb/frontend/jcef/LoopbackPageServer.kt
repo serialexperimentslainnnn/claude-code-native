@@ -1,4 +1,4 @@
-package dev.lain.claudejb.view.jcef
+package dev.lain.claudejb.frontend.jcef
 
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer

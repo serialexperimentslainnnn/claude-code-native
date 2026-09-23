@@ -1,6 +1,6 @@
-package dev.lain.claudejb.view.jcef
+package dev.lain.claudejb.frontend.jcef
 
-import dev.lain.claudejb.util.logger
+import com.intellij.openapi.diagnostic.logger
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.Base64
@@ -10,6 +10,8 @@ internal class Page(val html: String, val headers: Map<String, String>)
 internal object PageAssembly {
 
     private val log = logger<PageAssembly>()
+
+    val page: Page by lazy { build() }
 
     val appNames = listOf(
         "core/core.js",
@@ -145,29 +147,31 @@ internal object PageAssembly {
         val shell = readResource("shell.html")
             ?: return Page(FALLBACK_HTML, headersFor(cspWith("'none'", "'none'")))
 
-        val styleInner = "\n" + CSS_PARTS.joinToString("\n") { readResource("css/$it").orEmpty() } + "\n"
+        val css = PageMinifier.css(CSS_PARTS.joinToString("\n") { readResource("css/$it").orEmpty() })
+        val styleInner = "\n" + css + "\n"
         val styleSrc = "'sha256-" + sha256Base64(styleInner) + "'"
 
-        val contents = LinkedHashMap<String, String>()
-        (LIB_NAMES + appNames).forEach { name -> readResource(name)?.let { contents[name] = it } }
-
-        val absent = (LIB_NAMES + appNames).filterNot { contents.containsKey(it) }
+        val sources = (LIB_NAMES + appNames).associateWith { readResource(it) }
+        val libs = LIB_NAMES.mapNotNull { sources[it] }
+        val apps = appNames.mapNotNull { sources[it] }
+        val absent = sources.filterValues { it == null }.keys
         if (absent.isNotEmpty()) {
             log.warn("Claude Code chat page is missing declared scripts, so parts of the UI cannot exist: $absent")
         }
 
-        val hashes = contents.values.map { "'sha256-" + sha256Base64(it) + "'" }
+        val app = apps.takeIf { it.isNotEmpty() }?.joinToString("\n") { PageMinifier.isolated(it) }
+        val scripts = libs + listOfNotNull(app)
+        val hashes = scripts.map { "'sha256-" + sha256Base64(it) + "'" }
         val scriptSrc = if (hashes.isEmpty()) "'none'" else hashes.joinToString(" ")
         val csp = cspWith(scriptSrc, styleSrc)
 
-        fun block(names: List<String>): String =
-            names.filter { contents.containsKey(it) }.joinToString("\n") { "<script>${contents[it]}</script>" }
+        fun block(sources: List<String>): String = sources.joinToString("\n") { "<script>$it</script>" }
 
-        val html = shell
+        val html = PageMinifier.shell(shell)
             .replace("<!--CSP-->", "<meta http-equiv=\"Content-Security-Policy\" content=\"$csp\">")
             .replace("<!--CSS-->", "<style>$styleInner</style>")
-            .replace("<!--LIBS-->", block(LIB_NAMES))
-            .replace("<!--APP-->", block(appNames))
+            .replace("<!--LIBS-->", block(libs))
+            .replace("<!--APP-->", block(listOfNotNull(app)))
 
         return Page(html, headersFor(csp))
     }

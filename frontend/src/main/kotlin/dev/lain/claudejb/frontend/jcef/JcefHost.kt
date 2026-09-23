@@ -1,7 +1,7 @@
-package dev.lain.claudejb.view.jcef
+package dev.lain.claudejb.frontend.jcef
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.IdeFocusManager
 import com.intellij.ui.components.JBLabel
@@ -10,18 +10,13 @@ import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import com.intellij.util.Alarm
-import dev.lain.claudejb.util.edtNow
-import dev.lain.claudejb.util.logger
-import org.cef.CefSettings
-import org.cef.browser.CefBrowser
-import org.cef.handler.CefDisplayHandlerAdapter
-import java.util.LinkedList
 import javax.swing.JComponent
 import javax.swing.border.EmptyBorder
 
 class JcefHost(
     parentDisposable: Disposable,
     private val onMessage: (String) -> Unit,
+    private val onResync: () -> Unit = {},
     onPageLost: () -> Unit = {},
 ) {
 
@@ -31,9 +26,11 @@ class JcefHost(
 
     private var ready: Boolean = false
 
-    private val pending = LinkedList<String>()
+    private val pending = PendingCalls()
 
-    private var webReady: Boolean = false
+    @Volatile
+    var isWebReady: Boolean = false
+        private set
 
     @Volatile
     private var disposed: Boolean = false
@@ -75,7 +72,7 @@ class JcefHost(
             val query = JBCefJSQuery.create(base)
             Disposer.register(parentDisposable, query)
             query.addHandler { request ->
-                ApplicationManager.getApplication().invokeLater { onMessage(request) }
+                if (!disposed) onMessage(request)
                 null
             }
 
@@ -92,9 +89,8 @@ class JcefHost(
 
             val d = PageDelivery(
                 browser = b,
-                page = PageAssembly.build(),
                 parentDisposable = parentDisposable,
-                webReady = { webReady },
+                webReady = { isWebReady },
                 onRedeliver = { ready = false },
                 isDisposed = { disposed },
                 onExhausted = onPageLost,
@@ -104,30 +100,29 @@ class JcefHost(
         }
     }
 
-    fun exec(js: String) {
+    fun call(method: String, json: String) {
+        if (!METHOD_NAME.matches(method)) {
+            log.warn("Claude Code chat page was asked to run a method that is not a name: $method")
+            return
+        }
+        exec("window.cc.$method && window.cc.$method($json)", method.takeIf { it in SNAPSHOT_METHODS })
+    }
+
+    fun exec(js: String, snapshotKey: String? = null) {
         val b = browser ?: return
         edtNow {
             if (disposed) return@edtNow
             if (ready) {
                 executeNow(b, js)
             } else {
-                pending.add(js)
+                pending.add(snapshotKey, js)
             }
-        }
-    }
-
-    fun execBuilt(method: String, build: () -> String?) {
-        ApplicationManager.getApplication().executeOnPooledThread {
-            val payload = runCatching(build)
-                .onFailure { log.warn("Claude Code: $method could not be answered", it) }
-                .getOrNull() ?: return@executeOnPooledThread
-            exec("$method && $method($payload)")
         }
     }
 
     fun whenWebReady(timeoutMs: Long = WEB_READY_TIMEOUT_MS, block: () -> Unit) {
         edtNow {
-            if (webReady || browser == null) {
+            if (isWebReady || browser == null) {
                 block()
                 return@edtNow
             }
@@ -139,7 +134,7 @@ class JcefHost(
 
     fun markWebReady() {
         edtNow {
-            webReady = true
+            isWebReady = true
             delivery?.cancelWatchdog()
             delivery?.stopLoopback()
             if (inputComponent()?.isFocusOwner == true) grantCefFocus()
@@ -191,8 +186,11 @@ class JcefHost(
         edtNow {
             ready = true
             delivery?.relaxWatchdog()
-            while (pending.isNotEmpty()) {
-                executeNow(b, pending.poll())
+            val drained = pending.drain()
+            drained.calls.forEach { executeNow(b, it) }
+            if (drained.overflowed) {
+                log.warn("Claude Code chat page missed more updates than it can queue — asking for a full resync")
+                onResync()
             }
         }
     }
@@ -207,30 +205,13 @@ class JcefHost(
         b.cefBrowser.executeJavaScript(guarded, url, 0)
     }
 
-    private class ConsoleRelay : CefDisplayHandlerAdapter() {
-        override fun onConsoleMessage(
-            browser: CefBrowser?,
-            level: CefSettings.LogSeverity?,
-            message: String?,
-            source: String?,
-            line: Int,
-        ): Boolean {
-            val text = "chat page console [${level?.name?.removePrefix("LOGSEVERITY_")?.lowercase()}] $message ($source:$line)"
-            when (level) {
-                CefSettings.LogSeverity.LOGSEVERITY_ERROR,
-                CefSettings.LogSeverity.LOGSEVERITY_FATAL,
-                CefSettings.LogSeverity.LOGSEVERITY_WARNING,
-                -> log.warn(text)
-
-                else -> log.debug { text }
-            }
-            return false
-        }
-    }
-
     private companion object {
         private val log = logger<JcefHost>()
 
         private const val WEB_READY_TIMEOUT_MS = 5_000L
+
+        private val METHOD_NAME = Regex("[A-Za-z_$][A-Za-z0-9_$]*")
+
+        private val SNAPSHOT_METHODS = setOf("session", "meta", "state", "settingsMenu", "theme", "permissions", "tabs")
     }
 }
