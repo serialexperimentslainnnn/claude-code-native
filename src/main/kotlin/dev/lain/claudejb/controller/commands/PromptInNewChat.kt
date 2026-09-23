@@ -1,13 +1,12 @@
 package dev.lain.claudejb.controller.commands
 
 import com.intellij.openapi.project.Project
-import dev.lain.claudejb.view.window.ClaudeToolWindowFactory
+import dev.lain.claudejb.view.window.ChatRegistry
 
 internal object PromptInNewChat {
 
     fun open(project: Project, title: String, prompt: String): Boolean {
-        val commands = ClaudeToolWindowFactory.chatTabs(project)?.commands ?: return false
-        commands.newChatWith(title, prompt)
+        ChatRegistry.getInstance(project).commands.newChatWith(title, prompt)
         return true
     }
 
