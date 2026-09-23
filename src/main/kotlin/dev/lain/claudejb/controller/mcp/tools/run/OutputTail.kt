@@ -2,6 +2,7 @@ package dev.lain.claudejb.controller.mcp.tools.run
 
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.mcp.ToolOutput
+import dev.lain.claudejb.model.mcp.Clip
 import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.ToolArgs
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -23,7 +24,7 @@ internal class OutputTail(private val publish: (String) -> Unit = {}) {
     fun line(text: String) {
         synchronized(lock) {
             lines++
-            last.addLast(text)
+            last.addLast(Clip.line(text, MAX_LINE))
             if (last.size > KEEP) last.removeFirst()
         }
         publish(text)
@@ -34,6 +35,7 @@ internal class OutputTail(private val publish: (String) -> Unit = {}) {
     companion object {
 
         const val KEEP = 200
+        const val MAX_LINE = 400
         private const val DEFAULT_TAIL = 40
         private const val SERVICE_MESSAGE = "##teamcity["
 
