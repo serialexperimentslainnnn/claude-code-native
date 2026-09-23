@@ -16,6 +16,10 @@ internal object PageScriptCalls {
 
     fun into(emit: (PagePush) -> Unit): (String) -> Unit = { script ->
         val push = parse(script)
-        if (push == null) LOG.warn("A page call is not a guarded window.cc call and was dropped: ${script.take(DROPPED_PREVIEW_CHARS)}") else emit(push)
+        if (push == null) {
+            LOG.warn("A page call is not a guarded window.cc call and was dropped: ${script.take(DROPPED_PREVIEW_CHARS)}")
+        } else {
+            emit(push)
+        }
     }
 }
