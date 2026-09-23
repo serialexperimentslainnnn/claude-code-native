@@ -11,7 +11,10 @@
     const questions = Array.isArray(card.questions) ? card.questions : [];
     const selections: Record<string, string[]> = {};
 
-    const qBlocks = questions.map(function (q) {
+    const idBase = 'q-' + String(id).replace(/[^\w-]/g, '_') + '-';
+
+    const qBlocks = questions.map(function (q, index) {
+      const questionId = idBase + index;
       const qText = q && q.question != null ? String(q.question) : '';
       const multi = !!(q && q.multiSelect);
       const options = q && Array.isArray(q.options) ? q.options : [];
@@ -27,7 +30,7 @@
 
         const props: HProps = {
           class: 'q-option',
-          attrs: { type: 'button' },
+          attrs: { type: 'button', 'aria-pressed': 'false' },
           on: {
             click: function () {
               const arr = selections[qText];
@@ -54,8 +57,12 @@
         'div',
         { class: 'q-block' },
         q && q.header ? h('div', { class: 'q-header', text: String(q.header) }) : null,
-        h('div', { class: 'q-question', text: qText }),
-        h('div', { class: 'q-options' }, optionEls)
+        h('div', { class: 'q-question', text: qText, attrs: { id: questionId } }),
+        h(
+          'div',
+          { class: 'q-options', attrs: { role: 'group', 'aria-labelledby': questionId } },
+          optionEls
+        )
       );
     });
 
@@ -85,8 +92,9 @@
       for (let i = 0; i < opts.length; i++) {
         const el = opts[i];
         const arr = (el.__qText != null && selections[el.__qText]) || [];
-        if (el.__label != null && arr.indexOf(el.__label) >= 0) el.classList.add('selected');
-        else el.classList.remove('selected');
+        const selected = el.__label != null && arr.indexOf(el.__label) >= 0;
+        el.classList.toggle('selected', selected);
+        el.setAttribute('aria-pressed', selected ? 'true' : 'false');
       }
     }
     syncSelected();

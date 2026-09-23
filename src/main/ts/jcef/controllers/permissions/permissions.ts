@@ -36,6 +36,34 @@
     CC.announce(count + ' requests are waiting for your response.');
   }
 
+  const signatures = new WeakMap<Element, string>();
+
+  function signatureOf(card: PermissionCard): string {
+    return JSON.stringify(card);
+  }
+
+  const FOCUSABLE = 'button, input, textarea, select, a[href], [tabindex]';
+
+  function focusIndexIn(node: Element): number {
+    const active = document.activeElement;
+    if (!active || !node.contains(active)) return -1;
+    return Array.prototype.indexOf.call(node.querySelectorAll(FOCUSABLE), active);
+  }
+
+  function restoreFocus(node: Element, at: number): void {
+    const all = node.querySelectorAll<HTMLElement>(FOCUSABLE);
+    const target = all[Math.min(at, all.length - 1)];
+    if (target && typeof target.focus === 'function') target.focus({ preventScroll: true });
+  }
+
+  function built(card: PermissionCard, key: string, signature: string): Element | null {
+    const node = PM.buildCard(card);
+    if (!node) return null;
+    node.setAttribute('data-card-id', key);
+    signatures.set(node, signature);
+    return node;
+  }
+
   function permissions(list: unknown, into?: HTMLElement | null): void {
     const region = into || PM.mount();
     if (!region) return;
@@ -52,15 +80,23 @@
 
     const wanted: Record<string, boolean> = {};
     const ordered: Element[] = [];
+    const refocus: { node: Element; at: number }[] = [];
     for (let j = 0; j < cards.length; j++) {
       const card = cards[j];
       if (!card || card.id == null) continue;
       const key = String(card.id);
       wanted[key] = true;
-      let node: Element | null = existing[key];
+      const signature = signatureOf(card);
+      const old: Element | undefined = existing[key];
+      let node: Element | null = old && signatures.get(old) === signature ? old : null;
       if (!node) {
-        node = PM.buildCard(card);
-        if (node) node.setAttribute('data-card-id', key);
+        const fresh = built(card, key, signature);
+        if (fresh && old) {
+          const at = focusIndexIn(old);
+          if (at >= 0) refocus.push({ node: fresh, at: at });
+          region.replaceChild(fresh, old);
+        }
+        node = fresh || old || null;
       }
       if (node) ordered.push(node);
     }
@@ -74,6 +110,10 @@
     for (let m = 0; m < ordered.length; m++) {
       if (region.children[m] !== ordered[m]) region.insertBefore(ordered[m], region.children[m] || null);
     }
+
+    refocus.forEach(function (r) {
+      restoreFocus(r.node, r.at);
+    });
   }
 
   cc.permissions = permissions;
