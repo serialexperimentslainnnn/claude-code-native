@@ -41,6 +41,18 @@ class TextEditTest {
     }
 
     @Test
+    fun `replace_all over a large file stays linear and numbers every line right`() {
+        val big = "x\n".repeat(100_000)
+        val started = System.nanoTime()
+        val outcome = TextEdit.replace(big, "x", "y\nz", all = true)
+        assertTrue(System.nanoTime() - started < 5_000_000_000L) { "replace_all took ${(System.nanoTime() - started) / 1_000_000} ms" }
+        assertEquals(100_000, outcome.count)
+        assertEquals(1, outcome.lines.first())
+        assertEquals(3, outcome.lines[1])
+        assertEquals(1 + 2 * 99_999, outcome.lines.last())
+    }
+
+    @Test
     fun `an empty or identical old_string is refused before any search`() {
         assertThrows<ToolException> { TextEdit.replace(text, "", "x", all = true) }
         assertThrows<ToolException> { TextEdit.replace(text, "beta", "beta", all = true) }
