@@ -55,20 +55,6 @@ class ImageAttachmentsTest {
         assertNull(ImageAttachments.imageFromFile(txt.absolutePath))
     }
 
-    @Test
-    fun `imageOf normalizes image-jpg and names the payload by its type`() {
-        val bytes = ByteArray(16) { 0x42 }
-        val jpg = ImageAttachments.imageOf(bytes, "image/jpg")
-        requireNotNull(jpg) { "expected a non-null Image attachment" }
-        assertEquals("image/jpeg", jpg.mediaType)
-        assertEquals("clipboard.jpeg", jpg.displayName)
-    }
-
-    @Test
-    fun `imageOf rejects a payload shorter than any image signature`() {
-        assertNull(ImageAttachments.imageOf(ByteArray(4), "image/png"))
-    }
-
     private val pngMagic = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)
     private val jpegMagic = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0x00) + ByteArray(8)
     private val gifMagic = "GIF89a".toByteArray() + ByteArray(4)

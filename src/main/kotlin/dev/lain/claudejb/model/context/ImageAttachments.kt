@@ -1,11 +1,7 @@
 package dev.lain.claudejb.model.context
 
-import java.awt.image.BufferedImage
-import java.awt.image.RenderedImage
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.Base64
-import javax.imageio.ImageIO
 
 internal object ImageAttachments {
 
@@ -60,13 +56,6 @@ internal object ImageAttachments {
         else -> null
     }
 
-    fun imageOf(bytes: ByteArray, type: String): Attachment.Image? {
-        if (bytes.size < MIN_IMAGE_BYTES) return null
-        val mt = if (type == "image/jpg") "image/jpeg" else type
-        val ext = mt.substringAfter('/').substringBefore('+').ifBlank { "png" }
-        return Attachment.Image("clipboard.$ext", mt, Base64.getEncoder().encodeToString(bytes))
-    }
-
     fun imageFromFile(path: String): Attachment.Image? = runCatching {
         val file = File(path)
         val bytes = file.takeIf { it.isFile }?.readBytes() ?: return null
@@ -85,27 +74,5 @@ internal object ImageAttachments {
         "gif" -> "image/gif"
         "webp" -> "image/webp"
         else -> null
-    }
-
-    fun pngBase64(image: java.awt.Image): String? = runCatching {
-        val rendered = image.toRenderedImage() ?: return null
-        val out = ByteArrayOutputStream()
-        if (!ImageIO.write(rendered, "png", out)) return null
-        Base64.getEncoder().encodeToString(out.toByteArray())
-    }.getOrNull()
-
-    private fun java.awt.Image.toRenderedImage(): RenderedImage? {
-        (this as? RenderedImage)?.let { return it }
-        val width = getWidth(null)
-        val height = getHeight(null)
-        if (width <= 0 || height <= 0) return null
-        val buffered = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
-        val g = buffered.createGraphics()
-        try {
-            g.drawImage(this, 0, 0, null)
-        } finally {
-            g.dispose()
-        }
-        return buffered
     }
 }
