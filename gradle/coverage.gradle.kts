@@ -23,7 +23,9 @@ tasks.matching { it.name.startsWith("kover") && (it.name.contains("Report") || i
 }
 
 dependencies {
-    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks").forEach { "kover"(project(":$it")) }
+    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks").forEach {
+        "kover"(project(":$it"))
+    }
 }
 
 configure<KoverProjectExtension> {
