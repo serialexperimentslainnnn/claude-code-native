@@ -143,9 +143,9 @@ class GuardViewWiringContractTest {
 
     private fun mainRoot(): File = resolve("src/main/kotlin")
 
-    private fun jcefRoot(): File = resolve("src/main/resources/jcef")
+    private fun jcefRoot(): File = resolve("frontend/src/main/resources/jcef")
 
-    private fun tsRoot(): File = resolve("src/main/ts/jcef")
+    private fun tsRoot(): File = resolve("frontend/src/main/ts/jcef")
 
     private fun resolve(path: String): File =
         sequenceOf(File(path), File("../$path")).firstOrNull { it.isDirectory }

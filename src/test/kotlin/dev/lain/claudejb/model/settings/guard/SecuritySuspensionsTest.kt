@@ -141,7 +141,7 @@ class SecuritySuspensionsTest {
 
     @Test
     fun `the page offers exactly the durations the host understands`() {
-        val js = File("src/main/ts/jcef/core/menus.ts")
+        val js = File("frontend/src/main/ts/jcef/core/menus.ts")
         assertTrue(js.isFile, "CC.GUARD_DURATIONS moved: this contract test has to move with it")
         val tokens = Regex("""\{\s*token:\s*'([^']+)'""").findAll(js.readText()).map { it.groupValues[1] }.toList()
 
