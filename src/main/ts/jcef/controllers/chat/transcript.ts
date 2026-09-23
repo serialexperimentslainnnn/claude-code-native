@@ -13,6 +13,21 @@
     return document.getElementById('empty');
   }
 
+  function guardKind(e: TranscriptEntry): string {
+    return e.blockedRule ? 'guard-block' : e.bypassedRule ? 'guard-bypass' : '';
+  }
+
+  function kindChanged(rec: RowRec, entry: TranscriptEntry): boolean {
+    if (rec.speaker !== entry.speaker) return true;
+    if (entry.speaker !== 'SYSTEM' || !rec.el) return false;
+    const shown = rec.el.classList.contains('guard-block')
+      ? 'guard-block'
+      : rec.el.classList.contains('guard-bypass')
+        ? 'guard-bypass'
+        : '';
+    return guardKind(entry) !== shown;
+  }
+
   function upsert(entry: TranscriptEntry | null | undefined): RowRec | null {
     if (entry == null || entry.id == null) {
       return null;
@@ -25,7 +40,7 @@
     }
 
     let rec = rows.get(entry.id) || null;
-    if (rec && rec.speaker !== entry.speaker) {
+    if (rec && kindChanged(rec, entry)) {
       if (rec.el && rec.el.parentNode) {
         rec.el.parentNode.removeChild(rec.el);
       }
