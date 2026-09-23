@@ -12,7 +12,6 @@ import dev.lain.claudejb.model.git.GitBranchTopology
 import dev.lain.claudejb.model.git.GitCommitInfo
 import dev.lain.claudejb.model.git.GitLogScope
 import dev.lain.claudejb.model.git.GitRefInfo
-import dev.lain.claudejb.model.git.GitRemoteInfo
 import dev.lain.claudejb.util.logger
 
 @Service(Service.Level.PROJECT)
@@ -57,9 +56,6 @@ class GitHistoryService(private val project: Project) {
     }
 
     fun refs(): List<GitRefInfo> = withPrimaryRoot(emptyList()) { root -> GitGateway.refs(project, root) }
-
-    fun primaryRemote(): GitRemoteInfo? =
-        withPrimaryRoot<GitRemoteInfo?>(null) { root -> GitGateway.primaryRemote(project, root) }
 
     fun workingTreeChanges(): List<String> {
         val root = primaryRepositoryRoot() ?: return emptyList()

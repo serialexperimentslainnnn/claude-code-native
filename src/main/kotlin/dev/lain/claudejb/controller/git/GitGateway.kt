@@ -11,14 +11,12 @@ import dev.lain.claudejb.model.git.GitCommitInfo
 import dev.lain.claudejb.model.git.GitLogScope
 import dev.lain.claudejb.model.git.GitRefInfo
 import dev.lain.claudejb.model.git.GitRefKind
-import dev.lain.claudejb.model.git.GitRemoteInfo
 import git4idea.GitCommit
 import git4idea.GitRevisionNumber
 import git4idea.branch.GitBranchesCollection
 import git4idea.history.GitFileHistory
 import git4idea.history.GitHistoryUtils
 import git4idea.repo.GitBranchTrackInfo
-import git4idea.repo.GitRemote
 import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
@@ -105,16 +103,6 @@ internal object GitGateway {
 
     private fun countBetween(repository: GitRepository, from: String, to: String): Int? =
         GitBranchTopology.commitCount(GitHistoryUtils.getNumberOfCommitsBetween(repository, from, to))
-
-    fun primaryRemote(project: Project, root: VirtualFile): GitRemoteInfo? {
-        val remotes = repositoryAt(project, root)?.remotes.orEmpty()
-        val chosen = remotes.firstOrNull { it.name == GitRemote.ORIGIN }
-            ?: remotes.firstOrNull { it.name == UPSTREAM }
-            ?: remotes.singleOrNull()
-        return chosen?.firstUrl?.let { GitRemoteInfo.parse(it) }
-    }
-
-    private const val UPSTREAM = "upstream"
 
     private fun toInfo(commit: GitCommit, repositoryRoot: String): GitCommitInfo {
         val subject = commit.subject.ifBlank { GitCommitInfo.subjectOf(commit.fullMessage) }
