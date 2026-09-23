@@ -55,7 +55,7 @@ class LogOpsToolSpecsTest {
     @Test
     fun `branch_op names every branch action of the write gateway`() {
         listOf("merge", "rebase", "rebase_onto", "compare", "diff_with_local", "rename", "delete", "checkout", "checkout_as_new", "new_tag")
-            .forEach { assertTrue(it in GitCommands.BRANCH_ACTIONS && it in LogOpsTools.BRANCH_OP.description, it) }
+            .forEach { assertTrue(it in GitWrites.BRANCH_ACTIONS && it in LogOpsTools.BRANCH_OP.description, it) }
     }
 
     @Test

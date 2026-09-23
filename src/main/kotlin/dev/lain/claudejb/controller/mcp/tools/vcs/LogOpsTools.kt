@@ -24,9 +24,10 @@ import kotlinx.serialization.json.put
 internal class LogOpsTools(
     private val project: Project,
     private val actions: IdeActions,
-    private val git: GitCommands = GitCommands(project),
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
+
+    private val git: GitWrites by lazy { GitWrites.of(project) }
 
     fun domain(): ToolDomain = ToolDomain(
         "log_ops",
@@ -152,10 +153,10 @@ internal class LogOpsTools(
         val BRANCH_OP = ToolSpec(
             "branch_op",
             "One operation of the Branches popup on a branch, through the IDE's own branch machinery with its progress, " +
-                "smart checkout and conflict resolution: " + GitCommands.BRANCH_ACTIONS + ". target is the other name " +
+                "smart checkout and conflict resolution: " + GitWrites.BRANCH_ACTIONS + ". target is the other name " +
                 "where one is needed: the upstream for rebase_onto, the new name for rename, checkout_as_new and new_tag.",
             listOf(
-                Param("action", GitCommands.BRANCH_ACTIONS),
+                Param("action", GitWrites.BRANCH_ACTIONS),
                 Param("ref", "The branch, or for new_tag the reference the tag points at"),
                 Param("target", "The other name the action needs (see above)", required = false),
             ),

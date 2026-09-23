@@ -38,9 +38,10 @@ internal class HistoryTools(
     private val project: Project,
     private val actions: IdeActions,
     private val reveal: Reveal,
-    private val git: GitCommands = GitCommands(project),
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
+
+    private val git: GitWrites by lazy { GitWrites.of(project) }
 
     private val labels = LinkedHashMap<String, Label>()
 

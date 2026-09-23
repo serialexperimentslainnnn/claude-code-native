@@ -3,6 +3,7 @@ package dev.lain.claudejb.controller.git
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.FileStatus
 import com.intellij.openapi.vcs.VcsException
@@ -17,7 +18,7 @@ import dev.lain.claudejb.util.logger
 @Service(Service.Level.PROJECT)
 class GitHistoryService(private val project: Project) {
 
-    fun repositoryRoots(): List<String> = readGit(emptyList()) { GitGateway.repositoryRoots(project).map { it.path } }
+    fun repositoryRoots(): List<String> = readGit(emptyList()) { git -> git.repositoryRoots(project).map { it.path } }
 
     fun isAvailable(): Boolean = repositoryRoots().isNotEmpty()
 
@@ -27,9 +28,9 @@ class GitHistoryService(private val project: Project) {
         return roots.filter { base == it || base.startsWith("$it/") }.maxByOrNull { it.length } ?: roots.firstOrNull()
     }
 
-    fun currentBranch(): String? = withPrimaryRoot { root -> GitGateway.currentBranchName(project, root) }
+    fun currentBranch(): String? = withPrimaryRoot { git, root -> git.currentBranchName(project, root) }
 
-    fun headRevision(): String? = withPrimaryRoot { root -> GitGateway.currentRevision(project, root) }
+    fun headRevision(): String? = withPrimaryRoot { git, root -> git.currentRevision(project, root) }
 
     fun recentCommits(
         limit: Int = DEFAULT_COMMIT_LIMIT,
@@ -37,25 +38,25 @@ class GitHistoryService(private val project: Project) {
     ): List<GitCommitInfo> {
         if (limit <= 0) return emptyList()
         if (refusedOnEdt("recentCommits()", "git log")) return emptyList()
-        return withPrimaryRoot(emptyList()) { root -> GitGateway.recentCommits(project, root, limit, scope) }
+        return withPrimaryRoot(emptyList()) { git, root -> git.recentCommits(project, root, limit, scope) }
     }
 
     fun commit(hash: String): GitCommitInfo? {
         if (refusedOnEdt("commit()", "git log -n 1")) return null
-        return withPrimaryRoot<GitCommitInfo?>(null) { root -> GitGateway.commit(project, root, hash) }
+        return withPrimaryRoot<GitCommitInfo?>(null) { git, root -> git.commit(project, root, hash) }
     }
 
     fun fileHistory(relativePath: String, limit: Int): List<GitCommitInfo> {
         if (limit <= 0 || refusedOnEdt("fileHistory()", "git log --follow")) return emptyList()
-        return withPrimaryRoot(emptyList()) { root -> GitGateway.fileHistory(project, root, relativePath, limit) }
+        return withPrimaryRoot(emptyList()) { git, root -> git.fileHistory(project, root, relativePath, limit) }
     }
 
     fun branchTopology(): GitBranchTopology {
         if (refusedOnEdt("branchTopology()", "git rev-list / git merge-base")) return GitBranchTopology.NONE
-        return withPrimaryRoot(GitBranchTopology.NONE) { root -> GitGateway.branchTopology(project, root) }
+        return withPrimaryRoot(GitBranchTopology.NONE) { git, root -> git.branchTopology(project, root) }
     }
 
-    fun refs(): List<GitRefInfo> = withPrimaryRoot(emptyList()) { root -> GitGateway.refs(project, root) }
+    fun refs(): List<GitRefInfo> = withPrimaryRoot(emptyList()) { git, root -> git.refs(project, root) }
 
     fun workingTreeChanges(): List<String> {
         val root = primaryRepositoryRoot() ?: return emptyList()
@@ -70,12 +71,12 @@ class GitHistoryService(private val project: Project) {
         if (ChangeListManager.getInstance(project).allChanges.any { it.fileStatus == FileStatus.MERGED_WITH_CONFLICTS }) {
             return true
         }
-        return withPrimaryRoot(false) { root -> GitGateway.midOperation(project, root) }
+        return withPrimaryRoot(false) { git, root -> git.midOperation(project, root) }
     }
 
     fun onRepositoryChanged(parent: Disposable, onChanged: () -> Unit) {
-        if (!GitAvailability.isGitPluginEnabled()) return
-        runCatching { GitGateway.onRepositoryChanged(project, parent, onChanged) }
+        val git = gitAccess() ?: return
+        runCatching { git.onRepositoryChanged(project, parent, onChanged) }
             .onFailure { LOG.warn("Could not subscribe to Git repository changes for ${project.name}", it) }
     }
 
@@ -85,27 +86,29 @@ class GitHistoryService(private val project: Project) {
         return true
     }
 
-    private fun <T> withPrimaryRoot(fallback: T, block: (VirtualFile) -> T): T =
-        readGit(fallback) {
+    private fun <T> withPrimaryRoot(fallback: T, block: (GitAccess, VirtualFile) -> T): T =
+        readGit(fallback) { git ->
             val wanted = primaryRepositoryRoot() ?: return@readGit fallback
-            val root = GitGateway.repositoryRoots(project).firstOrNull { it.path == wanted } ?: return@readGit fallback
-            block(root)
+            val root = git.repositoryRoots(project).firstOrNull { it.path == wanted } ?: return@readGit fallback
+            block(git, root)
         }
 
-    private fun withPrimaryRoot(block: (VirtualFile) -> String?): String? = withPrimaryRoot<String?>(null, block)
+    private fun withPrimaryRoot(block: (GitAccess, VirtualFile) -> String?): String? = withPrimaryRoot<String?>(null, block)
 
-    private fun <T> readGit(fallback: T, block: () -> T): T {
-        if (!GitAvailability.isGitPluginEnabled()) return fallback
+    private fun <T> readGit(fallback: T, block: (GitAccess) -> T): T {
+        val git = gitAccess() ?: return fallback
         return try {
-            block()
+            block(git)
         } catch (e: VcsException) {
             LOG.warn("Git query failed for ${project.name}", e)
             fallback
         } catch (e: LinkageError) {
-            LOG.warn("Git4Idea classes are not on this plugin's classpath; the Git surface stays off", e)
+            LOG.warn("The Git module no longer links against this IDE's Git4Idea; the Git surface stays off", e)
             fallback
         }
     }
+
+    private fun gitAccess(): GitAccess? = if (GitAvailability.isGitPluginEnabled()) serviceOrNull<GitAccess>() else null
 
     companion object {
 

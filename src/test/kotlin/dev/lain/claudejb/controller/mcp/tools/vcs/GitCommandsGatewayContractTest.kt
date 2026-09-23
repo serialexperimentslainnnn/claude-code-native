@@ -85,7 +85,7 @@ class GitCommandsGatewayContractTest {
         const val GUARD_NAME = "requireGit"
 
         val GUARD = Regex("""private fun $GUARD_NAME\(\) \{""")
-        val ENTRY = Regex("""^ {4}fun \w+\(.*""")
+        val ENTRY = Regex("""^ {4}(override )?fun \w+\(.*""")
 
         val COMMAND_SYMBOLS = listOf(
             "GitLineHandler",

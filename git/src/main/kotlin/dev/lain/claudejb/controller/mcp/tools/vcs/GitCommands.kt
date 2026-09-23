@@ -20,13 +20,13 @@ import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryManager
 import git4idea.util.GitFileUtils
 
-internal class GitCommands(private val project: Project) {
+internal class GitCommands(private val project: Project) : GitWrites {
 
     private fun requireGit() {
-        if (!GitAvailability.isGitPluginEnabled()) throw ToolException("the Git plugin (Git4Idea) is disabled in this IDE")
+        if (!GitAvailability.isGitPluginEnabled()) throw ToolException(GitWrites.MISSING)
     }
 
-    fun stage(paths: List<FilePath>) {
+    override fun stage(paths: List<FilePath>) {
         requireGit()
         val repository = repository()
         add(repository, paths)
@@ -41,14 +41,14 @@ internal class GitCommands(private val project: Project) {
         checked(Git.getInstance().runCommand(handler))
     }
 
-    fun unstage(paths: List<FilePath>) {
+    override fun unstage(paths: List<FilePath>) {
         requireGit()
         val repository = repository()
         vcs { GitFileUtils.resetPaths(project, repository.root, paths) }
         refresh(repository, worktree = false)
     }
 
-    fun commit(message: String, paths: List<FilePath>, amend: Boolean) {
+    override fun commit(message: String, paths: List<FilePath>, amend: Boolean) {
         requireGit()
         val repository = repository()
         if (paths.isNotEmpty()) add(repository, paths)
@@ -64,21 +64,21 @@ internal class GitCommands(private val project: Project) {
         refresh(repository, worktree = false)
     }
 
-    fun createBranch(name: String, startPoint: String) {
+    override fun createBranch(name: String, startPoint: String) {
         requireGit()
         val repository = repository()
         checked(Git.getInstance().branchCreate(repository, name, startPoint))
         refresh(repository, worktree = false)
     }
 
-    fun checkout(reference: String, newBranch: String?) {
+    override fun checkout(reference: String, newBranch: String?) {
         requireGit()
         val repository = repository()
         checked(Git.getInstance().checkout(repository, reference, newBranch, false, false))
         refresh(repository, worktree = true)
     }
 
-    fun fetch(remoteName: String?): String {
+    override fun fetch(remoteName: String?): String {
         requireGit()
         val repository = repository()
         val remote = remote(repository, remoteName)
@@ -87,7 +87,7 @@ internal class GitCommands(private val project: Project) {
         return remote.name
     }
 
-    fun pull(remoteName: String?, branch: String): String {
+    override fun pull(remoteName: String?, branch: String): String {
         requireGit()
         val repository = repository()
         val remote = remote(repository, remoteName)
@@ -99,7 +99,7 @@ internal class GitCommands(private val project: Project) {
         return remote.name
     }
 
-    fun push(remoteName: String?, branch: String): String {
+    override fun push(remoteName: String?, branch: String): String {
         requireGit()
         val repository = repository()
         val remote = remote(repository, remoteName)
@@ -109,7 +109,7 @@ internal class GitCommands(private val project: Project) {
         return remote.name
     }
 
-    fun stash(action: String, message: String?): List<String> {
+    override fun stash(action: String, message: String?): List<String> {
         requireGit()
         val repository = repository()
         val params = when (action) {
@@ -122,7 +122,7 @@ internal class GitCommands(private val project: Project) {
         return output
     }
 
-    fun worktrees(action: String, path: String?, branch: String?): List<String> {
+    override fun worktrees(action: String, path: String?, branch: String?): List<String> {
         requireGit()
         val repository = repository()
         val params = when (action) {
@@ -136,7 +136,7 @@ internal class GitCommands(private val project: Project) {
         return output
     }
 
-    fun remotes(action: String, name: String?, url: String?): List<String> {
+    override fun remotes(action: String, name: String?, url: String?): List<String> {
         requireGit()
         val repository = repository()
         val params = when (action) {
@@ -153,12 +153,12 @@ internal class GitCommands(private val project: Project) {
 
     private fun needed(action: String, key: String, value: String?): String = value ?: throw ToolException("action=$action needs $key")
 
-    fun show(reference: String, path: String): List<String> {
+    override fun show(reference: String, path: String): List<String> {
         requireGit()
         return run(repository(), GitCommand.SHOW, listOf("$reference:$path"))
     }
 
-    fun branchOp(action: String, reference: String, target: String?) {
+    override fun branchOp(action: String, reference: String, target: String?) {
         requireGit()
         val repository = repository()
         val repositories = listOf(repository)
@@ -175,7 +175,7 @@ internal class GitCommands(private val project: Project) {
             "checkout" -> brancher.checkout(reference, false, repositories, null)
             "checkout_as_new" -> brancher.checkoutNewBranchStartingFrom(other(), reference, repositories, null)
             "new_tag" -> brancher.createNewTag(other(), reference, repositories, null)
-            else -> throw ToolException("action must be one of $BRANCH_ACTIONS")
+            else -> throw ToolException("action must be one of ${GitWrites.BRANCH_ACTIONS}")
         }
     }
 
@@ -228,11 +228,8 @@ internal class GitCommands(private val project: Project) {
         if (worktree) VfsUtil.markDirtyAndRefresh(false, true, false, repository.root)
     }
 
-    companion object {
-        private const val CONFLICT = "CONFLICT"
-        private const val CONFLICT_HINT = "resolve the conflicts in the IDE with vcs_action(action=resolve_conflicts)"
-
-        const val BRANCH_ACTIONS =
-            "merge, rebase, rebase_onto, compare, diff_with_local, rename, delete, checkout, checkout_as_new or new_tag"
+    private companion object {
+        const val CONFLICT = "CONFLICT"
+        const val CONFLICT_HINT = "resolve the conflicts in the IDE with vcs_action(action=resolve_conflicts)"
     }
 }

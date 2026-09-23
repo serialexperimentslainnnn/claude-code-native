@@ -23,9 +23,10 @@ import kotlinx.serialization.json.put
 
 internal class GitWriteTools(
     private val project: Project,
-    private val git: GitCommands = GitCommands(project),
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
+
+    private val git: GitWrites by lazy { GitWrites.of(project) }
 
     private val history: GitHistoryService get() = project.service()
 

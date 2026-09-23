@@ -21,15 +21,15 @@ import git4idea.repo.GitRepository
 import git4idea.repo.GitRepositoryChangeListener
 import git4idea.repo.GitRepositoryManager
 
-internal object GitGateway {
+internal class GitGateway : GitAccess {
 
-    fun repositoryRoots(project: Project): List<VirtualFile> = repositories(project).map { it.root }
+    override fun repositoryRoots(project: Project): List<VirtualFile> = repositories(project).map { it.root }
 
-    fun currentBranchName(project: Project, root: VirtualFile): String? = repositoryAt(project, root)?.currentBranchName
+    override fun currentBranchName(project: Project, root: VirtualFile): String? = repositoryAt(project, root)?.currentBranchName
 
-    fun currentRevision(project: Project, root: VirtualFile): String? = repositoryAt(project, root)?.currentRevision
+    override fun currentRevision(project: Project, root: VirtualFile): String? = repositoryAt(project, root)?.currentRevision
 
-    fun refs(project: Project, root: VirtualFile): List<GitRefInfo> {
+    override fun refs(project: Project, root: VirtualFile): List<GitRefInfo> {
         val repository = repositoryAt(project, root) ?: return emptyList()
         val branches: GitBranchesCollection = repository.branches
         val head = repository.currentBranchName
@@ -52,26 +52,19 @@ internal object GitGateway {
             .sortedWith(compareByDescending<GitRefInfo> { it.current }.thenBy { it.kind }.thenBy { it.name })
     }
 
-    private const val DETACHED_HEAD = "HEAD"
-
     @Throws(VcsException::class)
-    fun recentCommits(
-        project: Project,
-        root: VirtualFile,
-        limit: Int,
-        scope: GitLogScope = GitLogScope.CURRENT_BRANCH,
-    ): List<GitCommitInfo> {
+    override fun recentCommits(project: Project, root: VirtualFile, limit: Int, scope: GitLogScope): List<GitCommitInfo> {
         @Suppress("SpreadOperator")
         val commits = GitHistoryUtils.history(project, root, *revisionsOf(scope), "--topo-order", "-n", limit.toString())
         return commits.map { commit -> toInfo(commit, root.path) }
     }
 
     @Throws(VcsException::class)
-    fun commit(project: Project, root: VirtualFile, hash: String): GitCommitInfo? =
+    override fun commit(project: Project, root: VirtualFile, hash: String): GitCommitInfo? =
         GitHistoryUtils.history(project, root, hash, "-n", "1").firstOrNull()?.let { toInfo(it, root.path) }
 
     @Throws(VcsException::class)
-    fun fileHistory(project: Project, root: VirtualFile, relativePath: String, limit: Int): List<GitCommitInfo> {
+    override fun fileHistory(project: Project, root: VirtualFile, relativePath: String, limit: Int): List<GitCommitInfo> {
         val path = VcsUtil.getFilePath(root.path + "/" + relativePath, false)
         val hashes = GitFileHistory.collectHistory(project, path, "-n", limit.toString()).map { it.revisionNumber.asString() }
         if (hashes.isEmpty()) return emptyList()
@@ -86,7 +79,7 @@ internal object GitGateway {
     }
 
     @Throws(VcsException::class)
-    fun branchTopology(project: Project, root: VirtualFile): GitBranchTopology {
+    override fun branchTopology(project: Project, root: VirtualFile): GitBranchTopology {
         val repository = repositoryAt(project, root) ?: return GitBranchTopology.NONE
         val branch = repository.currentBranchName ?: return GitBranchTopology.NONE
         val track: GitBranchTrackInfo? = repository.getBranchTrackInfo(branch)
@@ -122,24 +115,28 @@ internal object GitGateway {
         )
     }
 
-    fun onRepositoryChanged(project: Project, parent: Disposable, onChanged: () -> Unit) {
+    override fun onRepositoryChanged(project: Project, parent: Disposable, onChanged: () -> Unit) {
         project.messageBus.connect(parent).subscribe(
             GitRepository.GIT_REPO_CHANGE,
             GitRepositoryChangeListener { onChanged() },
         )
     }
 
-    fun midOperation(project: Project, root: VirtualFile): Boolean =
+    override fun midOperation(project: Project, root: VirtualFile): Boolean =
         repositoryAt(project, root)?.state in RESOLVING_STATES
-
-    private val RESOLVING_STATES = setOf(
-        Repository.State.MERGING,
-        Repository.State.REBASING,
-        Repository.State.GRAFTING,
-    )
 
     private fun repositories(project: Project): List<GitRepository> = GitRepositoryManager.getInstance(project).repositories
 
     private fun repositoryAt(project: Project, root: VirtualFile): GitRepository? =
         repositories(project).firstOrNull { it.root == root }
+
+    private companion object {
+        const val DETACHED_HEAD = "HEAD"
+
+        val RESOLVING_STATES = setOf(
+            Repository.State.MERGING,
+            Repository.State.REBASING,
+            Repository.State.GRAFTING,
+        )
+    }
 }

@@ -1,0 +1,13 @@
+<idea-plugin>
+    <dependencies>
+        <plugin id="Git4Idea"/>
+        <module name="dev.lain.claudejb.backend"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceInterface="dev.lain.claudejb.controller.git.GitAccess"
+                            serviceImplementation="dev.lain.claudejb.controller.git.GitGateway"/>
+        <projectService serviceInterface="dev.lain.claudejb.controller.mcp.tools.vcs.GitWrites"
+                        serviceImplementation="dev.lain.claudejb.controller.mcp.tools.vcs.GitCommands"/>
+    </extensions>
+</idea-plugin>
