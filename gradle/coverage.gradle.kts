@@ -2,20 +2,43 @@ import kotlinx.kover.gradle.plugin.dsl.CoverageUnit
 import kotlinx.kover.gradle.plugin.dsl.GroupingEntityType
 import kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension
 
+apply(plugin = "jacoco")
+
+configure<JacocoPluginExtension> {
+    toolVersion = "0.8.15"
+}
+
+val platformCoverage = layout.buildDirectory.file("jacoco/test.exec")
+
+tasks.named<Test>("test") {
+    configure<JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+        setDestinationFile(platformCoverage.map { it.asFile })
+    }
+}
+
+tasks.matching { it.name.startsWith("kover") && (it.name.contains("Report") || it.name.contains("Verify")) }.configureEach {
+    dependsOn("test")
+}
+
 dependencies {
-    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal").forEach { "kover"(project(":$it")) }
+    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks").forEach { "kover"(project(":$it")) }
 }
 
 configure<KoverProjectExtension> {
     currentProject {
         instrumentation {
-            disabledForTestTasks.addAll("checkDrift", "uiTest", "bench")
+            disabledForTestTasks.addAll("checkDrift", "uiTest", "bench", "test")
         }
         sources {
             excludedSourceSets.add("uiTest")
         }
     }
     reports {
+        total {
+            additionalBinaryReports.add(platformCoverage.map { it.asFile })
+        }
         filters {
             excludes {
                 classes(
