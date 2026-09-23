@@ -14,21 +14,15 @@
 .tool.agent-link > .tool-head:hover .name {
   text-decoration: underline;
 }
-.tool.agent-link > .tool-head .chev {
-  visibility: hidden;
-}
 
 .tool.loading,
 .tool.running {
-  animation:
-    rise 0.22s var(--ease) both,
-    toolRun 1.3s ease-in-out infinite;
+  border-color: color-mix(in srgb, var(--info) 60%, var(--border));
 }
 .tool.loading > .tool-head .ic,
 .tool.running > .tool-head .ic {
-  animation:
-    spin 1.1s linear infinite,
-    toolRunIc 1.3s ease-in-out infinite;
+  color: var(--info);
+  animation: spin 1.1s linear infinite;
 }
 .tool.failed {
   border-color: color-mix(in srgb, var(--danger) 60%, var(--border));
@@ -54,24 +48,6 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-@keyframes toolRun {
-  0%,
-  100% {
-    border-color: color-mix(in srgb, var(--info) 60%, var(--border));
-  }
-  50% {
-    border-color: color-mix(in srgb, var(--warning) 60%, var(--border));
-  }
-}
-@keyframes toolRunIc {
-  0%,
-  100% {
-    color: var(--info);
-  }
-  50% {
-    color: var(--warning);
   }
 }
 
@@ -151,10 +127,20 @@
 .tool-head .chev {
   flex: 0 0 auto;
   color: var(--dim);
+  font: inherit;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  cursor: pointer;
   transition: transform 0.16s var(--ease);
 }
 .tool.open > .tool-head .chev {
   transform: rotate(90deg);
+}
+.tool.agent-link > .tool-head .chev {
+  transform: none;
 }
 .tool-out {
   display: none;

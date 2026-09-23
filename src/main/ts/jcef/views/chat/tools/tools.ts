@@ -72,7 +72,13 @@
     });
     head.appendChild(restoreBtn);
     node.__restoreBtn = restoreBtn;
-    head.appendChild(el('span', { class: 'chev', text: '▾' }));
+    const chev = el('button', {
+      class: 'chev',
+      text: '▾',
+      attrs: { type: 'button', 'aria-expanded': 'false', 'aria-label': 'Show details' },
+    });
+    head.appendChild(chev);
+    node.__chevBtn = chev;
     const cmd = el('div', { class: 'tool-cmd' });
     const msg = el('div', { class: 'tool-msg' });
     const out = el('div', { class: 'tool-out' });
@@ -83,6 +89,7 @@
         return;
       }
       node.classList.toggle('open');
+      TX.syncToolToggle(node);
       if (node.classList.contains('open')) TX.scrollLiveToEnd(node);
     });
     const places = el('div', { class: 'tool-places' });
@@ -163,6 +170,7 @@
       if (!node.__autoOpenedOnError && !node.__isAgentCard) {
         node.__autoOpenedOnError = true;
         node.classList.add('open');
+        TX.syncToolToggle(node);
       }
     } else if (state === 'LOADING') {
       node.classList.add('loading');
