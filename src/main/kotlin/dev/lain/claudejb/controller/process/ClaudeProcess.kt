@@ -88,9 +88,10 @@ class ClaudeProcess(
     private fun consumeStdout(text: String) {
         val lines = ArrayList<String>()
         synchronized(stdoutBuffer) {
+            val scanFrom = stdoutBuffer.length
             stdoutBuffer.append(text)
             var start = 0
-            var newline = stdoutBuffer.indexOf("\n", start)
+            var newline = stdoutBuffer.indexOf("\n", scanFrom)
             while (newline >= 0) {
                 lines.add(stdoutBuffer.substring(start, newline))
                 start = newline + 1
@@ -141,7 +142,7 @@ class ClaudeProcess(
     }
 
     private fun endProcess(dying: KillableProcessHandler) {
-        runCatching { synchronized(writeLock) { dying.processInput?.close() } }
         dying.destroyProcess()
+        runCatching { dying.processInput.close() }
     }
 }
