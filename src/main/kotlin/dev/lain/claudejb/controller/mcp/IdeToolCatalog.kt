@@ -1,6 +1,7 @@
 package dev.lain.claudejb.controller.mcp
 
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import dev.lain.claudejb.controller.git.GitAvailability
 import dev.lain.claudejb.controller.mcp.tools.code.AnalysisTools
 import dev.lain.claudejb.controller.mcp.tools.code.AnalyzeTools
@@ -65,69 +66,76 @@ import kotlinx.coroutines.CoroutineScope
 
 internal object IdeToolCatalog {
 
-    private val DOMAINS: Map<IdeServer, List<(Project, CoroutineScope) -> ToolDomain?>> = mapOf(
+    private class Kit(val p: Project, val s: CoroutineScope) {
+        val reveal = Reveal(p)
+        val actions = IdeActions(p, s)
+    }
+
+    private val KIT: Key<Kit> = Key.create("claude.mcp.tool.kit")
+
+    private val DOMAINS: Map<IdeServer, List<(Kit) -> ToolDomain?>> = mapOf(
         IdeServer.CODE to listOf(
-            { p, _ -> ReadTools(p, Reveal(p)).domain() },
-            { p, _ -> SearchTools(p).domain() },
-            { p, _ -> NavigateTools(p).domain() },
-            { p, _ -> OutlineTools(p).domain() },
-            { p, _ -> DiagnosticsTools(p, Reveal(p)).domain() },
-            { p, _ -> InspectTools(p).domain() },
-            { p, _ -> EditTools(p, Reveal(p)).domain() },
-            { p, s -> EditOpsTools(p, Reveal(p), IdeActions(p, s)).domain() },
-            { p, _ -> RefactorTools(p).domain() },
-            { p, _ -> FormatTools(p).domain() },
-            { p, s -> EditorTools(p, Reveal(p), IdeActions(p, s)).domain() },
-            { p, _ -> HierarchyTools(p).domain() },
-            { p, s -> RecentTools(p, IdeActions(p, s)).domain() },
-            { p, s -> AnalyzeTools(p, IdeActions(p, s)).domain() },
-            { p, s -> AnalysisTools(p, IdeActions(p, s)).domain() },
-            { p, s -> ViewTools(p, IdeActions(p, s)).domain() },
-            { p, s -> FileTools(p, IdeActions(p, s), Reveal(p)).domain() },
-            { p, s -> RefactorOpsTools(IdeActions(p, s)).domain() },
-            { p, _ -> TemplateTools(p, TargetContext(p), Reveal(p)).domain() },
-            { p, s -> LanguageTools(p, IdeActions(p, s)).domain() },
-            { p, _ -> BookmarkTools(p, Reveal(p)).domain() },
-            { p, _ -> PsiTools(p, Reveal(p)).domain() },
-            { p, _ -> IndexTools(p).domain() },
-            { p, _ -> if (JavaAvailability.isEnabled()) UastTools(p).domain() else null },
-            { p, _ -> WorkspaceTools(p).domain() },
-            { p, _ -> MarkupTools(p, TargetContext(p), Reveal(p)).domain() },
-            { p, _ -> PresenceTools(p, Reveal(p)).domain() },
+            { k -> ReadTools(k.p, k.reveal).domain() },
+            { k -> SearchTools(k.p).domain() },
+            { k -> NavigateTools(k.p).domain() },
+            { k -> OutlineTools(k.p).domain() },
+            { k -> DiagnosticsTools(k.p, k.reveal).domain() },
+            { k -> InspectTools(k.p).domain() },
+            { k -> EditTools(k.p, k.reveal).domain() },
+            { k -> EditOpsTools(k.p, k.reveal, k.actions).domain() },
+            { k -> RefactorTools(k.p).domain() },
+            { k -> FormatTools(k.p).domain() },
+            { k -> EditorTools(k.p, k.reveal, k.actions).domain() },
+            { k -> HierarchyTools(k.p).domain() },
+            { k -> RecentTools(k.p, k.actions).domain() },
+            { k -> AnalyzeTools(k.p, k.actions).domain() },
+            { k -> AnalysisTools(k.p, k.actions).domain() },
+            { k -> ViewTools(k.p, k.actions).domain() },
+            { k -> FileTools(k.p, k.actions, k.reveal).domain() },
+            { k -> RefactorOpsTools(k.actions).domain() },
+            { k -> TemplateTools(k.p, TargetContext(k.p), k.reveal).domain() },
+            { k -> LanguageTools(k.p, k.actions).domain() },
+            { k -> BookmarkTools(k.p, k.reveal).domain() },
+            { k -> PsiTools(k.p, k.reveal).domain() },
+            { k -> IndexTools(k.p).domain() },
+            { k -> if (JavaAvailability.isEnabled()) UastTools(k.p).domain() else null },
+            { k -> WorkspaceTools(k.p).domain() },
+            { k -> MarkupTools(k.p, TargetContext(k.p), k.reveal).domain() },
+            { k -> PresenceTools(k.p, k.reveal).domain() },
         ),
         IdeServer.RUN to listOf(
-            { p, s -> BuildTools(p, s).domain() },
-            { p, s -> RunTools(p, s).domain() },
-            { p, s -> TestTools(p, s).domain() },
-            { p, s -> TerminalTools(p, s).domain() },
-            { p, _ -> DebugTools(p).domain() },
-            { p, _ -> BreakpointTools(p).domain() },
-            { p, s -> RunOpsTools(p, IdeActions(p, s), Reveal(p)).domain() },
+            { k -> BuildTools(k.p, k.s).domain() },
+            { k -> RunTools(k.p, k.s).domain() },
+            { k -> TestTools(k.p, k.s).domain() },
+            { k -> TerminalTools(k.p, k.s).domain() },
+            { k -> DebugTools(k.p).domain() },
+            { k -> BreakpointTools(k.p).domain() },
+            { k -> RunOpsTools(k.p, k.actions, k.reveal).domain() },
         ),
         IdeServer.VCS to listOf(
-            { p, _ -> GitReadTools(p, Reveal(p)).domain() },
-            { p, _ -> GitWriteTools(p).domain() },
-            { p, s -> ForgeTools(p, IdeActions(p, s), Reveal(p)).domain() },
-            { p, s -> LogOpsTools(p, IdeActions(p, s)).domain() },
-            { p, s -> ChangesTools(p, IdeActions(p, s), Reveal(p)).domain() },
-            { p, s -> HistoryTools(p, IdeActions(p, s), Reveal(p)).domain() },
-            { p, _ -> PullRequestOpsTools(p, Reveal(p)).domain() },
-            { p, _ -> ReleaseTools(p).domain() },
+            { k -> GitReadTools(k.p, k.reveal).domain() },
+            { k -> GitWriteTools(k.p).domain() },
+            { k -> ForgeTools(k.p, k.actions, k.reveal).domain() },
+            { k -> LogOpsTools(k.p, k.actions).domain() },
+            { k -> ChangesTools(k.p, k.actions, k.reveal).domain() },
+            { k -> HistoryTools(k.p, k.actions, k.reveal).domain() },
+            { k -> PullRequestOpsTools(k.p, k.reveal).domain() },
+            { k -> ReleaseTools(k.p).domain() },
         ),
         IdeServer.OPS to listOf(
-            { p, s -> ServiceTools(p, s).domain() },
-            { p, _ -> ProjectTools(p).domain() },
-            { p, s -> IdeTools(p, IdeActions(p, s), s).domain() },
-            { p, s -> ActionTools(p, IdeActions(p, s)).domain() },
-            { p, s -> WindowTools(p, IdeActions(p, s)).domain() },
-            { p, s -> ServiceViewTools(p, s).domain() },
-            { p, s -> RemoteTools(p, IdeActions(p, s), Reveal(p)).domain() },
-            { p, s -> ToolsMenuTools(p, IdeActions(p, s)).domain() },
-            { p, s -> ConsoleTools(p, IdeActions(p, s)).domain() },
-            { p, _ -> NotifyTools(p).domain() },
-            { p, _ -> DbTools(p).domain() },
-            { p, s -> HttpTools(p, s, Reveal(p)).takeIf { it.available() }?.domain() },
-            { p, _ -> SshTools(p).takeIf { it.available() }?.domain() },
+            { k -> ServiceTools(k.p, k.s).domain() },
+            { k -> ProjectTools(k.p).domain() },
+            { k -> IdeTools(k.p, k.actions, k.s).domain() },
+            { k -> ActionTools(k.p, k.actions).domain() },
+            { k -> WindowTools(k.p, k.actions).domain() },
+            { k -> ServiceViewTools(k.p, k.s).domain() },
+            { k -> RemoteTools(k.p, k.actions, k.reveal).domain() },
+            { k -> ToolsMenuTools(k.p, k.actions).domain() },
+            { k -> ConsoleTools(k.p, k.actions).domain() },
+            { k -> NotifyTools(k.p).domain() },
+            { k -> DbTools(k.p).domain() },
+            { k -> HttpTools(k.p, k.s, k.reveal).takeIf { it.available() }?.domain() },
+            { k -> SshTools(k.p).takeIf { it.available() }?.domain() },
         ),
     )
 
@@ -135,6 +143,7 @@ internal object IdeToolCatalog {
 
     fun catalog(server: IdeServer, project: Project, scope: CoroutineScope): ToolCatalog {
         if (REQUIRES[server]?.invoke() == false) return ToolCatalog(emptyList())
-        return ToolCatalog(DOMAINS[server].orEmpty().mapNotNull { it(project, scope) })
+        val kit = project.getUserData(KIT)?.takeIf { it.s === scope } ?: Kit(project, scope).also { project.putUserData(KIT, it) }
+        return ToolCatalog(DOMAINS[server].orEmpty().mapNotNull { it(kit) })
     }
 }
