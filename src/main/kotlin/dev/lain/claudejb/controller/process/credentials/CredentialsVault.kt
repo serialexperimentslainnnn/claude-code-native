@@ -84,16 +84,22 @@ object CredentialsVault {
 
     fun hasUsableToken(): Boolean = usableToken() != null
 
-    fun canRenew(): Boolean {
-        if (System.currentTimeMillis() < renewBlockedUntil) return false
-        val oauth = oauthNode() ?: return false
+    fun canRenew(): Boolean = !renewBlocked() && renewable(oauthNode())
+
+    private fun renewBlocked(): Boolean = System.currentTimeMillis() < renewBlockedUntil
+
+    private fun renewable(oauth: kotlinx.serialization.json.JsonObject?): Boolean {
+        if (oauth == null) return false
         if (oauth.string("refreshToken") == null) return false
         if (oauth.strings("scopes").isNullOrEmpty()) return false
         val expiresAt = oauth["refreshTokenExpiresAt"]?.jsonPrimitive?.longOrNull ?: return true
         return expiresAt - System.currentTimeMillis() > EXPIRY_MARGIN_MS
     }
 
-    fun needsRenewal(): Boolean = usableToken() == null && canRenew()
+    fun needsRenewal(): Boolean {
+        val oauth = oauthNode()
+        return (oauth == null || usableToken(oauth) == null) && !renewBlocked() && renewable(oauth)
+    }
 
     fun renew(binary: File, baseEnv: Map<String, String>): Boolean = renewOnDisk(binary, baseEnv)
 
@@ -118,15 +124,12 @@ object CredentialsVault {
         }
         renewingOnDisk = true
         val renewed = try {
-            if (!plant(file, blob)) {
-                false
-            } else {
-                AuthCli.refreshUsingOwnFiles(binary, refreshEnv(baseEnv))
-                AccountProfile.capture()
-                harvestNow() && hasUsableToken()
+            when (plant(file, blob)) {
+                Planting.FOREIGN -> false
+                Planting.FAILED -> false.also { wipe(file) }
+                Planting.PLANTED -> refreshPlanted(binary, baseEnv, file, blob)
             }
         } finally {
-            wipe(file)
             renewingOnDisk = false
         }
         if (!renewed) log.warn("the on-disk credential refresh did not produce a usable token")
@@ -134,19 +137,49 @@ object CredentialsVault {
         return renewed
     }
 
-    private fun plant(file: File, blob: String): Boolean = runCatching {
-        file.parentFile?.mkdirs()
-        if (!file.createNewFile()) return false
-        val ownerOnly = file.setReadable(false, false) && file.setWritable(false, false) &&
-            file.setReadable(true, true) && file.setWritable(true, true)
-        if (!ownerOnly) {
-            log.warn("could not make the credentials file owner-only; refusing to write a credential to it")
-            file.delete()
-            return false
+    internal enum class Planting { FOREIGN, FAILED, PLANTED }
+
+    private fun refreshPlanted(binary: File, baseEnv: Map<String, String>, file: File, blob: String): Boolean {
+        try {
+            AuthCli.refreshUsingOwnFiles(binary, refreshEnv(baseEnv))
+            AccountProfile.capture()
+            return harvestNow() && hasUsableToken()
+        } finally {
+            settlePlanted(file, blob)
         }
-        file.writeText(blob)
-        true
-    }.onFailure { log.warn("could not plant the credentials file for a refresh", it) }.getOrDefault(false)
+    }
+
+    internal fun settlePlanted(file: File, planted: String) {
+        if (!file.isFile) return
+        val now = runCatching { file.readText() }.getOrNull()
+        if (now != null && (now.isBlank() || now == planted)) {
+            wipe(file)
+        } else {
+            log.warn("the renewed credential stays on disk until the password safe accepts it")
+        }
+    }
+
+    internal fun plant(file: File, blob: String): Planting {
+        val created = runCatching {
+            file.parentFile?.mkdirs()
+            file.createNewFile()
+        }.onFailure { log.warn("could not create the credentials file for a refresh", it) }.getOrDefault(false)
+        if (!created) {
+            log.info("another writer holds the credentials file; leaving it untouched")
+            return Planting.FOREIGN
+        }
+        return runCatching {
+            val ownerOnly = file.setReadable(false, false) && file.setWritable(false, false) &&
+                file.setReadable(true, true) && file.setWritable(true, true)
+            if (!ownerOnly) {
+                log.warn("could not make the credentials file owner-only; refusing to write a credential to it")
+                file.delete()
+                return Planting.FAILED
+            }
+            file.writeText(blob)
+            Planting.PLANTED
+        }.onFailure { log.warn("could not plant the credentials file for a refresh", it) }.getOrDefault(Planting.FAILED)
+    }
 
     private fun wipe(file: File) {
         if (!file.isFile) return
