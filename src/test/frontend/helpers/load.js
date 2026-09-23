@@ -30,7 +30,10 @@ const VENDOR = ['purify.min.js', 'marked.min.js', 'highlight.min.js'];
 
 function pageAssemblySource() {
   return fs.readFileSync(
-    path.resolve(__dirname, '../../../main/kotlin/dev/lain/claudejb/view/jcef/PageAssembly.kt'),
+    path.resolve(
+      __dirname,
+      '../../../../frontend/src/main/kotlin/dev/lain/claudejb/frontend/jcef/PageAssembly.kt'
+    ),
     'utf8'
   );
 }

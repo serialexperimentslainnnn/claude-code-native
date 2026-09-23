@@ -4,6 +4,7 @@ const { loadFrontend, appJsFiles, readApp } = require('../helpers/load');
 const { stripComments } = require('../helpers/source');
 
 const KOTLIN_SRC = path.resolve(__dirname, '../../../main/kotlin');
+const FRONTEND_KOTLIN_SRC = path.resolve(__dirname, '../../../../frontend/src/main/kotlin');
 const BRIDGE_KT = path.join(KOTLIN_SRC, 'dev/lain/claudejb/model/bridge/JcefBridge.kt');
 
 const PARSED_TYPE = /^\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*->/gm;
@@ -34,10 +35,14 @@ function unsent(parsed, sent) {
 }
 
 function kotlinText() {
-  return fs
-    .readdirSync(KOTLIN_SRC, { recursive: true })
-    .filter((f) => f.endsWith('.kt'))
-    .map((rel) => stripComments(fs.readFileSync(path.join(KOTLIN_SRC, rel), 'utf8')))
+  return [KOTLIN_SRC, FRONTEND_KOTLIN_SRC]
+    .filter((root) => fs.existsSync(root))
+    .flatMap((root) =>
+      fs
+        .readdirSync(root, { recursive: true })
+        .filter((f) => f.endsWith('.kt'))
+        .map((rel) => stripComments(fs.readFileSync(path.join(root, rel), 'utf8')))
+    )
     .join('\n');
 }
 
@@ -50,7 +55,7 @@ function uncalled(registry, hostText, sources = pageSources()) {
   const host = stripComments(hostText);
   return Object.keys(registry)
     .filter((name) => typeof registry[name] === 'function')
-    .filter((name) => !host.includes('window.cc.' + name))
+    .filter((name) => !host.includes('window.cc.' + name) && !host.includes('"' + name + '"'))
     .filter((name) => !pageCallsTo(name, sources))
     .map((name) => 'cc.' + name);
 }
@@ -97,6 +102,12 @@ describe('Kotlin↔JS bridge — host→page', () => {
     const registry = { __ccNobodyCallsThis: function () {}, trimRows: function () {} };
 
     expect(uncalled(registry, 'exec("window.cc.trimRows()")')).toEqual(['cc.__ccNobodyCallsThis']);
+  });
+
+  it('a method the host pushes by name, with strict JSON, counts as called', () => {
+    const registry = { trimRows: function () {} };
+
+    expect(uncalled(registry, 'exec("trimRows", json)', [])).toEqual([]);
   });
 
   it('a method whose only mention on either side is a comment is still uncalled', () => {
