@@ -1,6 +1,5 @@
 package dev.lain.claudejb.model.session.agents
 
-import dev.lain.claudejb.model.session.history.SessionTranscriptReader
 import dev.lain.claudejb.model.session.transcript.EntryDTO
 import dev.lain.claudejb.model.settings.WorkloadWindow
 import kotlinx.serialization.json.JsonObject
@@ -101,49 +100,25 @@ class AgentRegistry(
         val next = LinkedHashMap<String, AgentNode>()
         for (id in admitted.sortedWith(compareBy({ metas[it]?.spawnDepth ?: 1 }, { it }))) {
             val meta = metas[id] ?: continue
-            val (entries, ending) = transcriptOf(meta.home(dir), id, previous[id])
-            reopenIfGrown(meta, entries.size)
-            val settled = settledStateOf(meta, next, ending)
+            val tail = tails.getOrPut(id) { AgentTranscriptTail(meta.home(dir).resolve(AgentMeta.transcriptFile(id))) }
+            tail.refresh()
+            reopenIfGrown(meta, tail.recordCount)
+            val settled = settledStateOf(meta, next, tail.ending)
             next[id] = AgentNode(
                 meta = meta,
                 status = settled.status,
-                entries = entries,
+                entries = tail.entries,
                 completedAtMillis = settled.completedAtMillis,
             )
         }
         snapshot = next
-        cachedTranscripts.keys.retainAll(next.keys)
+        tails.keys.retainAll(next.keys)
         val fresh = next.keys - previous.keys
         fresh.forEach(onAdmitted)
         return fresh.toList()
     }
 
-    private fun transcriptOf(
-        dir: Path,
-        id: String,
-        previousNode: AgentNode?,
-    ): Pair<List<EntryDTO>, AgentEnding.Ending?> {
-        val stamp = stampOf(dir.resolve(AgentMeta.transcriptFile(id)))
-        val unchanged = cachedTranscripts[id]?.takeIf { it.stamp == stamp }
-        if (unchanged != null && previousNode != null) return previousNode.entries to unchanged.ending
-        val records = SessionTranscriptReader.parseRecords(readLines(dir, id))
-        val ending = AgentEnding.of(records)
-        cachedTranscripts[id] = CachedTranscript(stamp, ending)
-        return SessionTranscriptReader.entriesOf(records) to ending
-    }
-
-    private data class FileStamp(val size: Long, val modifiedAtMillis: Long)
-
-    private class CachedTranscript(val stamp: FileStamp, val ending: AgentEnding.Ending?)
-
-    private val cachedTranscripts = ConcurrentHashMap<String, CachedTranscript>()
-
-    private fun stampOf(file: Path): FileStamp = runCatching {
-        val attrs = Files.readAttributes(file, java.nio.file.attribute.BasicFileAttributes::class.java)
-        FileStamp(attrs.size(), attrs.lastModifiedTime().toMillis())
-    }.getOrDefault(missingFile)
-
-    private val missingFile = FileStamp(-1, -1)
+    private val tails = ConcurrentHashMap<String, AgentTranscriptTail>()
 
     private data class Settled(val status: AgentStatus, val completedAtMillis: Long?)
 
@@ -242,7 +217,4 @@ class AgentRegistry(
         val body = runCatching { Files.readString(path) }.getOrNull() ?: return null
         return AgentMeta.parse(id, body, workflowRun)?.let { id to it }
     }
-
-    private fun readLines(dir: Path, agentId: String): List<String> =
-        runCatching { Files.readAllLines(dir.resolve(AgentMeta.transcriptFile(agentId))) }.getOrDefault(emptyList())
 }

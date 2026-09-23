@@ -17,17 +17,19 @@ internal object AgentEnding {
         UNFINISHED,
     }
 
-    fun of(records: List<JsonObject>): Ending? {
+    fun of(records: List<JsonObject>, finishedEarlier: Boolean = false): Ending? {
         if (records.isEmpty()) return null
         if (records.last().isAbortMarker()) return Ending.ABORTED
         val lastFinished = records.indexOfLast { it.endsTurn() }
         return when {
             lastFinished == records.lastIndex -> Ending.COMPLETED
             records.last().isFinalAnswer() -> Ending.COMPLETED
-            lastFinished >= 0 -> Ending.RESUMED
+            lastFinished >= 0 || finishedEarlier -> Ending.RESUMED
             else -> Ending.UNFINISHED
         }
     }
+
+    fun endsTurn(record: JsonObject): Boolean = record.endsTurn()
 
     private fun JsonObject.endsTurn(): Boolean {
         if ((this[TOOL_ENDS_TURN] as? JsonPrimitive)?.contentOrNull == "true") return true
