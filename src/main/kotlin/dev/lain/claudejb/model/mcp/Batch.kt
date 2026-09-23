@@ -2,10 +2,9 @@ package dev.lain.claudejb.model.mcp
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 
 object Batch {
 
@@ -87,16 +86,11 @@ object Batch {
 
     suspend fun run(args: ToolArgs, plural: Plural, one: suspend (ToolArgs) -> JsonObject): JsonObject {
         val items = expand(args, plural) ?: return one(args)
-        val rows = items.map { item -> row(item, plural.identity, one) }
-        return buildJsonObject {
-            put("count", rows.size)
-            put("failed", rows.count { it.containsKey("error") })
-            put("items", JsonArray(rows))
-        }
+        return BatchRows.summary(BatchRows.run(items, plural.identity, args.parallel, one), plural.identity)
     }
 
     fun expand(args: ToolArgs, plural: Plural): List<ToolArgs>? {
-        val list = args.json[plural.key] ?: return null
+        val list = args.json[plural.key]?.takeUnless { it is JsonNull } ?: return null
         val elements = checked(args, plural, list)
         val base = args.json.filterKeys { it != plural.key }
         return elements.mapIndexed { index, item ->
@@ -105,7 +99,7 @@ object Batch {
     }
 
     private fun checked(args: ToolArgs, plural: Plural, list: JsonElement): JsonArray {
-        val clash = (plural.alone + plural.identity).firstOrNull { args.json.containsKey(it) }
+        val clash = (plural.alone + plural.identity).firstOrNull { args.json[it].let { value -> value != null && value !is JsonNull } }
         val problem = when {
             clash != null -> "give $clash or ${plural.key}, not both"
             list !is JsonArray -> "argument ${plural.key} must be an array"
@@ -120,21 +114,5 @@ object Batch {
         element is JsonPrimitive && element.isString -> mapOf(plural.identity to element)
         element is JsonObject -> element
         else -> throw ToolException("every item of ${plural.key} must be a string or an object")
-    }
-
-    private suspend fun row(item: ToolArgs, identity: String, one: suspend (ToolArgs) -> JsonObject): JsonObject {
-        val id = item.optionalString(identity)
-        val result = try {
-            one(item)
-        } catch (e: ToolException) {
-            return buildJsonObject {
-                put(identity, id ?: "")
-                put("error", e.message ?: "failed")
-            }
-        }
-        return buildJsonObject {
-            if (id != null) put(identity, id)
-            result.forEach { (key, value) -> if (key != identity || id == null) put(key, value) }
-        }
     }
 }
