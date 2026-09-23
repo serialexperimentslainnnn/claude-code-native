@@ -32,6 +32,11 @@ allprojects {
             }
         }
     }
+    plugins.withId("org.jetbrains.kotlinx.kover") {
+        extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+            useJacoco("0.8.15")
+        }
+    }
     tasks.withType<ProcessResources>().configureEach {
         exclude("**/PROJECTMAP.md")
     }
