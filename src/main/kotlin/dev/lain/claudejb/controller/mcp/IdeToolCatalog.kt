@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.mcp
 
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import dev.lain.claudejb.controller.git.GitAvailability
@@ -15,7 +16,6 @@ import dev.lain.claudejb.controller.mcp.tools.code.FormatTools
 import dev.lain.claudejb.controller.mcp.tools.code.HierarchyTools
 import dev.lain.claudejb.controller.mcp.tools.code.IndexTools
 import dev.lain.claudejb.controller.mcp.tools.code.InspectTools
-import dev.lain.claudejb.controller.mcp.tools.code.JavaAvailability
 import dev.lain.claudejb.controller.mcp.tools.code.LanguageTools
 import dev.lain.claudejb.controller.mcp.tools.code.MarkupTools
 import dev.lain.claudejb.controller.mcp.tools.code.NavigateTools
@@ -28,7 +28,7 @@ import dev.lain.claudejb.controller.mcp.tools.code.RefactorOpsTools
 import dev.lain.claudejb.controller.mcp.tools.code.RefactorTools
 import dev.lain.claudejb.controller.mcp.tools.code.SearchTools
 import dev.lain.claudejb.controller.mcp.tools.code.TemplateTools
-import dev.lain.claudejb.controller.mcp.tools.code.UastTools
+import dev.lain.claudejb.controller.mcp.tools.code.UastDomain
 import dev.lain.claudejb.controller.mcp.tools.code.ViewTools
 import dev.lain.claudejb.controller.mcp.tools.code.WorkspaceTools
 import dev.lain.claudejb.controller.mcp.tools.ops.ActionTools
@@ -98,7 +98,7 @@ internal object IdeToolCatalog {
             { k -> BookmarkTools(k.p, k.reveal).domain() },
             { k -> PsiTools(k.p, k.reveal).domain() },
             { k -> IndexTools(k.p).domain() },
-            { k -> if (JavaAvailability.isEnabled()) UastTools(k.p).domain() else null },
+            { k -> k.p.serviceOrNull<UastDomain>()?.domain() },
             { k -> WorkspaceTools(k.p).domain() },
             { k -> MarkupTools(k.p, TargetContext(k.p), k.reveal).domain() },
             { k -> PresenceTools(k.p, k.reveal).domain() },

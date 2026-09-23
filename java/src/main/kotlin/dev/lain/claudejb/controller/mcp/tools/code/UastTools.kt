@@ -19,9 +19,9 @@ import org.jetbrains.uast.UFile
 import org.jetbrains.uast.UastFacade
 import org.jetbrains.uast.visitor.UastVisitor
 
-internal class UastTools(private val project: Project) {
+internal class UastTools(private val project: Project) : UastDomain {
 
-    fun domain(): ToolDomain = ToolDomain(
+    override fun domain(): ToolDomain = ToolDomain(
         "uast",
         "The unified AST (UAST) the IDE shares across Java, Kotlin, Scala and Groovy: the tree of a file to a depth, and " +
             "the element at a position with its parents",
@@ -31,7 +31,7 @@ internal class UastTools(private val project: Project) {
     private suspend fun tree(args: ToolArgs): ToolResult {
         val path = args.string("path")
         val depth = args.int("depth", DEFAULT_DEPTH)
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = smartReadAction(project) {
             val psiFile = Locations.psiFile(project, path)
             val file = UastFacade.convertElementWithParent(psiFile, UFile::class.java) as? UFile
@@ -106,7 +106,7 @@ internal class UastTools(private val project: Project) {
             listOf(
                 Param("path", "File path, absolute or relative to the project root"),
                 Param("depth", "Levels below the file (default $DEFAULT_DEPTH)", type = "integer", required = false),
-                Param("max", "Maximum nodes (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("nodes", DEFAULT_MAX),
             ),
         )
 

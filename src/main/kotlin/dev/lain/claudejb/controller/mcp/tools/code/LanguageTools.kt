@@ -3,7 +3,7 @@ package dev.lain.claudejb.controller.mcp.tools.code
 import com.intellij.lang.Language
 import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.openapi.application.smartReadAction
-import com.intellij.openapi.command.writeCommandAction
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiLanguageInjectionHost
 import com.intellij.psi.util.PsiTreeUtil
@@ -16,7 +16,6 @@ import dev.lain.claudejb.model.mcp.ToolDomain
 import dev.lain.claudejb.model.mcp.ToolException
 import dev.lain.claudejb.model.mcp.ToolResult
 import dev.lain.claudejb.model.mcp.ToolSpec
-import dev.lain.claudejb.util.InstalledPlugins
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -69,7 +68,8 @@ internal class LanguageTools(private val project: Project, private val actions: 
             PsiTreeUtil.getParentOfType(position.psiFile.findElementAt(position.offset), PsiLanguageInjectionHost::class.java, false)
                 ?: throw ToolException("nothing at that position can host an injection (a string literal can)")
         }
-        val injected = IntelliLangGateway(project).inject(host, language.id)
+        val injection = project.serviceOrNull<LanguageInjection>() ?: throw ToolException(LanguageInjection.MISSING)
+        val injected = injection.inject(host, language.id)
         return ToolResult.toon(
             buildJsonObject {
                 put("language", language.id)
@@ -133,32 +133,5 @@ internal class LanguageTools(private val project: Project, private val actions: 
                 Param("column", "1-based column of the symbol (default 1)", type = "integer", required = false),
             ),
         )
-    }
-}
-
-internal class IntelliLangGateway(private val project: Project) {
-
-    suspend fun inject(host: PsiLanguageInjectionHost, languageId: String): Boolean {
-        if (!InstalledPlugins.isEnabled(PLUGIN_ID)) {
-            throw ToolException("the IntelliLang plugin ($PLUGIN_ID) is not installed or is disabled, so nothing injects languages")
-        }
-        val loader = javaClass.classLoader
-        return writeCommandAction(project, "Claude: inject $languageId") {
-            runCatching {
-                val registryClass = Class.forName(REGISTRY, true, loader)
-                val registry = registryClass.getMethod("getInstance", Project::class.java).invoke(null, project)
-                val injectedClass = Class.forName(INJECTED_LANGUAGE, true, loader)
-                val language = injectedClass.getMethod("create", String::class.java).invoke(null, languageId)
-                val add = registryClass.getMethod("addHostWithUndo", PsiLanguageInjectionHost::class.java, injectedClass)
-                add.invoke(registry, host, language)
-                true
-            }.getOrElse { throw ToolException("IntelliLang refused the injection: ${it.message}", it) }
-        }
-    }
-
-    private companion object {
-        const val PLUGIN_ID = "org.intellij.intelliLang"
-        const val REGISTRY = "org.intellij.plugins.intelliLang.inject.TemporaryPlacesRegistry"
-        const val INJECTED_LANGUAGE = "org.intellij.plugins.intelliLang.inject.InjectedLanguage"
     }
 }
