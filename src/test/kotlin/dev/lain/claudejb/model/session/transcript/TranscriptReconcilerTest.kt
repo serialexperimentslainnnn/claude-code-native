@@ -26,6 +26,36 @@ class TranscriptReconcilerTest {
     }
 
     @Test
+    fun `a streaming entry runs until its message settles`() {
+        val model = TranscriptModel()
+        val reconciler = TranscriptReconciler(model)
+
+        reconciler.appendThinking("hmm")
+        val thinking = model.entries.single()
+        assertEquals(ToolState.RUNNING, thinking.toolState)
+
+        reconciler.appendAssistant("Hel")
+        val answer = model.entries.last()
+        assertEquals(ToolState.FINISHED, thinking.toolState)
+        assertEquals(ToolState.RUNNING, answer.toolState)
+
+        reconciler.finalizeAssistant("Hello")
+        assertEquals(ToolState.FINISHED, answer.toolState)
+        assertEquals("Hello", answer.text)
+    }
+
+    @Test
+    fun `a message boundary settles whatever was still streaming`() {
+        val model = TranscriptModel()
+        val reconciler = TranscriptReconciler(model)
+        reconciler.appendAssistant("cut")
+
+        reconciler.onMessageBoundary()
+
+        assertEquals(ToolState.FINISHED, model.entries.single().toolState)
+    }
+
+    @Test
     fun `an assistant delta after its entry was trimmed starts a new entry and leaves the dead one alone`() {
         val model = TranscriptModel()
         val reconciler = TranscriptReconciler(model)

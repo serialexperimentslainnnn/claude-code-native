@@ -13,12 +13,16 @@ class TranscriptReconciler(private val transcript: TranscriptModel) {
 
     private fun live(entry: TranscriptEntry?): TranscriptEntry? = entry?.takeUnless { it.trimmed }
 
+    private fun streaming(speaker: Speaker, delta: String): TranscriptEntry =
+        transcript.add(speaker, delta, toolState = ToolState.RUNNING)
+
     fun appendAssistant(delta: String, parentToolUseId: String? = null) {
         if (!belongsHere(parentToolUseId)) return
+        live(liveThinking)?.let(transcript::settle)
         liveThinking = null
         val entry = live(liveAssistant)
         if (entry == null) {
-            liveAssistant = transcript.add(Speaker.ASSISTANT, delta)
+            liveAssistant = streaming(Speaker.ASSISTANT, delta)
         } else {
             transcript.append(entry, delta)
         }
@@ -27,7 +31,7 @@ class TranscriptReconciler(private val transcript: TranscriptModel) {
     fun finalizeAssistant(full: String, parentToolUseId: String? = null) {
         if (!belongsHere(parentToolUseId)) return
         val entry = live(liveAssistant)
-        if (entry != null) transcript.replaceText(entry, full) else transcript.add(Speaker.ASSISTANT, full)
+        if (entry != null) transcript.replaceText(entry, full, ToolState.FINISHED) else transcript.add(Speaker.ASSISTANT, full)
         liveAssistant = null
     }
 
@@ -36,7 +40,7 @@ class TranscriptReconciler(private val transcript: TranscriptModel) {
         val entry = live(liveThinking)
         if (entry == null) {
             if (delta.isBlank()) return
-            liveThinking = transcript.add(Speaker.THINKING, delta)
+            liveThinking = streaming(Speaker.THINKING, delta)
             settledThinking = liveThinking
         } else {
             transcript.append(entry, delta)
@@ -47,8 +51,8 @@ class TranscriptReconciler(private val transcript: TranscriptModel) {
         if (!belongsHere(parentToolUseId)) return
         val entry = live(liveThinking) ?: live(settledThinking)
         when {
-            full.isBlank() -> Unit
-            entry != null -> transcript.replaceText(entry, full)
+            full.isBlank() -> entry?.let(transcript::settle)
+            entry != null -> transcript.replaceText(entry, full, ToolState.FINISHED)
             else -> transcript.add(Speaker.THINKING, full)
         }
         liveThinking = null
@@ -56,6 +60,7 @@ class TranscriptReconciler(private val transcript: TranscriptModel) {
     }
 
     fun onMessageBoundary() {
+        listOfNotNull(live(liveAssistant), live(liveThinking), live(settledThinking)).forEach(transcript::settle)
         liveAssistant = null
         liveThinking = null
         settledThinking = null
