@@ -1,7 +1,6 @@
 package dev.lain.claudejb.controller.bridge
 
 import dev.lain.claudejb.controller.commands.GuardWhitelistPrompt
-import dev.lain.claudejb.controller.commands.LivePanels
 import dev.lain.claudejb.model.bridge.Msg
 import dev.lain.claudejb.model.permission.SensitiveGuard
 import dev.lain.claudejb.model.permission.scan.ToolInputScanner
@@ -11,15 +10,19 @@ import dev.lain.claudejb.model.settings.guard.GuardWhitelists
 import dev.lain.claudejb.model.settings.guard.SecuritySuspensions
 import dev.lain.claudejb.model.settings.guard.sensitivePolicy
 import dev.lain.claudejb.util.thisLogger
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
+import dev.lain.claudejb.view.window.ChatRegistry
+import dev.lain.claudejb.view.window.ChatSnapshots.Kind
 
-internal class BridgeGuard(private val panel: JcefChatPanel) {
+internal class BridgeGuard(private val presenter: ChatPresenter) {
 
     private val log = thisLogger()
 
-    private val session get() = panel.session
+    private val session get() = presenter.session
 
-    private val settings: ClaudeSettings get() = ClaudeSettings.getInstance(panel.project)
+    private val settings: ClaudeSettings get() = ClaudeSettings.getInstance(presenter.project)
+
+    private fun repaintMenu() = ChatRegistry.repaintEverywhere(Kind.MENU)
 
     fun handle(m: Msg.Guard) {
         when (m) {
@@ -29,8 +32,8 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
             is Msg.GuardRevokeApproval -> revokeApproval(m)
             is Msg.GuardRemoveWhitelist -> removeWhitelist(m)
             is Msg.GuardAllowAlways -> allowAlways(m)
-            Msg.GuardLog -> panel.security.pushGuard()
-            is Msg.GuardExplain -> panel.guard.explain(m.id)
+            Msg.GuardLog -> presenter.security.pushGuard()
+            is Msg.GuardExplain -> presenter.guard.explain(m.id)
         }
     }
 
@@ -43,7 +46,7 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
         }
         val scope = settings.scope.id
         settings.update { SecuritySuspensions.suspend(scope, it, rule, duration, System.currentTimeMillis()) }
-        LivePanels.pushSettingsMenu()
+        repaintMenu()
         session.systemNotice(
             "${rule.label} is disabled ${duration.phrase}. Matching calls will ask you instead of being refused.",
         )
@@ -69,8 +72,7 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
     }
 
     private fun announce(notice: String) {
-        LivePanels.pushSettingsMenu()
-        LivePanels.pushState()
+        ChatRegistry.repaintEverywhere(Kind.MENU, Kind.META, Kind.STATE)
         session.systemNotice(notice)
     }
 
@@ -81,8 +83,8 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
             log.warn("A guard block asked to whitelist something this build cannot place: " + m.rule)
             return
         }
-        if (!GuardWhitelistPrompt.confirm(panel.project, rule, entry)) return
-        val policy = settings.sensitivePolicy(panel.project.basePath)
+        if (!GuardWhitelistPrompt.confirm(presenter.project, rule, entry)) return
+        val policy = settings.sensitivePolicy(presenter.project.basePath)
         val canonical = SensitiveGuard.canonicalCommand(entry, policy)
         val already =
             GuardWhitelists.all(settings.state, rule).any { SensitiveGuard.canonicalCommand(it, policy) == canonical }
@@ -91,7 +93,7 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
             return
         }
         settings.update { GuardWhitelists.add(it, rule, entry) }
-        LivePanels.pushSettingsMenu()
+        repaintMenu()
         session.systemNotice(
             "Commands starting with `" + entry + "` are whitelisted for " + rule.label + ". Every other rule still judges them.",
         )
@@ -103,7 +105,7 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
             log.warn("A bypass warning asked to un-whitelist something this build cannot place: ${m.rule}")
             return
         }
-        val policy = settings.sensitivePolicy(panel.project.basePath)
+        val policy = settings.sensitivePolicy(presenter.project.basePath)
         val wanted = SensitiveGuard.canonicalCommand(m.command, policy)
         val covers = { entry: String -> SensitiveGuard.covers(SensitiveGuard.canonicalCommand(entry, policy), wanted) }
         val listed = GuardWhitelists.listedIn(settings.state, rule, covers)
@@ -112,7 +114,7 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
             return
         }
         settings.update { GuardWhitelists.remove(it, rule, listed, covers) }
-        LivePanels.pushSettingsMenu()
+        repaintMenu()
         val where = listed.joinToString(" and ") { describe(it, rule) }
         session.systemNotice("`${m.command.trim()}` is off the $where. ${rule.label} decides it again.")
     }
@@ -130,12 +132,12 @@ internal class BridgeGuard(private val panel: JcefChatPanel) {
             return
         }
         session.guard.approvals.revoke(rule, m.command.trim())
-        LivePanels.pushSettingsMenu()
+        repaintMenu()
         session.systemNotice("`${m.command.trim()}` is no longer pre-approved. ${rule.label} decides again.")
     }
 
     private fun allowAlways(m: Msg.GuardAllowAlways) {
-        val chat = panel.cardSession(m.scope)
+        val chat = presenter.cardSession(m.scope)
         val target = chat.cards.pending().firstOrNull { it.requestId == m.id } ?: return
         val rule = target.guard?.rule ?: return
         ToolInputScanner.commandsIn(target.input).forEach { chat.guard.approvals.approve(rule, it) }

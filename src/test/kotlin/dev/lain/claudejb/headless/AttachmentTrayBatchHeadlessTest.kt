@@ -9,7 +9,7 @@ class AttachmentTrayBatchHeadlessTest : BasePlatformTestCase() {
     private val pushes = mutableListOf<String>()
     private var focuses = 0
 
-    private fun tray() = AttachmentTray(project, { pushes += it }, { focuses++ })
+    private fun tray() = AttachmentTray(project, { pushes += it.json }, { focuses++ })
 
     private fun paths(tray: AttachmentTray) = tray.all().filterIsInstance<Attachment.FileRef>().map { it.path }
 

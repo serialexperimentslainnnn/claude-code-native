@@ -1,6 +1,5 @@
 package dev.lain.claudejb.controller.commands.git
 
-import com.intellij.ide.DataManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.ActionUiKind
@@ -10,7 +9,6 @@ import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.util.logger
 import dev.lain.claudejb.view.git.JcefGitData
-import dev.lain.claudejb.view.window.ClaudeToolWindowFactory
 
 internal object IdeActionInvoker {
 
@@ -21,15 +19,9 @@ internal object IdeActionInvoker {
             LOG.warn("This IDE has no action '$actionId'; the Git view's '$gitActionId' button does nothing")
             return JcefGitData.ActionState.FAILED
         }
-        val component = ClaudeToolWindowFactory.contextComponent(project)
-        val context = if (component != null) {
-            DataManager.getInstance().getDataContext(component)
-        } else {
-            SimpleDataContext.getProjectContext(project)
-        }
         val event = AnActionEvent.createEvent(
             target,
-            context,
+            SimpleDataContext.getProjectContext(project),
             null,
             ActionPlaces.TOOLWINDOW_CONTENT,
             ActionUiKind.TOOLBAR,

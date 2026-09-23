@@ -2,15 +2,19 @@ package dev.lain.claudejb.view.git
 
 import dev.lain.claudejb.controller.commands.git.GitChatConversation
 import dev.lain.claudejb.controller.session.ClaudeSession
+import dev.lain.claudejb.model.bridge.JcefBridge
+import dev.lain.claudejb.rpc.PagePush
 import dev.lain.claudejb.view.payload.chat.JcefCardPayload
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
+import dev.lain.claudejb.view.window.ChatSnapshots.Kind
+import dev.lain.claudejb.view.window.PushStream
 
 internal class GitChatFeed(
-    private val panel: JcefChatPanel,
-    private val exec: (String) -> Unit,
+    private val presenter: ChatPresenter,
+    private val emit: (PagePush) -> Unit,
 ) : GitChatConversation.View {
 
-    private val conversation = GitChatConversation.getInstance(panel.project)
+    private val conversation = GitChatConversation.getInstance(presenter.project)
 
     private var lastPushed: String? = null
 
@@ -27,18 +31,18 @@ internal class GitChatFeed(
     fun permissionGroup(): List<JcefCardPayload.Group> = conversation.permissionGroup()
 
     fun show() {
-        exec("window.CC && CC.dash && CC.dash.setGitSubView && CC.dash.setGitSubView('chat')")
-        exec("window.cc.showGitView && window.cc.showGitView()")
+        emit(PagePush("setGitSubView", JcefBridge.jsString("chat")))
+        emit(PagePush("showGitView", PushStream.NO_ARGS))
     }
 
     override fun drawGitChat(payload: String?) {
         val json = payload ?: "null"
         if (json == lastPushed) return
         lastPushed = json
-        exec("window.cc.gitChat && window.cc.gitChat($json)")
+        emit(PagePush("gitChat", json))
     }
 
-    override fun refreshGitChatPermissions() = panel.pushPermissions()
+    override fun refreshGitChatPermissions() = presenter.snapshots.mark(Kind.PERMISSIONS)
 
     fun dispose() = conversation.detach(this)
 }

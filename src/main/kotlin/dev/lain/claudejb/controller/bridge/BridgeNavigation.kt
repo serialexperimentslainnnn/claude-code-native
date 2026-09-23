@@ -1,39 +1,27 @@
 package dev.lain.claudejb.controller.bridge
 
 import dev.lain.claudejb.model.bridge.Msg
-import dev.lain.claudejb.util.thisLogger
-import dev.lain.claudejb.view.window.ChatTabsPanel
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.rpc.ChatId
+import dev.lain.claudejb.view.window.ChatPresenter
 
-internal class BridgeNavigation(private val panel: JcefChatPanel) {
-
-    private val log = thisLogger()
+internal class BridgeNavigation(private val presenter: ChatPresenter) {
 
     fun handle(m: Msg.Navigation) {
         when (m) {
-            is Msg.RevealAgent -> panel.agentTabs.revealElsewhere(m.chatId) { it.agentTabs.revealFromHost(m) }
+            is Msg.RevealAgent -> presenter.agentTabs.revealElsewhere(m.chatId) { it.agentTabs.revealFromHost(m) }
 
             is Msg.RevealBackgroundTask ->
-                panel.agentTabs.revealElsewhere(m.chatId) { it.transcript.showBackgroundTask(m.taskId) }
+                presenter.agentTabs.revealElsewhere(m.chatId) { it.transcript.showBackgroundTask(m.taskId) }
 
-            Msg.ShowChatTranscript -> panel.transcript.showTranscript(null)
+            Msg.ShowChatTranscript -> presenter.transcript.showTranscript(null)
 
-            is Msg.SelectChat -> withStrip("select chat ${m.chatId}") { it.selectById(m.chatId) }
+            is Msg.SelectChat -> presenter.registry.select(ChatId(m.chatId))
 
-            is Msg.CloseChat -> withStrip("close chat ${m.chatId}") { it.closeById(m.chatId) }
+            is Msg.CloseChat -> presenter.registry.close(ChatId(m.chatId))
 
-            is Msg.SelectAgent -> panel.transcript.showTranscript(m.agentId.ifBlank { null })
+            is Msg.SelectAgent -> presenter.transcript.showTranscript(m.agentId.ifBlank { null })
 
-            is Msg.CloseAgent -> panel.agentTabs.closeAgent(m.agentId)
+            is Msg.CloseAgent -> presenter.agentTabs.closeAgent(m.agentId)
         }
-    }
-
-    fun withStrip(what: String, block: (ChatTabsPanel) -> Unit) {
-        val strip = panel.chatStrip()
-        if (strip == null) {
-            log.warn("Claude Code: no chat strip to $what — the press was dropped")
-            return
-        }
-        block(strip)
     }
 }

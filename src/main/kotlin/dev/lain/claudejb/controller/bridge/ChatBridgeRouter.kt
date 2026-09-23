@@ -2,18 +2,18 @@ package dev.lain.claudejb.controller.bridge
 
 import dev.lain.claudejb.model.bridge.JcefBridge
 import dev.lain.claudejb.model.bridge.Msg
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
 
-internal class ChatBridgeRouter(panel: JcefChatPanel) {
+internal class ChatBridgeRouter(presenter: ChatPresenter) {
 
-    private val prompting = BridgePrompting(panel)
-    private val settings = BridgeSettings(panel)
-    private val cards = BridgeCards(panel)
-    private val diffs = BridgeDiffs(panel)
-    private val attachments = BridgeAttachments(panel)
-    private val controls = BridgeSessionControl(panel)
-    private val lifecycle = BridgeLifecycle(panel)
-    private val log = BridgeLog(panel)
+    private val prompting = BridgePrompting(presenter)
+    private val settings = BridgeSettings(presenter)
+    private val cards = BridgeCards(presenter)
+    private val diffs = BridgeDiffs(presenter)
+    private val attachments = BridgeAttachments(presenter)
+    private val controls = BridgeSessionControl(presenter)
+    private val lifecycle = BridgeLifecycle(presenter)
+    private val log = BridgeLog(presenter)
 
     fun dispatch(json: String) {
         when (val m = JcefBridge.parse(json)) {

@@ -5,9 +5,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.wm.ToolWindowManager
-import dev.lain.claudejb.controller.session.ChatSessionManager
-import dev.lain.claudejb.view.window.ClaudeToolWindowFactory
+import dev.lain.claudejb.view.window.ChatRegistry
 
 class ExplainSelectionAction : AnAction() {
 
@@ -28,16 +26,11 @@ class ExplainSelectionAction : AnAction() {
             append("```")
         }
 
-        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(ClaudeToolWindowFactory.TOOL_WINDOW_ID)
-        if (toolWindow == null) {
-            ChatSessionManager.getInstance(project).activeOrCreate().send(prompt)
-            return
-        }
-        toolWindow.activate {
-            val session = ClaudeToolWindowFactory.activePanel(project)?.session
-                ?: ChatSessionManager.getInstance(project).activeOrCreate()
-            session.send(prompt)
-        }
+        val registry = ChatRegistry.getInstance(project)
+        val chat = registry.selectedOrNew()
+        chat.session.send(prompt)
+        chat.focusInput()
+        registry.showToolWindow()
     }
 
     override fun update(e: AnActionEvent) {

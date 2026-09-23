@@ -16,18 +16,15 @@ import dev.lain.claudejb.model.session.transcript.EntryDTO
 import dev.lain.claudejb.model.session.transcript.SessionRef
 import dev.lain.claudejb.model.settings.ClaudeSettings
 import dev.lain.claudejb.util.edt
-import dev.lain.claudejb.view.window.ChatTabsPanel
+import dev.lain.claudejb.view.window.ChatRegistry
 import javax.swing.JList
 
 internal class TabSessionCommands(
     private val project: Project,
-    private val tabs: ChatTabsPanel,
-    private val openTab: (ClaudeSession, Boolean) -> Unit,
+    private val registry: ChatRegistry,
 ) {
 
-    private fun openChat(session: ClaudeSession) = openTab(session, true)
-
-    fun newChat() = openChat(ChatSessionManager.getInstance(project).create())
+    private fun openChat(session: ClaudeSession) = registry.open(session, true)
 
     fun newChatWith(title: String, prompt: String) {
         val session = ChatSessionManager.getInstance(project).create()
@@ -36,45 +33,36 @@ internal class TabSessionCommands(
         session.send(prompt)
     }
 
-    private fun activeSession(): ClaudeSession? = tabs.selectedChat?.session
-
-    private data class RestoredSession(val id: String, val title: String?, val entries: List<EntryDTO>)
+    private fun activeSession(): ClaudeSession? = registry.selected()?.session
 
     fun restoreOrCreate() {
         val manager = ChatSessionManager.getInstance(project)
         if (!ClaudeSettings.getInstance(project).restoreOpenChatsOnStartup) {
-            openChat(manager.create())
+            if (registry.isEmpty()) openChat(manager.create())
             return
         }
+        val quiet = !registry.isEmpty()
         ApplicationManager.getApplication().executeOnPooledThread {
             val ids = SessionHistory.getInstance(project).openSessions()
                 .filter { SessionStore.exists(it) }
                 .ifEmpty { listOfNotNull(SessionListing.list(project).firstOrNull()?.sessionId) }
-            val restored = ids
-                .map {
-                    RestoredSession(
-                        it,
-                        SessionTitleReader.readTitle(it),
-                        SessionTranscriptReader.readEntries(
-                            it,
-                            SessionTranscriptReader.DEFAULT_RESTORE_CAP,
-                            project.basePath,
-                        ),
-                    )
-                }
-            edt {
-                if (restored.isEmpty()) {
-                    openChat(manager.create())
-                } else {
-                    for (r in restored) {
-                        val s = manager.create()
-                        s.title = r.title ?: s.title
-                        s.persistence.restore(r.id, r.entries)
-                        openChat(s)
-                    }
-                }
+            if (ids.isEmpty()) {
+                edt(project) { if (registry.isEmpty()) openChat(manager.create()) }
+                return@executeOnPooledThread
+            }
+            ids.forEachIndexed { index, id ->
+                val title = SessionTitleReader.readTitle(id)
+                val entries = SessionTranscriptReader.readEntries(id, SessionTranscriptReader.DEFAULT_RESTORE_CAP, project.basePath)
+                edt(project) { restore(manager, id, title, entries, select = !quiet && index == ids.lastIndex) }
             }
         }
+    }
+
+    private fun restore(manager: ChatSessionManager, id: String, title: String?, entries: List<EntryDTO>, select: Boolean) {
+        val s = manager.create()
+        s.title = title ?: s.title
+        s.persistence.restore(id, entries)
+        registry.open(s, select)
     }
 
     fun renameActiveSession() {
