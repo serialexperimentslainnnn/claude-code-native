@@ -8,6 +8,8 @@ import com.intellij.openapi.progress.coroutineToIndicator
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
@@ -47,7 +49,7 @@ internal class SearchTools(private val project: Project, private val io: Corouti
 
     private suspend fun searchOne(args: ToolArgs): JsonObject {
         val query = args.string("query")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_MATCHES)
         val model = FindModel().apply {
             stringToFind = query
             isRegularExpressions = args.boolean("regex", false)
@@ -60,10 +62,11 @@ internal class SearchTools(private val project: Project, private val io: Corouti
             }
         }
         val hits = Collections.synchronizedList(ArrayList<UsageInfo>())
+        val presentation = FindUsagesProcessPresentation(UsageViewPresentation())
         withContext(io) {
             try {
                 coroutineToIndicator { indicator ->
-                    FindInProjectUtil.findUsages(model, project, indicator, PRESENTATION, emptySet()) { info ->
+                    FindInProjectUtil.findUsages(model, project, indicator, presentation, emptySet()) { info ->
                         hits += info
                         hits.size < max
                     }
@@ -73,25 +76,54 @@ internal class SearchTools(private val project: Project, private val io: Corouti
             }
         }
         val found = synchronized(hits) { hits.toList() }
-        val rows = readAction { found.map { describe(it) }.distinct() }
+        val files = readAction { byFile(found) }
         return buildJsonObject {
             put("query", query)
-            put("count", rows.size)
+            put("count", files.sumOf { it.second.size })
             put("truncated", found.size >= max)
-            put("matches", buildJsonArray { rows.forEach { add(it) } })
+            put(
+                "files",
+                buildJsonArray {
+                    for ((file, lines) in files) {
+                        add(
+                            buildJsonObject {
+                                put("file", file)
+                                if (lines.size == 1) put("lines", lines.single()) else put("lines", lines.joinToString(" "))
+                            },
+                        )
+                    }
+                },
+            )
         }
     }
 
-    private fun describe(info: UsageInfo): JsonObject = buildJsonObject {
-        val file = info.virtualFile
-        val document = file?.let { FileDocumentManager.getInstance().getDocument(it) }
-        put("file", file?.let(::relative) ?: "")
-        if (document != null) put("line", document.getLineNumber(info.navigationOffset) + 1)
+    private fun byFile(found: List<UsageInfo>): List<Pair<String, List<Int>>> =
+        found.groupBy { it.virtualFile }.mapNotNull { (file, infos) ->
+            file ?: return@mapNotNull null
+            relative(file) to lineNumbers(textOf(file), infos.map { it.navigationOffset }.sorted())
+        }
+
+    private fun textOf(file: VirtualFile): CharSequence = FileDocumentManager.getInstance().getCachedDocument(file)?.immutableCharSequence
+        ?: StringUtil.convertLineSeparators(VfsUtilCore.loadText(file))
+
+    private fun lineNumbers(text: CharSequence, offsets: List<Int>): List<Int> {
+        val out = ArrayList<Int>(offsets.size)
+        var line = 1
+        var at = 0
+        for (offset in offsets) {
+            val end = offset.coerceIn(0, text.length)
+            while (at < end) {
+                if (text[at] == '\n') line++
+                at++
+            }
+            if (out.lastOrNull() != line) out += line
+        }
+        return out
     }
 
     private suspend fun findOne(args: ToolArgs): JsonObject {
         val name = args.string("name")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_FILES)
         val found = readAction {
             try {
                 if ('*' in name || '?' in name) glob(name, max) else byName(name, max)
@@ -123,8 +155,8 @@ internal class SearchTools(private val project: Project, private val io: Corouti
     private suspend fun listDirectory(args: ToolArgs): ToolResult {
         val path = args.optionalString("path") ?: "."
         val depth = args.int("depth", 1)
-        val max = args.int("max", DEFAULT_MAX)
-        if (depth < 1 || max < 1) throw ToolException("depth and max start at 1")
+        val max = args.max(DEFAULT_MAX, MAX_FILES)
+        if (depth < 1) throw ToolException("depth starts at 1")
         val rows = readAction {
             val root = ReadTools.resolveDirectory(project, path)
             ArrayList<JsonObject>().also { walk(root, depth, ProjectFileIndex.getInstance(project), it, max) }
@@ -157,19 +189,20 @@ internal class SearchTools(private val project: Project, private val io: Corouti
     companion object {
 
         private const val DEFAULT_MAX = 50
-        private val PRESENTATION = FindUsagesProcessPresentation(UsageViewPresentation())
+        private const val MAX_MATCHES = 500
+        private const val MAX_FILES = 500
 
         val SEARCH_TEXT = ToolSpec(
             "search_text",
-            "Finds text or a regular expression across the project: one row per matching line with file and line, no text; " +
-                "read_file the lines you need.",
+            "Finds text or a regular expression across the project: one row per file with its matching lines " +
+                "(space-separated), no text; read_file the lines you need.",
             listOf(
                 Param("query", "Text or regular expression to find", required = false),
                 Batch.param(Batch.QUERIES, "Several searches at once, one result per query; the other arguments apply to each"),
                 Param("regex", "true to treat query as a regular expression (default false)", type = "boolean", required = false),
                 Param("case_sensitive", "true to match case (default false)", type = "boolean", required = false),
                 Param("path", "Directory to search under, relative to the project root (default: whole project)", required = false),
-                Param("max", "Maximum matches to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("matches", DEFAULT_MAX, MAX_MATCHES),
             ),
         )
 
@@ -179,7 +212,7 @@ internal class SearchTools(private val project: Project, private val io: Corouti
             listOf(
                 Param("name", "Exact file name, or a glob on the file name", required = false),
                 Batch.param(Batch.NAMES, "Several names or globs at once, one result per name"),
-                Param("max", "Maximum files to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("files", DEFAULT_MAX, MAX_FILES),
             ),
         )
 
@@ -191,7 +224,7 @@ internal class SearchTools(private val project: Project, private val io: Corouti
             listOf(
                 Param("path", "Directory, absolute or relative to the project root (default: the project root)", required = false),
                 Param("depth", "How many levels to descend (default 1)", type = "integer", required = false),
-                Param("max", "Maximum entries to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("entries", DEFAULT_MAX, MAX_FILES),
             ),
         )
     }
