@@ -12,6 +12,9 @@ data class ChatRef(val id: ChatId, val title: String)
 data class PagePush(val method: String, val json: String)
 
 @Serializable
+data class TerminalLaunch(val workingDirectory: String?, val tabName: String, val command: String)
+
+@Serializable
 sealed interface ChatEvent {
     @Serializable
     data class Opened(val chat: ChatRef, val select: Boolean) : ChatEvent

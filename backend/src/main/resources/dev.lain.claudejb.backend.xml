@@ -10,6 +10,8 @@
         <platform.rpc.backend.remoteApiProvider implementation="dev.lain.claudejb.rpc.backend.ChatApiProvider"/>
         <editorNotificationProvider implementation="dev.lain.claudejb.controller.mcp.tools.code.BannerProvider"/>
         <notificationGroup id="Claude Code" displayType="BALLOON"/>
+        <projectService serviceInterface="dev.lain.claudejb.controller.process.TerminalLauncher$Host"
+                        serviceImplementation="dev.lain.claudejb.view.window.ChatTerminalHost"/>
         <projectConfigurable
                 instance="dev.lain.claudejb.view.settings.ClaudeSettingsConfigurable"
                 id="dev.lain.claudejb.settings"

@@ -24,7 +24,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 @Service(Service.Level.PROJECT)
-class ChatClient(private val project: Project, private val scope: CoroutineScope) {
+class ChatClient(val project: Project, private val scope: CoroutineScope) {
 
     fun connect(parent: Disposable, listener: ChatListener) {
         val job = scope.launch {

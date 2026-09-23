@@ -77,8 +77,8 @@ class TerminalApiContractTest {
     @Test
     fun `the launcher reaches the terminal without reflection`() {
         val source = sequenceOf(
-            java.io.File("src/main/kotlin/dev/lain/claudejb/controller/process/TerminalLauncher.kt"),
-            java.io.File("../src/main/kotlin/dev/lain/claudejb/controller/process/TerminalLauncher.kt"),
+            java.io.File("terminal/src/main/kotlin/dev/lain/claudejb/frontend/terminal/ClientTerminal.kt"),
+            java.io.File("../terminal/src/main/kotlin/dev/lain/claudejb/frontend/terminal/ClientTerminal.kt"),
         ).first { it.isFile }.readText()
 
         assertEquals(0, Regex("""\bgetMethod\(""").findAll(source).count()) {
