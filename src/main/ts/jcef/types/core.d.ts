@@ -1,24 +1,26 @@
+interface MarkedParser {
+  parse(markdown: string): string | Promise<string>;
+}
+
 interface MarkedApi {
-  (markdown: string, options?: object): string;
-  parse(markdown: string, options?: object): string;
-  use(...extensions: object[]): void;
+  Marked: new (options?: object) => MarkedParser;
 }
 
 interface DomPurifyApi {
+  sanitize(dirty: string, config: { RETURN_DOM_FRAGMENT: true; [key: string]: unknown }): DocumentFragment;
   sanitize(dirty: string, config?: object): string;
-  addHook(name: string, hook: (node: Element, data?: unknown) => void): void;
 }
 
 interface HighlightApi {
   highlight(code: string, options: { language: string; ignoreIllegals?: boolean }): { value: string };
   getLanguage(name: string): unknown;
-  highlightElement(element: Element): void;
 }
 
 type CcMethod = (payload?: unknown) => void;
 
 interface MarkdownOptions {
   hostLinks?: boolean;
+  streaming?: boolean;
 }
 
 interface CcHost {
@@ -117,7 +119,11 @@ interface CcShared {
   selfCheck(): void;
   diagnostics(): void;
   markdown(text: unknown, opts?: MarkdownOptions): string;
-  decorateOneCodeBlock(code: Element): void;
+  markdownFragment(text: unknown, opts?: MarkdownOptions): DocumentFragment;
+  decorateOneCodeBlock(code: Element, plain?: boolean): void;
+  highlight(text: string, lang: string | null | undefined): string | null;
+  highlightLines(html: string): string[];
+  reportError(what: string, error: unknown): void;
   languageForPath(path: unknown): string | null;
   diagramLabel(kind: string | null | undefined, depth: number, label: unknown): string;
   diagramShown(kind: string | null | undefined, depth: number, label: unknown): string;

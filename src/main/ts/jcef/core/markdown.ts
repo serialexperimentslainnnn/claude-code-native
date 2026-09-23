@@ -8,89 +8,154 @@
   const HOST_LINKS =
     /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|jb):|data:image\/|[^a-z]|[a-z+.-]+(?:[^a-z+.:-]|$))/i;
 
-  CC.markdown = function (text: unknown, opts?: MarkdownOptions): string {
-    if (text === null || text === undefined) return '';
-    const src = String(text);
+  let parser: MarkedParser | null = null;
+
+  function toHtml(src: string): string {
+    const md = window.marked;
+    if (!md) return CC.escape(src);
+    if (!parser) parser = new md.Marked({ breaks: true, gfm: true, async: false });
+    return parser.parse(src) as string;
+  }
+
+  function textFragment(src: string): DocumentFragment {
+    const frag = document.createDocumentFragment();
+    frag.appendChild(document.createTextNode(src));
+    return frag;
+  }
+
+  function sanitizedFragment(src: string, opts?: MarkdownOptions): DocumentFragment {
     let raw: string;
     try {
-      const mdOpts = { breaks: true, gfm: true };
-      const md = window.marked;
-      raw = md ? (typeof md.parse === 'function' ? md.parse(src, mdOpts) : md(src, mdOpts)) : CC.escape(src);
+      raw = toHtml(src);
     } catch (e) {
       raw = CC.escape(src);
     }
-
-    let clean: string;
     try {
       const purify = window.DOMPurify;
-      clean = purify
-        ? purify.sanitize(raw, {
-            ADD_ATTR: ['target'],
-            FORBID_ATTR: ['style'],
-            ALLOWED_URI_REGEXP: opts && opts.hostLinks ? HOST_LINKS : WEB_LINKS,
-          })
-        : CC.escape(src);
-    } catch (e2) {
-      clean = CC.escape(src);
-    }
-
-    try {
-      const holder = document.createElement('div');
-      holder.innerHTML = clean;
-      decorateCodeBlocks(holder);
-      return holder.innerHTML;
-    } catch (e3) {
-      return clean;
-    }
-  };
-
-  function decorateCodeBlocks(root: Element | null): void {
-    if (!root) return;
-    const blocks = root.querySelectorAll('pre > code');
-    for (let i = 0; i < blocks.length; i++) {
-      decorateOneCodeBlock(blocks[i]);
-    }
+      if (purify) {
+        return purify.sanitize(raw, {
+          ADD_ATTR: ['target'],
+          FORBID_ATTR: ['style'],
+          ALLOWED_URI_REGEXP: opts && opts.hostLinks ? HOST_LINKS : WEB_LINKS,
+          RETURN_DOM_FRAGMENT: true,
+        });
+      }
+    } catch (e2) {}
+    return textFragment(src);
   }
 
-  function decorateOneCodeBlock(code: Element): void {
-    const pre = code && (code.parentNode as Element | null);
-    if (!pre || pre.getAttribute('data-cc-decorated') === '1') return;
-    pre.setAttribute('data-cc-decorated', '1');
+  CC.markdownFragment = function (text: unknown, opts?: MarkdownOptions): DocumentFragment {
+    if (text === null || text === undefined) return document.createDocumentFragment();
+    const frag = sanitizedFragment(String(text), opts);
+    try {
+      const blocks = frag.querySelectorAll('pre > code');
+      for (let i = 0; i < blocks.length; i++) decorateOneCodeBlock(blocks[i], !!(opts && opts.streaming));
+    } catch (e) {}
+    return frag;
+  };
 
-    let lang = '';
+  CC.markdown = function (text: unknown, opts?: MarkdownOptions): string {
+    const holder = document.createElement('div');
+    holder.appendChild(CC.markdownFragment(text, opts));
+    return holder.innerHTML;
+  };
+
+  function languageOf(code: Element): string {
     const cls = (code.className || '').split(/\s+/);
     for (let c = 0; c < cls.length; c++) {
-      if (cls[c].indexOf('language-') === 0) {
-        lang = cls[c].slice('language-'.length);
-        break;
-      }
+      if (cls[c].indexOf('language-') === 0) return cls[c].slice('language-'.length);
     }
+    return '';
+  }
 
+  function codeHead(lang: string): HTMLElement {
     const head = document.createElement('div');
     head.className = 'code-head';
-
     const label = document.createElement('span');
     label.className = 'code-lang';
     label.textContent = lang || 'text';
     head.appendChild(label);
-
     const copy = document.createElement('span');
     copy.className = 'copy';
     copy.setAttribute('role', 'button');
     copy.setAttribute('tabindex', '0');
     copy.textContent = 'Copy';
     head.appendChild(copy);
+    return head;
+  }
 
-    pre.insertBefore(head, code);
-
-    try {
-      const highlighter = window.hljs;
-      if (highlighter && typeof highlighter.highlightElement === 'function') {
-        highlighter.highlightElement(code);
-      }
-    } catch (e) {}
+  function decorateOneCodeBlock(code: Element, plain?: boolean): void {
+    const pre = code && (code.parentNode as Element | null);
+    if (!pre) return;
+    const lang = languageOf(code);
+    if (pre.getAttribute('data-cc-decorated') !== '1') {
+      pre.setAttribute('data-cc-decorated', '1');
+      pre.insertBefore(codeHead(lang), code);
+    }
+    if (plain) return;
+    const html = CC.highlight(code.textContent || '', lang);
+    if (html !== null) code.innerHTML = html;
   }
   CC.decorateOneCodeBlock = decorateOneCodeBlock;
+
+  const CACHE_CHARS = 4000000;
+  const highlighted = new Map<string, string>();
+  let cachedChars = 0;
+
+  function remember(key: string, html: string): void {
+    const size = key.length + html.length;
+    if (size > CACHE_CHARS / 8) return;
+    while (cachedChars + size > CACHE_CHARS && highlighted.size) {
+      const oldest = highlighted.keys().next().value as string;
+      cachedChars -= oldest.length + (highlighted.get(oldest) || '').length;
+      highlighted.delete(oldest);
+    }
+    highlighted.set(key, html);
+    cachedChars += size;
+  }
+
+  CC.highlight = function (text: string, lang: string | null | undefined): string | null {
+    const hl = window.hljs;
+    if (!lang || !hl || typeof hl.getLanguage !== 'function' || !hl.getLanguage(lang)) return null;
+    const key = lang + '\u0000' + text;
+    const hit = highlighted.get(key);
+    if (hit !== undefined) return hit;
+    try {
+      const html = hl.highlight(text, { language: lang, ignoreIllegals: true }).value;
+      remember(key, html);
+      return html;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const HTML_TOKEN = /<span[^>]*>|<\/span>|[^<]+/g;
+
+  CC.highlightLines = function (html: string): string[] {
+    const lines: string[] = [];
+    const open: string[] = [];
+    let line = '';
+    const tokens = html.match(HTML_TOKEN) || [];
+    for (let t = 0; t < tokens.length; t++) {
+      const token = tokens[t];
+      if (token.charAt(0) === '<') {
+        if (token.charAt(1) === '/') open.pop();
+        else open.push(token);
+        line += token;
+        continue;
+      }
+      const parts = token.split('\n');
+      for (let p = 0; p < parts.length; p++) {
+        if (p > 0) {
+          lines.push(line + '</span>'.repeat(open.length));
+          line = open.join('');
+        }
+        line += parts[p];
+      }
+    }
+    lines.push(line + '</span>'.repeat(open.length));
+    return lines;
+  };
 
   const EXT_LANG: Record<string, string> = {
     kt: 'kotlin',

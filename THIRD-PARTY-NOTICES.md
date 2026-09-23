@@ -35,7 +35,7 @@ carries the vendored web assets), the two kotlinx.serialization jars listed belo
 `searchableOptions` jar. Everything with a third-party license in that list has an entry here.
 
 Last verified: 2026-08-11, against the upstream `LICENSE` files at the pinned tags
-(`markedjs/marked@v12.0.0`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.12.0`,
+(`markedjs/marked@v18.0.14`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.12.0`,
 `Kotlin/kotlinx.serialization@v1.7.3`).
 
 ---
@@ -46,8 +46,8 @@ These are vendored into the plugin's embedded web UI under `jcef/` and are serve
 browser at runtime. Each is redistributed exactly as published upstream, with its license banner
 intact and no edit of our own.
 
-### marked — 12.0.0
-- **License:** `MIT AND BSD-3-Clause` — marked itself is MIT; its `LICENSE.md` additionally
+### marked — 18.0.14
+- **License:** `MIT AND BSD-3-Clause` — marked itself is MIT; its `LICENSE` additionally
   reproduces the notice of the original **Markdown** (John Gruber, 2004), which is a BSD-3-Clause
   form license. Both are conditions of redistributing the file, so both are reproduced here.
 - **Copyright:**
@@ -56,9 +56,10 @@ intact and no edit of our own.
   - Copyright © 2004, John Gruber (the Markdown notice)
 - **Project:** https://github.com/markedjs/marked
 - **Full text:** `LICENSES/MIT.txt` (marked) and `LICENSES/BSD-3-Clause-Markdown.txt` (Markdown)
-- **Note:** the banner inside `marked.min.js` reads *"Copyright (c) 2011-2024, Christopher Jeffrey"*
-  — a single line that names neither MarkedJS nor Gruber and states a date range that does not
-  appear in the license. `LICENSE.md` at `v12.0.0` is the grant and is what is reproduced above.
+- **Note:** `marked.min.js` is upstream's `lib/marked.umd.js`, the minified browser build that
+  replaced `marked.min.js` in marked 16, kept under the old name. Its banner names MarkedJS and
+  Christopher Jeffrey but not Gruber; `LICENSE` at `v18.0.14` is the grant and is what is
+  reproduced above.
 
 ### DOMPurify — 3.4.16
 - **License:** `MPL-2.0 OR Apache-2.0` — dual-licensed, as upstream's own `package.json` states it
