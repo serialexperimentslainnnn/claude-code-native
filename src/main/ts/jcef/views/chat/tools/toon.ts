@@ -31,6 +31,14 @@
     return String(value);
   }
 
+  function lineOf(row: Row): unknown {
+    if (row.line != null) return row.line;
+    if (typeof row.lines === 'number') return row.lines;
+    if (typeof row.lines !== 'string') return null;
+    const first = row.lines.trim().split(/\s+/)[0];
+    return /^\d+$/.test(first) ? first : null;
+  }
+
   function fileLink(file: string, line: unknown): HTMLElement {
     const text = line ? file + ':' + line : file;
     const a = el('a', {
@@ -80,7 +88,7 @@
     const value = row[key];
     const node = el(tag, { class: 'toon-' + key });
     if (key === 'file' && typeof value === 'string' && value) {
-      node.appendChild(fileLink(value, row.line));
+      node.appendChild(fileLink(value, lineOf(row)));
     } else if (Array.isArray(value) || isRow(value)) {
       node.appendChild(render(value));
     } else if (typeof value === 'string' && value.indexOf('\n') >= 0) {
@@ -174,7 +182,7 @@
       const key = identityOf(item);
       const details = el('details', { class: 'toon-item' + ('error' in item ? ' toon-item-error' : '') });
       const summary = el('summary', {});
-      if (key === 'path' || key === 'file') summary.appendChild(fileLink(String(item[key]), item.line));
+      if (key === 'path' || key === 'file') summary.appendChild(fileLink(String(item[key]), lineOf(item)));
       else summary.appendChild(el('span', { class: 'toon-scalar', text: key ? String(item[key]) : '' }));
       if (typeof item.error === 'string')
         summary.appendChild(el('span', { class: 'toon-item-err', text: String(item.error) }));
