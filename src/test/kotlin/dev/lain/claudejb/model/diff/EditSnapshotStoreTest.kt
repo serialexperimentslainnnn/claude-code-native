@@ -55,10 +55,10 @@ class EditSnapshotStoreTest {
     }
 
     @Test
-    fun `the store keeps the most recent snapshots and forgets the oldest past its capacity`(@TempDir dir: Path) {
-        val store = EditSnapshotStore(capacity = 2)
+    fun `the store keeps the most recent snapshots and forgets the oldest past its byte budget`(@TempDir dir: Path) {
         val file = File(dir.toFile(), "a.kt").apply { writeText("v") }
         val input = buildJsonObject { put("file_path", file.path) }
+        val store = EditSnapshotStore(maxBytes = 2 * EditSnapshotStore.weight(EditSnapshot("Edit", input, "v", file.path)))
         store.capture("Edit", input, "tool-1")
         store.capture("Edit", input, "tool-2")
         store.get("tool-1")
@@ -70,6 +70,30 @@ class EditSnapshotStoreTest {
 
         store.clear()
         assertNull(store.get("tool-1"))
+    }
+
+    @Test
+    fun `a file above the diff cap is not read and leaves no snapshot`(@TempDir dir: Path) {
+        val file = File(dir.toFile(), "big.txt").apply { writeText("x".repeat(DiffPresenter.MAX_DIFF_FILE_BYTES.toInt() + 1)) }
+        val store = EditSnapshotStore()
+        val input = buildJsonObject { put("file_path", file.path) }
+
+        assertNull(store.capture("Edit", input, "tool-big"))
+        assertNull(store.get("tool-big"))
+    }
+
+    @Test
+    fun `one snapshot larger than the whole budget is still kept until the next one arrives`(@TempDir dir: Path) {
+        val file = File(dir.toFile(), "a.kt").apply { writeText("0123456789") }
+        val input = buildJsonObject { put("file_path", file.path) }
+        val store = EditSnapshotStore(maxBytes = 1)
+
+        store.capture("Edit", input, "tool-1")
+        assertEquals("0123456789", store.get("tool-1")?.beforeText)
+
+        store.capture("Edit", input, "tool-2")
+        assertNull(store.get("tool-1"))
+        assertEquals("0123456789", store.get("tool-2")?.beforeText)
     }
 
     @Test
