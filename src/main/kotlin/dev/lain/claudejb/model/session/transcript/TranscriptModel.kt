@@ -23,8 +23,22 @@ class TranscriptEntry(
     val bypassAction: String? = null,
     val reviewable: Boolean = false,
 ) {
-    var text: String = text
-        internal set
+    private var settled: String? = text
+
+    private var growing: StringBuilder? = null
+
+    var text: String
+        get() = settled ?: growing.toString().also { settled = it }
+        internal set(value) {
+            settled = value
+            growing = null
+        }
+
+    internal fun grow(delta: String) {
+        val builder = growing ?: StringBuilder(settled.orEmpty()).also { growing = it }
+        builder.append(delta)
+        settled = null
+    }
 
     var toolState: ToolState = toolState
         internal set
@@ -51,6 +65,8 @@ class TranscriptModel {
     interface Listener {
         fun onAdded(entry: TranscriptEntry, index: Int) {}
         fun onUpdated(entry: TranscriptEntry) {}
+
+        fun onAppended(entry: TranscriptEntry, delta: String) = onUpdated(entry)
         fun onCleared() {}
 
         fun onTrimmed(removedIds: List<Long>, totalTrimmed: Int) {}
@@ -62,6 +78,8 @@ class TranscriptModel {
 
     private val byToolUseId = HashMap<String, TranscriptEntry>()
     private val parentOf = HashMap<String, String>()
+
+    private var indexById: HashMap<Long, Int>? = HashMap()
 
     val entries: List<TranscriptEntry> get() = backing
 
@@ -100,7 +118,7 @@ class TranscriptModel {
             if (parentToolUseId != null) parentOf[toolUseId] = parentToolUseId else parentOf.remove(toolUseId)
         }
         val index = insertionIndexFor(parentToolUseId)
-        backing.add(index, entry)
+        place(entry, index)
         listeners.forEach { it.onAdded(entry, index) }
         trimToCap()
         return entry
@@ -119,13 +137,14 @@ class TranscriptModel {
                 parentOf.remove(toolUseId)
             }
         }
+        indexById = null
         trimmedCount += removedIds.size
         listeners.forEach { it.onTrimmed(removedIds, trimmedCount) }
     }
 
     fun addToolOutput(toolUseId: String, text: String, parentToolUseId: String? = null, meta: String? = null): TranscriptEntry {
         val toolEntry = byToolUseId[toolUseId]
-        val toolIdx = if (toolEntry != null) backing.indexOf(toolEntry) else -1
+        val toolIdx = if (toolEntry != null) indexOf(toolEntry.id) else -1
         val parent = parentToolUseId ?: toolEntry?.parentToolUseId
         val insertAt = if (toolIdx < 0) {
             backing.size
@@ -135,7 +154,7 @@ class TranscriptModel {
             i
         }
         val entry = TranscriptEntry(nextId++, Speaker.TOOL_OUTPUT, text, meta, toolUseId, parent)
-        backing.add(insertAt, entry)
+        place(entry, insertAt)
         listeners.forEach { it.onAdded(entry, insertAt) }
         trimToCap()
         return entry
@@ -157,16 +176,30 @@ class TranscriptModel {
     private fun insertionIndexFor(parent: String?): Int {
         if (parent == null) return backing.size
         val parentEntry = byToolUseId[parent] ?: return backing.size
-        val anchor = backing.indexOf(parentEntry)
+        val anchor = indexOf(parentEntry.id)
         if (anchor < 0) return backing.size
         var i = anchor + 1
         while (i < backing.size && belongsToSubtree(backing[i], parent)) i++
         return i
     }
 
+    private fun place(entry: TranscriptEntry, index: Int) {
+        backing.add(index, entry)
+        val cache = indexById ?: return
+        if (index == backing.size - 1) cache[entry.id] = index else indexById = null
+    }
+
+    fun indexOf(entryId: Long): Int {
+        val cache = indexById ?: HashMap<Long, Int>(backing.size * 2).also { rebuilt ->
+            backing.forEachIndexed { i, e -> rebuilt[e.id] = i }
+            indexById = rebuilt
+        }
+        return cache[entryId] ?: -1
+    }
+
     fun append(entry: TranscriptEntry, delta: String) {
-        entry.text += delta
-        listeners.forEach { it.onUpdated(entry) }
+        entry.grow(delta)
+        listeners.forEach { it.onAppended(entry, delta) }
     }
 
     fun replaceText(entry: TranscriptEntry, text: String) {
@@ -204,6 +237,7 @@ class TranscriptModel {
 
     fun clear() {
         backing.clear()
+        indexById = HashMap()
         byToolUseId.clear()
         parentOf.clear()
         trimmedCount = 0

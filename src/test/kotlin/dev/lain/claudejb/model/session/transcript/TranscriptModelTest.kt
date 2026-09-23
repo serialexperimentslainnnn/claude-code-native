@@ -155,6 +155,64 @@ class TranscriptModelTest {
     }
 
     @Test
+    fun `append hands listeners the entry and only the appended delta`() {
+        val model = TranscriptModel()
+        val entry = model.add(Speaker.ASSISTANT, "a")
+        val deltas = mutableListOf<Pair<Long, String>>()
+        model.addListener(
+            object : TranscriptModel.Listener {
+                override fun onAppended(entry: TranscriptEntry, delta: String) {
+                    deltas += entry.id to delta
+                }
+            },
+        )
+
+        model.append(entry, "b")
+        assertEquals("ab", entry.text)
+        model.append(entry, "c")
+        model.replaceText(entry, "final")
+        model.append(entry, "!")
+
+        assertEquals(listOf(entry.id to "b", entry.id to "c", entry.id to "!"), deltas)
+        assertEquals("final!", entry.text)
+    }
+
+    @Test
+    fun `a listener that does not know deltas still sees every append as an update`() {
+        val model = TranscriptModel()
+        val entry = model.add(Speaker.ASSISTANT, "a")
+        var updates = 0
+        model.addListener(
+            object : TranscriptModel.Listener {
+                override fun onUpdated(entry: TranscriptEntry) {
+                    updates++
+                }
+            },
+        )
+
+        repeat(3) { model.append(entry, "x") }
+
+        assertEquals(3, updates)
+        assertEquals("axxx", entry.text)
+    }
+
+    @Test
+    fun `indexOf follows inserts in the middle and trims at the front`() {
+        val model = TranscriptModel()
+        val tool = model.add(Speaker.TOOL, "Bash", toolUseId = "t1")
+        val tail = model.add(Speaker.ASSISTANT, "after")
+        val output = model.addToolOutput("t1", "out")
+
+        assertEquals(listOf(0, 1, 2), listOf(tool, output, tail).map { model.indexOf(it.id) })
+
+        model.fill(cap)
+
+        assertEquals(-1, model.indexOf(tool.id))
+        assertEquals(model.entries.lastIndex, model.indexOf(model.entries.last().id))
+        assertEquals(0, model.indexOf(model.entries.first().id))
+    }
+
+    @Test
     fun `replaceText substitutes the entry text`() {
         val model = TranscriptModel()
         val entry = model.add(Speaker.ASSISTANT, "draft")

@@ -57,6 +57,8 @@ internal object MessageParsers {
 
             "content_block_delta" -> parseContentBlockDelta(event, parentToolUseId)
 
+            "content_block_stop" -> listOf(ClaudeEvent.BlockStop)
+
             else -> emptyList()
         }
     }
