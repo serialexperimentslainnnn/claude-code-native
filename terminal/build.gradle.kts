@@ -4,4 +4,5 @@ dependencies {
         bundledPlugin("org.jetbrains.plugins.terminal")
     }
     implementation(project(":frontend"))
+    implementation(project(":shared"))
 }

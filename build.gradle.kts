@@ -109,6 +109,7 @@ tasks {
     check { dependsOn(frontendTest) }
     compileTestKotlin {
         friendPaths.from(pluginModules.map { project(":$it").layout.buildDirectory.dir("classes/kotlin/main") })
+        friendPaths.from(pluginModules.map { project(":$it").layout.buildDirectory.dir("libs").map { libs -> libs.asFileTree } })
     }
     processResources {
         from(file("THIRD-PARTY-NOTICES.md")) { into("META-INF") }

@@ -29,10 +29,8 @@ internal class IndexTools(private val project: Project) {
         listOf(Tool(INDEX_KEYS, ::keys), Tool(INDEX_QUERY, ::query), Tool(STUB_QUERY, ::stubQuery)),
     )
 
-    private fun index(name: String): ID<Any, Any> {
-        @Suppress("UNCHECKED_CAST")
-        return ID.findByName<Any, Any>(name) as ID<Any, Any>? ?: throw ToolException("no file-based index named $name")
-    }
+    private fun index(name: String): ID<Any, Any> =
+        ID.findByName<Any, Any>(name) ?: throw ToolException("no file-based index named $name")
 
     private suspend fun keys(args: ToolArgs): ToolResult {
         val name = args.string("index")

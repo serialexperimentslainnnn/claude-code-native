@@ -20,7 +20,7 @@ internal object AgentEnding {
     fun of(records: List<JsonObject>, finishedEarlier: Boolean = false): Ending? {
         if (records.isEmpty()) return null
         if (records.last().isAbortMarker()) return Ending.ABORTED
-        val lastFinished = records.indexOfLast { it.endsTurn() }
+        val lastFinished = records.indexOfLast { it.finishesTurn() }
         return when {
             lastFinished == records.lastIndex -> Ending.COMPLETED
             records.last().isFinalAnswer() -> Ending.COMPLETED
@@ -29,9 +29,9 @@ internal object AgentEnding {
         }
     }
 
-    fun endsTurn(record: JsonObject): Boolean = record.endsTurn()
+    fun endsTurn(record: JsonObject): Boolean = record.finishesTurn()
 
-    private fun JsonObject.endsTurn(): Boolean {
+    private fun JsonObject.finishesTurn(): Boolean {
         if ((this[TOOL_ENDS_TURN] as? JsonPrimitive)?.contentOrNull == "true") return true
         val message = this["message"] as? JsonObject ?: return false
         return (message["stop_reason"] as? JsonPrimitive)?.contentOrNull == "end_turn"

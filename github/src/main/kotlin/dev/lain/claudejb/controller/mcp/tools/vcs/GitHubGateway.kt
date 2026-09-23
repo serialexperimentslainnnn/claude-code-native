@@ -112,6 +112,7 @@ internal class GitHubGateway(private val project: Project) : GitHubAccess {
         return GithubApiRequestExecutor.Factory.getInstance().create(account.server, token) to coordinates
     }
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     private fun mapping() = project.service<GHHostedRepositoriesManager>().knownRepositoriesState.value.firstOrNull()
         ?: throw ToolException("no remote of this project points at a GitHub repository the IDE knows")
 

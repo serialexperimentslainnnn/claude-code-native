@@ -77,7 +77,10 @@ internal class AgentTranscriptTail(private val file: Path) {
 
     private fun readAt(position: Long, length: Int): ByteArray = FileChannel.open(file, StandardOpenOption.READ).use { channel ->
         val buffer = ByteBuffer.allocate(length)
-        while (buffer.hasRemaining() && channel.read(buffer, position + buffer.position()) > 0) Unit
+        var read: Int
+        do {
+            read = channel.read(buffer, position + buffer.position())
+        } while (buffer.hasRemaining() && read > 0)
         buffer.array().copyOf(buffer.position())
     }
 

@@ -11,6 +11,11 @@ dependencies {
             "intellij.platform.backend",
             "intellij.platform.kernel.backend",
             "intellij.platform.rpc.backend",
+            "intellij.platform.vcs.impl",
+            "intellij.platform.vcs.log",
+            "intellij.platform.vcs.log.impl",
+            "intellij.platform.smRunner",
+            "intellij.platform.bookmarks",
         )
         bundledPlugin("Git4Idea")
     }

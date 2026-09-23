@@ -3,6 +3,11 @@
         <module name="intellij.platform.backend"/>
         <module name="intellij.platform.kernel.backend"/>
         <module name="intellij.platform.rpc.backend"/>
+        <module name="intellij.platform.vcs.impl"/>
+        <module name="intellij.platform.vcs.log"/>
+        <module name="intellij.platform.vcs.log.impl"/>
+        <module name="intellij.platform.smRunner"/>
+        <module name="intellij.platform.bookmarks"/>
         <module name="dev.lain.claudejb.shared"/>
     </dependencies>
 
@@ -32,6 +37,7 @@
     </applicationListeners>
 
     <actions>
+        <group id="ClaudeCode.ToolWindowGear" class="dev.lain.claudejb.view.window.ChatGearGroup"/>
         <action id="dev.lain.claudejb.ExplainSelection"
                 class="dev.lain.claudejb.controller.actions.ExplainSelectionAction"
                 text="Explain with Claude"
