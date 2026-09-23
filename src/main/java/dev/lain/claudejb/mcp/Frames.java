@@ -1,6 +1,5 @@
 package dev.lain.claudejb.mcp;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -9,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 public final class Frames {
 
     public static final int MAX_FRAME_BYTES = 64 * 1024 * 1024;
+    private static final int MAX_HEADER_DIGITS = 10;
 
     private Frames() {
     }
@@ -21,16 +21,22 @@ public final class Frames {
     }
 
     public static String read(InputStream in) throws IOException {
-        ByteArrayOutputStream header = new ByteArrayOutputStream();
+        long length = 0;
+        int digits = 0;
         while (true) {
             int b = in.read();
-            if (b < 0) return header.size() == 0 ? null : fail("stream ended inside a frame header");
+            if (b < 0) return digits == 0 ? null : fail("stream ended inside a frame header");
             if (b == '\n') break;
-            if (b < '0' || b > '9' || header.size() > 9) return fail("malformed frame header");
-            header.write(b);
+            if (b < '0' || b > '9' || digits == MAX_HEADER_DIGITS) return fail("malformed frame header");
+            length = length * 10 + (b - '0');
+            digits++;
+            if (length > MAX_FRAME_BYTES) return fail("frame exceeds the ceiling of " + MAX_FRAME_BYTES + " bytes");
         }
-        int length = Integer.parseInt(header.toString(StandardCharsets.US_ASCII));
-        if (length > MAX_FRAME_BYTES) return fail("frame of " + length + " bytes exceeds the ceiling");
+        if (digits == 0) return fail("malformed frame header");
+        return body(in, (int) length);
+    }
+
+    private static String body(InputStream in, int length) throws IOException {
         byte[] payload = in.readNBytes(length);
         if (payload.length != length) return fail("stream ended inside a frame body");
         return new String(payload, StandardCharsets.UTF_8);
