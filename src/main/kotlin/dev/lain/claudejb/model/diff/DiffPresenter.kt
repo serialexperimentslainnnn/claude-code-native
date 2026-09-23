@@ -78,19 +78,7 @@ object DiffPresenter {
     fun unifiedDiff(current: String, proposed: String, context: Int = 3): String {
         val hunks = computeHunks(current, proposed)
         if (hunks.isEmpty()) return ""
-        val cur = current.split("\n")
-        val pro = proposed.split("\n")
-        val sb = StringBuilder()
-        for (h in hunks) {
-            val ctxStart = (h.start1 - context).coerceAtLeast(0)
-            val ctxEnd = (h.end1 + context).coerceAtMost(cur.size)
-            sb.append("@@ -${h.start1 + 1},${h.end1 - h.start1} +${h.start2 + 1},${h.end2 - h.start2} @@\n")
-            for (i in ctxStart until h.start1) sb.append(' ').append(cur[i]).append('\n')
-            for (i in h.start1 until h.end1) sb.append('-').append(cur.getOrElse(i) { "" }).append('\n')
-            for (i in h.start2 until h.end2) sb.append('+').append(pro.getOrElse(i) { "" }).append('\n')
-            for (i in h.end1 until ctxEnd) sb.append(' ').append(cur[i]).append('\n')
-        }
-        return sb.toString().trimEnd('\n')
+        return UnifiedDiff.format(current.split("\n"), proposed.split("\n"), hunks, context)
     }
 }
 
