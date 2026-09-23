@@ -11,6 +11,38 @@
 
   const DASHBOARD_ID = 'cc-dashboard';
 
+  let menus: { label: string; menu: PickMenu; anchor: HTMLElement }[] = [];
+
+  function isOpen(menu: PickMenu): boolean {
+    return !menu.menu.hasAttribute('hidden');
+  }
+
+  function focusedOption(menu: PickMenu): number {
+    return Array.prototype.indexOf.call(menu.menu.querySelectorAll('button'), document.activeElement);
+  }
+
+  function reopen(menu: PickMenu, at: number): void {
+    menu.toggle();
+    const option = menu.menu.querySelectorAll<HTMLElement>('button')[at];
+    if (option) option.focus({ preventScroll: true });
+  }
+
+  function sweepMenus(): void {
+    const live = menus.filter(function (m) {
+      return m.anchor.isConnected;
+    });
+    menus.forEach(function (dead) {
+      if (dead.anchor.isConnected || !isOpen(dead.menu)) return;
+      const at = Math.max(0, focusedOption(dead.menu));
+      dead.menu.close();
+      const heir = live.filter(function (m) {
+        return m.label === dead.label;
+      })[0];
+      if (heir && !isOpen(heir.menu)) reopen(heir.menu, at);
+    });
+    menus = live;
+  }
+
   function toggled(picked: string[] | null, value: string): string[] | null {
     if (value === ALL) return null;
     const next = (picked || []).slice();
@@ -67,6 +99,7 @@
       },
     });
     menu.sync();
+    menus.push({ label: label, menu: menu, anchor: trigger });
 
     trigger.addEventListener('click', function (ev: Event) {
       ev.preventDefault();
@@ -135,6 +168,7 @@
   }
 
   GL.buildFiltersCard = function (): HTMLElement | null {
+    window.setTimeout(sweepMenus, 0);
     if (!GL.catalog().length) return null;
     return card('Filter', filterStrip(), true, 'guard-filters');
   };

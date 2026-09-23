@@ -13,6 +13,14 @@
 
   let open = false;
 
+  let announced: Record<string, true> = {};
+
+  function alarm(key: string, text: string, shown: Record<string, true>): HTMLElement {
+    const fresh = !announced[key];
+    shown[key] = true;
+    return h('div', { class: 'guard-alarm', attrs: fresh ? { role: 'alert' } : {}, text: text });
+  }
+
   function requestLog(): void {
     send({ type: 'guardLog' });
   }
@@ -21,17 +29,17 @@
     const p = GL.payload || {};
     const w = (p && p.window) || {};
     const rows: HTMLElement[] = [];
+    const shown: Record<string, true> = {};
 
     if (p.recording === false) {
       rows.push(
-        h('div', {
-          class: 'guard-alarm',
-          attrs: { role: 'alert' },
-          text:
-            'Alerts are NOT being written down. The guard is still deciding, but nothing it decides ' +
+        alarm(
+          'not-recording',
+          'Alerts are NOT being written down. The guard is still deciding, but nothing it decides ' +
             'is reaching the log, and nothing said so until now. What you see below is whatever was ' +
             'stored before that started — it is not this session.',
-        })
+          shown
+        )
       );
     }
 
@@ -49,15 +57,15 @@
 
     if (GL.num(w.dropped) > 0) {
       rows.push(
-        h('div', {
-          class: 'guard-alarm',
-          attrs: { role: 'alert' },
-          text:
-            GL.num(w.dropped) +
+        alarm(
+          'dropped:' + GL.num(w.dropped),
+          GL.num(w.dropped) +
             ' alert(s) from this chat were dropped on the way to the log and cannot be recovered.',
-        })
+          shown
+        )
       );
     }
+    announced = shown;
 
     if (GL.num(w.missing) > 0) {
       rows.push(
