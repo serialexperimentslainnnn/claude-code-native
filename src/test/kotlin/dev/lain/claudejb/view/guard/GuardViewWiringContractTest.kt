@@ -21,7 +21,7 @@ class GuardViewWiringContractTest {
     @Test
     fun `the page has exactly one emitter of the guard payload`() {
         val emitters = kotlinFiles()
-            .filter { it.readText().contains("window.cc.guard(") }
+            .filter { it.readText().let { text -> text.contains("window.cc.guard(") || text.contains("exec(\"guard\"") } }
             .map { it.name }
             .sorted()
 
@@ -38,19 +38,19 @@ class GuardViewWiringContractTest {
             "GuardFeed reads the alert log on whatever thread asked for it. That read decodes the whole " +
                 "stored array, and every UI mutation here is on the EDT."
         }
-        assertTrue(feed.contains("edt(panel.project)")) {
+        assertTrue(feed.contains("edt(presenter.project)")) {
             "GuardFeed does not come back to the EDT to draw."
         }
     }
 
     @Test
     fun `the gear menu reaches the guard view, and so does the chat's own view row`() {
-        val factory = source("view/window/ClaudeToolWindowFactory.kt").readText()
+        val gear = source("view/window/ChatGearGroup.kt").readText()
 
-        assertTrue(factory.contains("showGuardView")) {
+        assertTrue(gear.contains("openGuardView")) {
             "the tool window's gear has no entry for the guard log"
         }
-        assertTrue(source("view/feed/SecurityViews.kt").readText().contains("window.cc.openGuardView")) {
+        assertTrue(source("view/feed/SecurityViews.kt").readText().contains("exec(\"openGuardView\"")) {
             "nothing on the host side can open the guard view, so the gear entry lands nowhere"
         }
         assertTrue(File(tsRoot(), "models/panel/state.ts").readText().contains("guard: {")) {
@@ -66,7 +66,7 @@ class GuardViewWiringContractTest {
         assertTrue(start >= 0) { "SecurityViews no longer opens the guard view" }
         val body = lines.drop(start).take(BODY_LINES)
         val push = body.indexOfFirst { it.contains("pushGuard()") }
-        val open = body.indexOfFirst { it.contains("window.cc.openGuardView") }
+        val open = body.indexOfFirst { it.contains("exec(\"openGuardView\"") }
 
         assertTrue(push in 0 until open) {
             "openGuardView shows the view before refreshing it: ${body.joinToString("\n")}"
@@ -113,7 +113,7 @@ class GuardViewWiringContractTest {
 
     @Test
     fun `the module and the stylesheet are declared, or the page silently does not serve them`() {
-        val assembly = source("view/jcef/PageAssembly.kt").readText()
+        val assembly = File(resolve("frontend/src/main/kotlin"), "dev/lain/claudejb/frontend/jcef/PageAssembly.kt").readText()
 
         assertTrue(assembly.contains("\"views/guard/guard.js\"")) {
             "views/guard/guard.js is not in PageAssembly.appNames, so it is not served and cc.guard does not exist"
@@ -126,16 +126,20 @@ class GuardViewWiringContractTest {
     }
 
     private fun readyBranch(): List<String> {
-        val lines = source("controller/bridge/BridgeLifecycle.kt").readLines()
-        val start = lines.indexOfFirst { it.contains("Msg.Ready ->") }
-        assertTrue(start >= 0) { "BridgeLifecycle no longer handles Msg.Ready" }
-        val length = lines.drop(start + 1).indexOfFirst { it == "            }" }
-        assertTrue(length >= 0) { "could not find the end of the Msg.Ready branch" }
-        return lines.subList(start, start + 1 + length)
+        val ready = source("controller/bridge/BridgeLifecycle.kt").readLines().firstOrNull { it.contains("Msg.Ready ->") }
+        assertTrue(ready != null) { "BridgeLifecycle no longer handles Msg.Ready" }
+        assertTrue(ready!!.contains("presenter.refreshPage()")) { "Msg.Ready no longer refreshes the page: $ready" }
+        val lines = source("view/window/ChatPresenter.kt").readLines()
+        val start = lines.indexOfFirst { it.contains("fun refreshPage()") }
+        assertTrue(start >= 0) { "ChatPresenter no longer refreshes the page" }
+        val length = lines.drop(start + 1).indexOfFirst { it == "    }" }
+        assertTrue(length >= 0) { "could not find the end of refreshPage" }
+        return listOf(ready) + lines.subList(start, start + 1 + length)
     }
 
     private fun kotlinFiles(): List<File> =
-        File(mainRoot(), "dev/lain/claudejb").walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+        listOf(mainRoot(), resolve("frontend/src/main/kotlin"))
+            .flatMap { root -> File(root, "dev/lain/claudejb").walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
 
     private fun source(relative: String) = File(mainRoot(), "dev/lain/claudejb/$relative").also {
         assertTrue(it.isFile) { "missing source file: $it" }
