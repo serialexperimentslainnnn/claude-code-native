@@ -64,6 +64,7 @@
     if (!rec || !rec.bodyNode) {
       return;
     }
+    TX.unmark(rec.bodyNode);
     const c = collectCandidates(rec.bodyNode);
     if (!c.paths.length && !c.symbols.length) {
       return;
@@ -81,15 +82,17 @@
       return;
     }
     const links: LinkHit[] = Array.isArray(payload.links) ? (payload.links as LinkHit[]) : [];
-    if (!links.length) {
+    const byToken = new Map<string, LinkHit>();
+    for (let i = 0; i < links.length; i++) {
+      const token = String((links[i] && links[i].token) || '');
+      if (token && !byToken.has(token)) byToken.set(token, links[i]);
+    }
+    if (!byToken.size) {
       return;
     }
-    links.sort(function (a, b) {
-      return String(b.token).length - String(a.token).length;
-    });
-    for (let i = 0; i < links.length; i++) {
-      linkifyToken(rec.bodyNode, links[i]);
-    }
+    TX.unmark(rec.bodyNode);
+    linkifyAll(rec.bodyNode, byToken);
+    TX.remark(rec.bodyNode);
   }
 
   const TOKEN_LEFT = /[\w.\-/~]/;
@@ -102,17 +105,61 @@
     return !(after && TOKEN_RIGHT.test(after));
   }
 
-  function linkifyToken(root: Node, link: LinkHit): void {
-    const token = String(link.token || '');
-    if (!token) {
+  function anchorFor(token: string, link: LinkHit): HTMLElement {
+    return el('a', {
+      class: 'jb-link',
+      text: token,
+      attrs: {
+        href: TX.jbHref(link.path, link.line),
+        title: 'Open ' + link.path + (link.line ? ':' + link.line : ''),
+      },
+    });
+  }
+
+  function tokenAt(txt: string, at: number, tokens: string[]): string | null {
+    for (let i = 0; i < tokens.length; i++) {
+      if (txt.startsWith(tokens[i], at) && atTokenBoundary(txt, at, tokens[i])) return tokens[i];
+    }
+    return null;
+  }
+
+  function linkifyNode(node: Node, finder: RegExp, tokens: string[], byToken: Map<string, LinkHit>): void {
+    const txt = node.nodeValue || '';
+    let frag: DocumentFragment | null = null;
+    let from = 0;
+    finder.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = finder.exec(txt))) {
+      const token = tokenAt(txt, m.index, tokens);
+      if (!token) {
+        finder.lastIndex = m.index + 1;
+        continue;
+      }
+      frag = frag || document.createDocumentFragment();
+      frag.appendChild(document.createTextNode(txt.slice(from, m.index)));
+      frag.appendChild(anchorFor(token, byToken.get(token) as LinkHit));
+      from = m.index + token.length;
+      finder.lastIndex = from;
+    }
+    if (!frag || !node.parentNode) {
       return;
     }
+    frag.appendChild(document.createTextNode(txt.slice(from)));
+    node.parentNode.replaceChild(frag, node);
+  }
+
+  function escapeRe(s: string): string {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function linkifyAll(root: Node, byToken: Map<string, LinkHit>): void {
+    const tokens = Array.from(byToken.keys()).sort(function (a, b) {
+      return b.length - a.length;
+    });
+    const finder = new RegExp(tokens.map(escapeRe).join('|'), 'g');
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n: Node) {
-        if (insideLinkOrPre(n, root)) return NodeFilter.FILTER_REJECT;
-        return n.nodeValue && n.nodeValue.indexOf(token) >= 0
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT;
+        return insideLinkOrPre(n, root) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
       },
     });
     const targets: Node[] = [];
@@ -121,40 +168,15 @@
       targets.push(n);
     }
     for (let i = 0; i < targets.length; i++) {
-      const node = targets[i];
-      const txt = node.nodeValue || '';
-      const frag = document.createDocumentFragment();
-      let from = 0;
-      let hit = false;
-      for (let at = txt.indexOf(token); at >= 0; at = txt.indexOf(token, at + token.length)) {
-        if (!atTokenBoundary(txt, at, token)) {
-          continue;
-        }
-        frag.appendChild(document.createTextNode(txt.slice(from, at)));
-        frag.appendChild(
-          el('a', {
-            class: 'jb-link',
-            text: token,
-            attrs: {
-              href: TX.jbHref(link.path, link.line),
-              title: 'Open ' + link.path + (link.line ? ':' + link.line : ''),
-            },
-          })
-        );
-        from = at + token.length;
-        hit = true;
-      }
-      if (!hit) {
-        continue;
-      }
-      frag.appendChild(document.createTextNode(txt.slice(from)));
-      if (node.parentNode) node.parentNode.replaceChild(frag, node);
+      linkifyNode(targets[i], finder, tokens, byToken);
     }
   }
 
   cc.links = function (payload?: unknown): void {
     try {
       applyLinks(payload);
-    } catch (e) {}
+    } catch (e) {
+      CC.reportError('links', e);
+    }
   };
 })();

@@ -7,6 +7,18 @@
   const toolCards = TX.toolCards;
   const setBody = TX.setBody;
 
+  TX.syncToolToggle = function (node: RowEl): void {
+    const btn = node.__chevBtn;
+    if (!btn) return;
+    if (node.__isAgentCard) {
+      btn.textContent = '›';
+      btn.removeAttribute('aria-expanded');
+      btn.setAttribute('aria-label', 'Open agent');
+      return;
+    }
+    btn.setAttribute('aria-expanded', node.classList.contains('open') ? 'true' : 'false');
+  };
+
   function createRow(entry: TranscriptEntry, cards?: Map<string, RowEl>): RowRec {
     const known = cards || toolCards;
     const rec = TX.builderFor(entry.speaker, entry);
@@ -23,6 +35,7 @@
       if (entry.open) {
         rec.el.classList.add('open');
       }
+      TX.syncToolToggle(rec.el);
     }
     if (entry.speaker === 'TOOL') {
       const icNode = rec.el.querySelector('.ic');
@@ -66,7 +79,7 @@
     } else if (rec.speaker === 'TOOL' && entry.filePath) {
       TX.renderToolLabel(rec.bodyNode, entry.text, entry.filePath);
     } else {
-      setBody(rec, entry.text);
+      setBody(rec, entry.text, entry.state === 'RUNNING');
       if (links !== false && rec.speaker === 'ASSISTANT' && entry.state !== 'RUNNING') {
         TX.requestLinks(rec, entry);
       }
@@ -76,7 +89,7 @@
   function updateRow(rec: RowRec, entry: TranscriptEntry, links?: boolean): void {
     const key = bodyKey(rec, entry);
     const settled = entry.state !== 'RUNNING';
-    if (rec.bodyKey !== key) {
+    if (rec.bodyKey !== key || (settled && rec.stream)) {
       renderBody(rec, entry, links);
     } else if (settled && !rec.settled && links !== false && rec.speaker === 'ASSISTANT') {
       TX.requestLinks(rec, entry);

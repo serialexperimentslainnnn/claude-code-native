@@ -40,21 +40,61 @@
     }
     return node;
   }
-  function esc(text: unknown): string {
-    if (CC.escape) {
-      return CC.escape(text == null ? '' : text);
-    }
-    const d = document.createElement('div');
-    d.textContent = text == null ? '' : String(text);
-    return d.innerHTML;
-  }
-  function md(text: unknown, hostLinks: boolean): string {
-    if (CC.markdown) {
+  function md(text: string, hostLinks: boolean, streaming: boolean): DocumentFragment {
+    if (CC.markdownFragment) {
       try {
-        return CC.markdown(text == null ? '' : text, { hostLinks: hostLinks });
+        return CC.markdownFragment(text, { hostLinks: hostLinks, streaming: streaming });
       } catch (e) {}
     }
-    return esc(text);
+    const frag = document.createDocumentFragment();
+    frag.appendChild(document.createTextNode(text));
+    return frag;
+  }
+
+  const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)$/;
+
+  function scanBlocks(st: StreamState, text: string): number {
+    let cut = st.cut;
+    for (let nl = text.indexOf('\n', st.scan); nl >= 0; nl = text.indexOf('\n', st.scan)) {
+      const line = text.slice(st.scan, nl);
+      const fence = FENCE.exec(line);
+      if (fence && !st.fence) {
+        st.fence = fence[1];
+      } else if (fence && fence[1].charAt(0) === st.fence.charAt(0) && fence[1].length >= st.fence.length) {
+        if (!fence[2].trim()) st.fence = '';
+      } else if (!st.fence && !line.trim()) {
+        cut = nl + 1;
+      }
+      st.scan = nl + 1;
+    }
+    return cut;
+  }
+
+  function freshStream(body: BodyEl): StreamState {
+    const st: StreamState = {
+      done: el('div', { class: 'stream-done' }),
+      tail: el('div', { class: 'stream-tail' }),
+      prefix: '',
+      cut: 0,
+      scan: 0,
+      fence: '',
+    };
+    body.replaceChildren(st.done, st.tail);
+    return st;
+  }
+
+  function streamInto(rec: RowRec, body: BodyEl, text: string): void {
+    let st = rec.stream;
+    if (!st || st.done.parentNode !== body || !text.startsWith(st.prefix)) {
+      st = rec.stream = freshStream(body);
+    }
+    const cut = scanBlocks(st, text);
+    if (cut > st.cut) {
+      st.done.appendChild(md(text.slice(st.cut, cut), rec.speaker === 'USER', true));
+      st.cut = cut;
+    }
+    st.prefix = text.slice(0, st.scan);
+    st.tail.textContent = text.slice(st.cut);
   }
   function safeSend(obj: unknown): void {
     if (CC.send) {
@@ -77,15 +117,21 @@
   TX.rows = rows;
   TX.toolCards = toolCards;
 
-  TX.setBody = function (rec: RowRec, text: unknown): void {
+  TX.setBody = function (rec: RowRec, text: unknown, streaming?: boolean): void {
     const body = rec.bodyNode;
     if (!body) {
       return;
     }
     const kind = rec.kind;
     if (kind === 'md') {
-      body.innerHTML = md(text, rec.speaker === 'USER');
-      body.__rawText = text == null ? '' : String(text);
+      const raw = text == null ? '' : String(text);
+      body.__rawText = raw;
+      if (streaming) {
+        streamInto(rec, body, raw);
+        return;
+      }
+      rec.stream = null;
+      body.replaceChildren(md(raw, rec.speaker === 'USER', false));
     } else if (kind === 'pre') {
       body.textContent = text == null ? '' : String(text);
     } else {

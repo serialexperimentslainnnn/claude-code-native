@@ -84,9 +84,11 @@
 
     const stick = nearBottom();
     const ordered: HTMLElement[] = [];
+    const seen = new Set<unknown>();
     for (let i = 0; i < entries.length; i++) {
       const entry = entries[i];
       if (!entry || entry.id == null) continue;
+      seen.add(entry.id);
 
       if (entry.speaker === 'TOOL_OUTPUT' && T.routeToolOutput(entry, cards)) continue;
 
@@ -104,8 +106,17 @@
       if (rec.el) ordered.push(rec.el);
     }
 
+    prune(seen);
     place(ordered);
     if (stick) rowsEl.scrollTop = rowsEl.scrollHeight;
+  }
+
+  function prune(seen: Set<unknown>): void {
+    rows.forEach(function (rec, id) {
+      if (seen.has(id)) return;
+      rows.delete(id);
+      if (rec.toolUseId && cards.get(rec.toolUseId) === rec.el) cards.delete(rec.toolUseId);
+    });
   }
 
   function place(ordered: HTMLElement[]): void {

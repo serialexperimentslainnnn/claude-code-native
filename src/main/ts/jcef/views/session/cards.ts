@@ -81,7 +81,7 @@
     if (!p || typeof p !== 'object' || !p.body) return null;
     const body = document.createElement('div');
     body.className = 'plan-md';
-    body.innerHTML = CC.markdown(String(p.body));
+    body.appendChild(CC.markdownFragment(String(p.body)));
     const parts: HTMLElement[] = [body];
     if (p.path) {
       const where = document.createElement('div');

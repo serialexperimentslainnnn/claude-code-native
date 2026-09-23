@@ -135,6 +135,16 @@
       if (idx >= 0) arr.splice(idx, 1);
     };
   };
+  CC.reportError = function (what: string, error: unknown): void {
+    const report = CC.reportUncaught as ((what: string, error: unknown) => void) | undefined;
+    if (typeof report === 'function') {
+      report(what, error);
+      return;
+    }
+    const stack = error && typeof error === 'object' ? (error as { stack?: unknown }).stack : undefined;
+    CC.send({ type: 'diag', report: 'uncaught ' + what + ': ' + String(stack || error) });
+  };
+
   CC.emit = function (event: string, ...args: unknown[]): void {
     const arr = listeners[event];
     if (!arr || !arr.length) return;
@@ -142,7 +152,9 @@
     for (let i = 0; i < snapshot.length; i++) {
       try {
         snapshot[i].apply(null, args);
-      } catch (e) {}
+      } catch (e) {
+        CC.reportError('listener ' + event, e);
+      }
     }
   };
 

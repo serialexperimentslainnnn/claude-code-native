@@ -47,14 +47,20 @@
       return false;
     }
     const pid = 'to-' + entry.id;
-    let block = out.querySelector<HTMLElement>('[data-out-id="' + pid + '"]');
+    let block = blockFor(out, pid);
+    const raw = entry.text == null ? '' : String(entry.text);
+    const key = (entry.meta || '') + '\u0000' + (card.__filePath || '') + '\u0000' + textKey(raw);
+    if (block && block.__outKey === key) {
+      return true;
+    }
     if (entry.meta === 'toon') {
       if (!block) {
         block = el('div', { class: 'toon' });
         block.setAttribute('data-out-id', pid);
         out.appendChild(block);
       }
-      const value = TX.renderToon(block, entry.text == null ? '' : String(entry.text));
+      const value = TX.renderToon(block, raw);
+      block.__outKey = key;
       setFoot(card, foot(value));
       return true;
     }
@@ -64,11 +70,12 @@
       block.appendChild(el('code', {}));
       out.appendChild(block);
     }
+    block.__outKey = key;
+    if (entry.meta !== 'live') block.__liveText = undefined;
     const codeEl = block.querySelector<HTMLElement>('code');
     if (codeEl) {
       const tags = ' ' + (entry.meta || '') + ' ';
       const fileLang = typeof CC.languageForPath === 'function' ? CC.languageForPath(card.__filePath) : null;
-      const raw = entry.text == null ? '' : String(entry.text);
       if (entry.meta === 'diff') {
         renderDiff(codeEl, raw, fileLang);
         block.classList.add('diff');
@@ -91,7 +98,13 @@
         block.classList.remove('command');
         block.classList.add('flow');
         block.classList.add('live');
-        codeEl.textContent = raw;
+        const shown = block.__liveText;
+        if (shown && raw.length > shown.length && raw.startsWith(shown)) {
+          codeEl.appendChild(document.createTextNode(raw.slice(shown.length)));
+        } else {
+          codeEl.textContent = raw;
+        }
+        block.__liveText = raw;
         codeEl.scrollTop = codeEl.scrollHeight;
         setLiveTail(card, raw);
       } else {
@@ -174,45 +187,61 @@
     for (let i = 0; i < codes.length; i++) codes[i].scrollTop = codes[i].scrollHeight;
   };
 
+  function blockFor(out: HTMLElement, pid: string): OutBlock | null {
+    for (let i = 0; i < out.children.length; i++) {
+      if (out.children[i].getAttribute('data-out-id') === pid) return out.children[i] as OutBlock;
+    }
+    return null;
+  }
+
+  function textKey(s: string): string {
+    let hash = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      hash = Math.imul(hash ^ s.charCodeAt(i), 16777619);
+    }
+    return s.length + ':' + (hash >>> 0).toString(36);
+  }
+
+  function lineClass(line: string): string {
+    if (line.indexOf('@@') === 0) return 'dl-hunk';
+    const c0 = line.charAt(0);
+    return c0 === '+' ? 'dl-add' : c0 === '-' ? 'dl-del' : 'dl-ctx';
+  }
+
+  function sideLines(lines: string[], skip: string, lang: string): string[] | null {
+    const picked: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const cls = lineClass(lines[i]);
+      if (cls !== 'dl-hunk' && cls !== skip) picked.push(lines[i].slice(1));
+    }
+    const html = CC.highlight(picked.join('\n'), lang);
+    return html === null ? null : CC.highlightLines(html);
+  }
+
   function renderDiff(codeEl: HTMLElement, text: string, lang: string | null): void {
     codeEl.innerHTML = '';
     const lines = String(text).split('\n');
-    const highlighter = window.hljs;
-    const canHighlight = !!(
-      lang &&
-      highlighter &&
-      typeof highlighter.getLanguage === 'function' &&
-      highlighter.getLanguage(lang) &&
-      typeof highlighter.highlight === 'function'
-    );
+    const before = lang ? sideLines(lines, 'dl-add', lang) : null;
+    const after = lang ? sideLines(lines, 'dl-del', lang) : null;
+    let b = 0;
+    let a = 0;
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const c0 = line.charAt(0);
-      const isHunk = line.indexOf('@@') === 0;
-      let cls = 'dl-ctx';
-      if (isHunk) {
-        cls = 'dl-hunk';
-      } else if (c0 === '+') {
-        cls = 'dl-add';
-      } else if (c0 === '-') {
-        cls = 'dl-del';
-      }
+      const cls = lineClass(line);
       const span = el('span', { class: 'diff-line ' + cls });
-      const trailingNl = i < lines.length - 1;
-      let highlighted = false;
-      if (!isHunk && canHighlight && highlighter && lang && line.length > 0) {
-        try {
-          const hi = highlighter.highlight(line.slice(1), { language: lang, ignoreIllegals: true }).value;
-          span.appendChild(document.createTextNode(c0));
-          span.insertAdjacentHTML('beforeend', hi);
-          if (trailingNl) {
-            span.appendChild(document.createTextNode('\n'));
-          }
-          highlighted = true;
-        } catch (e) {}
+      const trailingNl = i < lines.length - 1 ? '\n' : '';
+      let html: string | undefined;
+      if (cls === 'dl-del') html = before ? before[b++] : undefined;
+      else if (cls !== 'dl-hunk') {
+        html = after ? after[a++] : undefined;
+        if (cls === 'dl-ctx') b++;
       }
-      if (!highlighted) {
-        span.textContent = trailingNl ? line + '\n' : line;
+      if (html !== undefined && line.length > 0) {
+        span.appendChild(document.createTextNode(line.charAt(0)));
+        span.insertAdjacentHTML('beforeend', html);
+        if (trailingNl) span.appendChild(document.createTextNode(trailingNl));
+      } else {
+        span.textContent = line + trailingNl;
       }
       codeEl.appendChild(span);
     }

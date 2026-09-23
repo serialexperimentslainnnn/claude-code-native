@@ -79,6 +79,14 @@
   word-break: break-word;
 }
 
+.stream-done {
+  display: block;
+}
+.stream-tail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .body pre {
   margin: 12px 0;
   background: var(--code-bg);

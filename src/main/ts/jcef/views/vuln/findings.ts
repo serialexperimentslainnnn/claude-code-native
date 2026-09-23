@@ -80,7 +80,7 @@
   function detailBlock(f: VulnFinding): HTMLElement | null {
     if (!f.details) return null;
     const el = h('div', { class: 'vuln-details' });
-    el.innerHTML = CC.markdown(String(f.details));
+    el.appendChild(CC.markdownFragment(String(f.details)));
     return el;
   }
 

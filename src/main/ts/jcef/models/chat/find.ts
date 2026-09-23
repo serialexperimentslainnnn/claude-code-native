@@ -47,24 +47,45 @@
     return activeIndex;
   };
 
-  function clearHighlights(): void {
-    const c = conversationEl();
-    if (!c) {
+  function unmark(root: ParentNode | null): void {
+    if (!root) {
       return;
     }
-    const marks = c.querySelectorAll('mark.cc-hit');
+    const marks = root.querySelectorAll('mark.cc-hit');
+    const parents = new Set<Node>();
     for (let i = 0; i < marks.length; i++) {
       const m = marks[i];
       const parent = m.parentNode;
       if (!parent) {
         continue;
       }
-      const txt = document.createTextNode(m.textContent || '');
-      parent.replaceChild(txt, m);
-      parent.normalize();
+      parent.replaceChild(document.createTextNode(m.textContent || ''), m);
+      parents.add(parent);
     }
+    parents.forEach(function (parent) {
+      parent.normalize();
+    });
+  }
+  TX.unmark = unmark;
+
+  function clearHighlights(): void {
+    unmark(conversationEl());
     searchHits = [];
   }
+
+  function collectHits(): void {
+    const c = conversationEl();
+    searchHits = c ? Array.prototype.slice.call(c.querySelectorAll('mark.cc-hit')) : [];
+  }
+
+  TX.remark = function (root: Node | null): void {
+    if (!currentQuery || !root) {
+      return;
+    }
+    highlightInNode(root, currentQuery.toLowerCase());
+    collectHits();
+    setActiveHit(Math.min(activeIndex, Math.max(searchHits.length - 1, 0)), false);
+  };
 
   function highlightInNode(node: Node, lower: string): number {
     let count = 0;
@@ -125,6 +146,7 @@
       }
       total += highlightInNode(rec.bodyNode, lower);
     });
+    collectHits();
     if (searchHits.length) {
       if (silent) {
         setActiveHit(Math.min(activeIndex, searchHits.length - 1), false);
@@ -138,10 +160,23 @@
   }
   TX.runSearch = runSearch;
 
-  TX.refreshSearch = function (): void {
-    if (currentQuery) {
-      runSearch(currentQuery, true);
+  TX.refreshSearch = function (recs?: RowRec[]): void {
+    if (!currentQuery) {
+      return;
     }
+    if (!recs) {
+      runSearch(currentQuery, true);
+      return;
+    }
+    const lower = currentQuery.toLowerCase();
+    for (let i = 0; i < recs.length; i++) {
+      const body = recs[i] && recs[i].bodyNode;
+      if (!body) continue;
+      unmark(body);
+      highlightInNode(body, lower);
+    }
+    collectHits();
+    setActiveHit(Math.min(activeIndex, Math.max(searchHits.length - 1, 0)), false);
   };
 
   TX.resetSearch = function (): void {

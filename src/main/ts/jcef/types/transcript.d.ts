@@ -29,6 +29,11 @@ interface BodyEl extends HTMLElement {
   __rawText?: string;
 }
 
+interface OutBlock extends HTMLElement {
+  __outKey?: string;
+  __liveText?: string;
+}
+
 interface RowEl extends HTMLElement {
   __outNode?: HTMLElement | null;
   __toolUseId?: string | null;
@@ -42,6 +47,7 @@ interface RowEl extends HTMLElement {
   __filePath?: string | null;
   __diffBtn?: HTMLElement | null;
   __restoreBtn?: HTMLElement | null;
+  __chevBtn?: HTMLElement | null;
   __placesNode?: HTMLElement | null;
   __placesKey?: string;
   __label?: HTMLElement | null;
@@ -61,6 +67,16 @@ interface RowRec {
   state?: string | null;
   bodyKey?: string;
   settled?: boolean;
+  stream?: StreamState | null;
+}
+
+interface StreamState {
+  done: HTMLElement;
+  tail: HTMLElement;
+  prefix: string;
+  cut: number;
+  scan: number;
+  fence: string;
 }
 
 interface LinkHit {
@@ -75,7 +91,7 @@ interface TranscriptNs {
   conversationEl(): HTMLElement | null;
   rows: Map<unknown, RowRec>;
   toolCards: Map<string, RowEl>;
-  setBody(rec: RowRec, text: unknown): void;
+  setBody(rec: RowRec, text: unknown, streaming?: boolean): void;
   createRow(entry: TranscriptEntry, cards?: Map<string, RowEl>): RowRec;
   updateRow(rec: RowRec, entry: TranscriptEntry, links?: boolean): void;
   builderFor(speaker: string | undefined, entry: TranscriptEntry): RowRec;
@@ -85,6 +101,7 @@ interface TranscriptNs {
   toolIconSvg(meta: unknown): string;
   applyToolElapsed(node: RowEl, state: string | null | undefined, elapsedSecs: unknown): void;
   applyToolState(node: RowEl, state: string | null | undefined, meta: string | null | undefined): void;
+  syncToolToggle(node: RowEl): void;
   routeToolOutput(entry: TranscriptEntry, cards?: Map<string, RowEl>): boolean;
   scrollLiveToEnd(card: HTMLElement): void;
   renderCommandBlock(cmdNode: HTMLElement | null | undefined, commandText: unknown): void;
@@ -94,7 +111,9 @@ interface TranscriptNs {
   renderToolLabel(nameEl: HTMLElement | null, text: unknown, filePath: unknown): void;
   requestLinks(rec: RowRec, entry: TranscriptEntry): void;
   runSearch(q: string | null | undefined, silent: boolean): void;
-  refreshSearch(): void;
+  refreshSearch(recs?: RowRec[]): void;
+  unmark(root: ParentNode | null): void;
+  remark(root: Node | null): void;
   resetSearch(): void;
   findNext(): void;
   findPrev(): void;
@@ -103,6 +122,7 @@ interface TranscriptNs {
   updateFindCount(): void;
   resetFindBar(): void;
   scheduleScroll(stick: boolean): void;
+  setStreaming(on: boolean): void;
   stickToBottom(): boolean;
   [name: string]: unknown;
 }

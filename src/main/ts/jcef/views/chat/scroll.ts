@@ -45,7 +45,8 @@
         return;
       }
       const distance = c.scrollHeight - c.scrollTop - c.clientHeight;
-      const smooth = distance > 0 && distance < SMOOTH_SCROLL_MAX_PX && !CC.reducedMotion;
+      const streaming = c.classList.contains('streaming');
+      const smooth = !streaming && distance > 0 && distance < SMOOTH_SCROLL_MAX_PX && !CC.reducedMotion;
       if (typeof c.scrollTo === 'function') {
         c.scrollTo({ top: c.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });
       } else {
@@ -54,6 +55,11 @@
     });
   }
   TX.scheduleScroll = scheduleScroll;
+
+  TX.setStreaming = function (on: boolean): void {
+    const c = conversationEl();
+    if (c) c.classList.toggle('streaming', on);
+  };
 
   function subscribe(): boolean {
     if (!CC.on) {

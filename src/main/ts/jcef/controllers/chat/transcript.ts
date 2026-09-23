@@ -110,31 +110,34 @@
     }
   }
 
+  function entryFailed(entry: TranscriptEntry | null | undefined, error: unknown): void {
+    CC.reportError('transcript entry ' + (entry && entry.id != null ? entry.id : '?'), error);
+  }
+
   cc.batch = function (input?: unknown): void {
-    if (!input) {
+    if (!Array.isArray(input)) {
       return;
     }
-    let entries: TranscriptEntry[];
-    if (Array.isArray(input)) {
-      entries = input as TranscriptEntry[];
-    } else {
-      const wrapped = input as { entries?: unknown };
-      entries = Array.isArray(wrapped.entries)
-        ? (wrapped.entries as TranscriptEntry[])
-        : [input as TranscriptEntry];
-    }
+    const entries = input as TranscriptEntry[];
     const c = conversationEl();
     const stick = TX.stickToBottom();
+    const touched: RowRec[] = [];
 
     for (let i = 0; i < entries.length; i++) {
-      upsert(entries[i]);
+      try {
+        const rec = upsert(entries[i]);
+        if (rec) touched.push(rec);
+      } catch (e) {
+        entryFailed(entries[i], e);
+      }
     }
     for (let j = 0; j < entries.length; j++) {
       const e = entries[j];
-      if (e && e.id != null && e.speaker !== 'TOOL_OUTPUT') {
+      if (!e || e.id == null || (e.speaker === 'TOOL_OUTPUT' && !rows.has(e.id))) continue;
+      try {
         reposition(e);
-      } else if (e && e.id != null && e.speaker === 'TOOL_OUTPUT' && rows.has(e.id)) {
-        reposition(e);
+      } catch (err) {
+        entryFailed(e, err);
       }
     }
 
@@ -142,9 +145,56 @@
       showEmptyState(false);
     }
 
-    TX.refreshSearch();
-
+    TX.refreshSearch(touched);
+    TX.setStreaming(anyStreaming());
     TX.scheduleScroll(stick);
+  };
+
+  function anyStreaming(): boolean {
+    let found = false;
+    rows.forEach(function (rec) {
+      if (rec.stream) found = true;
+    });
+    return found;
+  }
+
+  const streaming = new Set<RowRec>();
+  let frameAsked = false;
+
+  function nextFrame(fn: () => void): void {
+    if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(fn);
+    else setTimeout(fn, 16);
+  }
+
+  function flushStreaming(): void {
+    frameAsked = false;
+    const recs = Array.from(streaming);
+    streaming.clear();
+    const stick = TX.stickToBottom();
+    for (let i = 0; i < recs.length; i++) {
+      if (recs[i].state === 'RUNNING') TX.setBody(recs[i], recs[i].text, true);
+    }
+    TX.refreshSearch(recs);
+    TX.setStreaming(anyStreaming());
+    TX.scheduleScroll(stick);
+  }
+
+  cc.append = function (input?: unknown): void {
+    const payload = input as { id?: unknown; delta?: unknown } | null | undefined;
+    if (!payload || payload.id == null || typeof payload.delta !== 'string') {
+      return;
+    }
+    const rec = rows.get(payload.id);
+    if (!rec || rec.kind !== 'md' || rec.state !== 'RUNNING') {
+      return;
+    }
+    rec.text = (rec.text || '') + payload.delta;
+    rec.bodyKey = 'x:' + rec.text;
+    streaming.add(rec);
+    if (!frameAsked) {
+      frameAsked = true;
+      nextFrame(flushStreaming);
+    }
   };
 
   cc.clear = function (): void {
@@ -161,6 +211,7 @@
       }
     }
     TX.resetSearch();
+    TX.setStreaming(false);
     showEmptyState(true);
   };
 })();

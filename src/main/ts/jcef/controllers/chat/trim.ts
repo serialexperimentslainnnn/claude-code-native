@@ -12,10 +12,10 @@
 
   const MAX_ENTRIES = 500;
 
-  function dropRow(id: unknown): void {
+  function dropRow(id: unknown): HTMLElement | null {
     const rec = rows.get(id);
     if (!rec) {
-      return;
+      return null;
     }
     if (rec.el && rec.el.parentNode) {
       rec.el.parentNode.removeChild(rec.el);
@@ -24,6 +24,25 @@
       toolCards.delete(rec.toolUseId);
     }
     rows.delete(id);
+    return rec.el || null;
+  }
+
+  function dropOrphans(gone: HTMLElement[]): void {
+    if (!gone.length) {
+      return;
+    }
+    const orphans: unknown[] = [];
+    rows.forEach(function (rec, id) {
+      for (let i = 0; i < gone.length; i++) {
+        if (rec.el && gone[i].contains(rec.el)) {
+          orphans.push(id);
+          return;
+        }
+      }
+    });
+    for (let j = 0; j < orphans.length; j++) {
+      dropRow(orphans[j]);
+    }
   }
 
   function shiftOrders(removed: number): void {
@@ -32,7 +51,7 @@
     }
     rows.forEach(function (rec) {
       if (rec.el && rec.el.__order != null) {
-        rec.el.__order -= removed;
+        rec.el.__order = Math.max(0, rec.el.__order - removed);
       }
     });
   }
@@ -76,11 +95,15 @@
       return;
     }
     const ids = Array.isArray(payload.ids) ? payload.ids : [];
+    const gone: HTMLElement[] = [];
     for (let i = 0; i < ids.length; i++) {
-      dropRow(ids[i]);
+      const el = dropRow(ids[i]);
+      if (el) gone.push(el);
     }
+    dropOrphans(gone);
     shiftOrders(ids.length);
     const total = typeof payload.total === 'number' ? payload.total : 0;
     renderTrimNotice(total);
+    TX.refreshSearch([]);
   };
 })();

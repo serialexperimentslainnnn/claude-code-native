@@ -109,6 +109,9 @@ body {
   scroll-behavior: smooth;
   padding: 22px clamp(16px, 5vw, 40px) 30px;
 }
+#conversation.streaming {
+  scroll-behavior: auto;
+}
 #conversation > * {
   max-width: var(--col);
   margin-left: auto;
@@ -122,8 +125,7 @@ body {
   bottom: 0;
   padding: 10px clamp(16px, 5vw, 40px) 16px;
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
-  backdrop-filter: blur(14px) saturate(1.1);
+  background: var(--bg);
 }
 #dock > * {
   max-width: var(--col);
