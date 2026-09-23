@@ -16,8 +16,8 @@ Division of labour, so neither file rots:
 
 | Requirement | Value | Note |
 |---|---|---|
-| JDK | **21**, the JetBrains Runtime | `export JAVA_HOME=~/.jdks/jbr-21.0.11` (or your JBR 21). The IDE runs on JBR 21 — that is the ceiling, not a preference. |
-| Gradle | wrapper, **9.5.1** | Always `./gradlew`, never a system Gradle. |
+| JDK | **25**, the JetBrains Runtime | `JAVA_HOME` pointing at your JBR 25. The 2026.2 floor runs on JBR 25; the toolchain matches it. |
+| Gradle | wrapper, **9.7.1** | Always `./gradlew`, never a system Gradle. |
 | Node | any current LTS | Frontend tests only. Nothing from npm ships in the plugin. |
 | `claude` binary | preinstalled, on `PATH` or `~/.local/bin` | Required at *runtime* by the plugin and by `checkDrift`. The plugin never downloads one. |
 
@@ -29,11 +29,11 @@ will miss and report as a successful build.
 
 ```sh
 ./gradlew test                 # unit + headless component + integration. The gate.
-npm test                       # frontend tests (vitest + jsdom) over the real resources/jcef/*.js
+npm test                       # frontend tests (vitest + jsdom) over the real frontend/src/main/resources/jcef
 ./gradlew detekt spotlessCheck # static analysis + formatting, both gated in CI
 npm run lint && npm run format:check   # the same two, for the shipped JCEF JavaScript
 ./gradlew buildPlugin          # → build/distributions/*.zip
-./gradlew verifyPlugin         # compatibility across the declared range (253 → 263.*)
+./gradlew verifyPlugin         # compatibility across the declared range (262.8665.258 → 263.*)
 ./gradlew runIde               # sandbox IDE with the plugin loaded
 ./gradlew checkDrift           # protocol drift vs the live binary + SDK (updates both, then reports)
 ./gradlew koverHtmlReport      # coverage (koverVerify is the gate, and runs with `test` in CI)
@@ -42,11 +42,11 @@ npm run lint && npm run format:check   # the same two, for the shipped JCEF Java
 Test counts are deliberately not written here: they change every release and a number in a runbook is a
 claim nobody re-checks. `./gradlew test` and `npm test` report their own.
 
-**The floor is 253 (2025.3), not 251.** `sinceBuild` moved in 5.5.0 because the whole UI is JCEF and
-`com.intellij.modules.jcef` — declared **hard** in `plugin.xml` — does not exist as a module id before 253.
-Do not "fix" a verifier complaint by widening it back or by making that dependency optional: an optional
-dependency that cannot be satisfied is skipped, which is exactly the silent breakage on 262 this replaced.
-`JcefDependencyContractTest` is the gate and it is mutation-checked.
+**The floor is 2026.2 (262.8665.258).** The plugin is split into `shared`, `frontend` and `backend` content
+modules that talk over the platform RPC, and that RPC is internal API before 2026.x: the floor is where it
+became public. `com.intellij.modules.jcef` is declared **hard** by the frontend module. Do not "fix" a
+verifier complaint by widening the range or by making that dependency optional: an optional dependency that
+cannot be satisfied is skipped silently. `JcefDependencyContractTest` is the gate and it is mutation-checked.
 
 `verifyPlugin`'s CDN download is unreliable here. Use locally-extracted IDEs:
 `./gradlew verifyPlugin -PlocalIdePath=<dir>[,<dir>…]` (comma-separated).
@@ -157,7 +157,7 @@ end up stale, and CLAUDE.md is the one that carries the reasoning. Read it; the 
 that are about *working*, not about the design.
 
 - **Frontend changes need frontend tests.** The JS↔CSS class contract test exists because a missing CSS rule
-  once shipped silently. `src/main/resources/jcef/*.js` is loaded for real by `src/test/frontend/`, so a
+  once shipped silently. `frontend/src/main/resources/jcef` is loaded for real by `src/test/frontend/`, so a
   module you add is a module the harness must be told to load.
 - **UI changes need a keyboard pass.** Automated checks catch roughly half of accessibility barriers and none
   of the judgement calls. Drive what you changed with the keyboard alone and confirm the focus ring is visible.
