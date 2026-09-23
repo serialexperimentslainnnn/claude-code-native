@@ -42,15 +42,15 @@
     }
     const input = el('input', {
       class: 'find-input',
-      attrs: { type: 'text', placeholder: 'Find…', spellcheck: 'false' },
+      attrs: { type: 'text', placeholder: 'Find…', spellcheck: 'false', 'aria-label': 'Find in conversation' },
     }) as HTMLInputElement;
     findInput = input;
-    findCount = el('span', { class: 'find-count' });
-    const closeBtn = el('span', {
+    findCount = el('span', { class: 'find-count', attrs: { 'aria-live': 'polite' } });
+    const closeBtn = el('button', {
       class: 'find-x',
       text: '✕',
       title: 'Close',
-      attrs: { role: 'button' },
+      attrs: { type: 'button', 'aria-label': 'Close find' },
       on: {
         click: function (e: Event) {
           e.preventDefault();
@@ -71,6 +71,7 @@
       updateFindCount();
     });
     input.addEventListener('keydown', function (e: KeyboardEvent) {
+      if (e.isComposing) return;
       if (e.key === 'Escape' || e.keyCode === 27) {
         e.preventDefault();
         e.stopPropagation();
@@ -142,6 +143,7 @@
   document.addEventListener(
     'keydown',
     function (e: KeyboardEvent) {
+      if (e.isComposing) return;
       const key = e.key;
       const isF = key === 'f' || key === 'F' || e.keyCode === 70;
       const isO = key === 'o' || key === 'O' || e.keyCode === 79;

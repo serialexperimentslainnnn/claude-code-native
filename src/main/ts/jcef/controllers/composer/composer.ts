@@ -144,7 +144,6 @@
     CX.applyFollow();
     setTimeout(CX.applyFollow, 60);
 
-    els.input.focus();
     return true;
   }
   CX.ensureBuilt = ensureBuilt;

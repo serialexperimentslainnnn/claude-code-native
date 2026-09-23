@@ -19,6 +19,10 @@
 .queue-x,
 .att-x,
 .find-x {
+  font: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
   cursor: pointer;
   display: grid;
   place-items: center;

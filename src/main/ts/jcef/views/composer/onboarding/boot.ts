@@ -144,7 +144,7 @@
     };
     use.addEventListener('click', submit);
     input.addEventListener('keydown', function (e: KeyboardEvent) {
-      if (e.key === 'Enter') submit();
+      if (e.key === 'Enter' && !e.isComposing) submit();
     });
   }
 

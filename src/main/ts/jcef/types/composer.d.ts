@@ -202,6 +202,7 @@ interface AttachNs {
   rowByPath(path: string): TreeRow | null;
   visibleRows(): TreeRow[];
   rows: Roving;
+  onRootKey(e: KeyboardEvent): void;
   onMenuKey(e: KeyboardEvent): void;
   attachImageFile(file: File | null | undefined): void;
   isImageFile(f: File | null | undefined): boolean;

@@ -90,7 +90,7 @@
   document.addEventListener(
     'keydown',
     function (e: KeyboardEvent) {
-      if (!PA.isOpen() || e.target !== PA.composerInput()) return;
+      if (e.isComposing || !PA.isOpen() || e.target !== PA.composerInput()) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
@@ -134,7 +134,12 @@
     true
   );
 
+  let commandsKey = '';
+
   CX.setCommands = function (list: PaletteCommand[]): void {
+    const key = JSON.stringify(list);
+    if (key === commandsKey) return;
+    commandsKey = key;
     PA.setCommands(list);
     if (PA.isOpen()) filterPalette(currentQuery());
   };

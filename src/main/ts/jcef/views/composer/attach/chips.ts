@@ -28,11 +28,11 @@
       const label = att.label != null ? String(att.label) : '';
       const icon = h('span', { class: 'att-icon', html: AT.attIconGlyph(kind) });
       const name = h('span', { class: 'att-label', text: label });
-      const x = h('span', {
+      const x = h('button', {
         class: 'att-x',
         text: '✕',
         title: 'Remove attachment',
-        attrs: { role: 'button', 'aria-label': 'Remove attachment' },
+        attrs: { type: 'button', 'aria-label': 'Remove attachment ' + label },
         on: {
           click: function (e: Event) {
             e.preventDefault();

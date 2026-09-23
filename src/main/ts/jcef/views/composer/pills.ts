@@ -89,7 +89,7 @@
       'button',
       {
         class: 'pill',
-        attrs: { type: 'button', 'data-pill': def.key },
+        attrs: { type: 'button', 'data-pill': def.key, 'aria-haspopup': 'listbox', 'aria-expanded': 'false' },
         on: {
           click: function (e: Event) {
             e.preventDefault();

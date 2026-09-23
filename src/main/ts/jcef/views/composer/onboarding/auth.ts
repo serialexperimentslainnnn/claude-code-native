@@ -80,7 +80,7 @@
     const input = document.getElementById(inputId);
     if (!input) return;
     input.addEventListener('keydown', function (e: KeyboardEvent) {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && !e.isComposing) {
         const btn = document.getElementById(buttonId);
         if (btn) btn.click();
       }

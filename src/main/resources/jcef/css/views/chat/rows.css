@@ -45,6 +45,11 @@
   color: var(--text);
 }
 
+.act {
+  font-family: inherit;
+  background: transparent;
+  border: 0;
+}
 .act,
 .copy {
   cursor: pointer;
@@ -63,7 +68,9 @@
   opacity: 0;
 }
 .msg:hover .msg-head .act,
-.msg:hover .copy {
+.msg:hover .copy,
+.msg-head .act:focus-visible,
+.msg .copy:focus-visible {
   opacity: 1;
 }
 .act:hover,

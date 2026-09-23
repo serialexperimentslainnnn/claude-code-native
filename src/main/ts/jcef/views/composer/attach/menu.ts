@@ -14,7 +14,7 @@
       'div',
       {
         class: 'menu-item',
-        attrs: { role: 'option' },
+        attrs: { role: 'option', tabindex: '-1' },
         on: {
           click: function (e: Event) {
             e.preventDefault();
@@ -68,9 +68,11 @@
       class: 'attach-search',
       attrs: { type: 'text', placeholder: 'Search recent files…', 'aria-label': 'Search recent files' },
     }) as HTMLInputElement;
-    const list = h('div', { class: 'attach-list' });
+    const list = h('div', { class: 'attach-list', attrs: { role: 'listbox', 'aria-label': 'Attach' } });
 
     function paint(q: string): void {
+      const focused = list.contains(document.activeElement) ? document.activeElement : null;
+      const focusedTitle = focused ? focused.getAttribute('title') || focused.textContent : null;
       list.innerHTML = '';
       const actions: { label: string; fn: () => void }[] = [
         {
@@ -133,7 +135,7 @@
             'div',
             {
               class: 'menu-item attach-recent',
-              attrs: { role: 'option', title: String(r.path || '') },
+              attrs: { role: 'option', tabindex: '-1', title: String(r.path || '') },
               on: {
                 click: function (e: Event) {
                   e.preventDefault();
@@ -149,6 +151,7 @@
           list.appendChild(row);
         });
       }
+      if (focusedTitle !== null) refocus(list, focusedTitle);
     }
 
     body.appendChild(search);
@@ -158,6 +161,42 @@
       AT.reposition();
     });
     paint('');
+    repaintRoot = function () {
+      paint(search.value);
+    };
+  };
+
+  let repaintRoot: (() => void) | null = null;
+
+  function refocus(list: HTMLElement, title: string): void {
+    const items = list.querySelectorAll<HTMLElement>('.menu-item');
+    for (let i = 0; i < items.length; i++) {
+      if ((items[i].getAttribute('title') || items[i].textContent) === title) {
+        items[i].focus({ preventScroll: true });
+        return;
+      }
+    }
+  }
+
+  AT.onRootKey = function (e: KeyboardEvent): void {
+    const menu = AT.menuEl();
+    if (!menu || e.isComposing) return;
+    const search = menu.querySelector<HTMLElement>('.attach-search');
+    const items = Array.prototype.slice.call(menu.querySelectorAll('.attach-list .menu-item')) as HTMLElement[];
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    let next: HTMLElement | null | undefined = null;
+    if (e.key === 'ArrowDown') next = at < 0 ? items[0] : items[Math.min(at + 1, items.length - 1)];
+    else if (e.key === 'ArrowUp') next = at <= 0 ? search : items[at - 1];
+    else if (e.key === 'Home' && at >= 0) next = items[0];
+    else if (e.key === 'End' && at >= 0) next = items[items.length - 1];
+    else if ((e.key === 'Enter' || e.key === ' ') && at >= 0) {
+      e.preventDefault();
+      items[at].click();
+      return;
+    }
+    if (!next) return;
+    e.preventDefault();
+    next.focus();
   };
 
   CX.toggleAttachMenu = function (anchorEl: HTMLElement): void {
@@ -187,7 +226,11 @@
       };
     }
     const menu = AT.menuEl();
-    if (AT.view === 'root' && menu) {
+    if (AT.view !== 'root' || !menu) return;
+    if (repaintRoot && menu.contains(document.querySelector('.attach-list'))) {
+      repaintRoot();
+      AT.reposition();
+    } else {
       AT.renderMenu(menu);
     }
   };

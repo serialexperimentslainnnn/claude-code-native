@@ -10,10 +10,11 @@
   const conversationEl = TX.conversationEl;
 
   function copyButton(getText: () => string): HTMLElement {
-    return el('span', {
+    return el('button', {
       class: 'act copy',
       text: 'Copy',
-      title: 'Copy',
+      title: 'Copy message',
+      attrs: { type: 'button' },
       on: {
         click: function (e: Event) {
           e.preventDefault();
@@ -45,7 +46,7 @@
     const head = el('div', { class: 'msg-head' });
     const avatar = el('span', { class: 'avatar' });
     avatar.appendChild(el('span', { class: 'avatar-star', text: '✶' }));
-    avatar.appendChild(el('span', { class: 'avatar-nyan', html: CC.nyanSvg ? CC.nyanSvg() : '' }));
+    avatar.appendChild(el('span', { class: 'avatar-nyan', html: CC.nyanUse ? CC.nyanUse() : '' }));
     head.appendChild(avatar);
     head.appendChild(el('span', { class: 'name', text: 'Claude' }));
     head.appendChild(

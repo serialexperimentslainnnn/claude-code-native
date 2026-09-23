@@ -65,14 +65,17 @@
   };
 
   CX.insertAtCursor = function (input: HTMLInputElement | HTMLTextAreaElement, text: string): void {
-    const start = input.selectionStart != null ? input.selectionStart : input.value.length;
-    const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
-    const v = input.value;
-    input.value = v.slice(0, start) + text + v.slice(end);
-    const pos = start + text.length;
+    if (document.activeElement !== input) input.focus();
+    let inserted = false;
     try {
-      input.setSelectionRange(pos, pos);
+      inserted = document.execCommand('insertText', false, text);
     } catch (e) {}
+    if (!inserted) {
+      const start = input.selectionStart != null ? input.selectionStart : input.value.length;
+      const end = input.selectionEnd != null ? input.selectionEnd : input.value.length;
+      input.setRangeText(text, start, end, 'end');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
     CX.autosize(input);
   };
 

@@ -26,6 +26,7 @@
 
   CX.wireInput = function (input: HTMLTextAreaElement): void {
     input.addEventListener('keydown', function (e: KeyboardEvent) {
+      if (e.isComposing) return;
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         doSend();
@@ -142,11 +143,11 @@
     for (let i = 0; i < queue.length; i++) {
       const text = String(queue[i]);
       const index = i;
-      const x = h('span', {
+      const x = h('button', {
         class: 'queue-x',
         text: '✕',
         title: 'Remove from queue',
-        attrs: { role: 'button', 'aria-label': 'Remove queued prompt' },
+        attrs: { type: 'button', 'aria-label': 'Remove queued prompt: ' + text },
         on: {
           click: function (e: Event) {
             e.preventDefault();
@@ -165,9 +166,14 @@
     }
   };
 
+  let sendMode = '';
+
   CX.renderSendMode = function (s: ComposerState): void {
     const els = CX.els;
     if (!els || !els.send) return;
+    const mode = s.interrupting ? 'interrupting' : s.turnActive ? 'stop' : 'send';
+    if (mode === sendMode && els.send.firstChild) return;
+    sendMode = mode;
     if (s.interrupting) {
       els.send.classList.add('stop');
       els.send.classList.add('interrupting');

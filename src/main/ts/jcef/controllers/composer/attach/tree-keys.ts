@@ -33,8 +33,13 @@
     if (AT.view !== 'tree') {
       if (e.key === 'Escape' || e.key === 'Esc') {
         e.preventDefault();
+        e.stopPropagation();
+        const anchor = CX.openMenu && CX.openMenu.anchor;
         CX.closeMenu();
+        if (anchor) anchor.focus();
+        return;
       }
+      AT.onRootKey(e);
       return;
     }
     if (e.key === 'Escape' || e.key === 'Esc') {

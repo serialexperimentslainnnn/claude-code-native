@@ -35,14 +35,14 @@
     const opts = currentOptions(def);
     if (!opts.length) return;
 
-    const menu = h('div', { class: 'menu', attrs: { role: 'listbox' } });
+    const menu = h('div', { class: 'menu', attrs: { role: 'listbox', 'aria-label': def.key } });
 
     function optionItem(o: PillOption): HTMLElement {
       return h(
         'div',
         {
           class: 'menu-item' + (o.selected ? ' selected' : ''),
-          attrs: { role: 'option' },
+          attrs: { role: 'option', tabindex: '-1', 'aria-selected': o.selected ? 'true' : 'false' },
           on: {
             click: function (e: Event) {
               e.preventDefault();
@@ -72,7 +72,7 @@
         'div',
         {
           class: 'menu-item menu-group-header',
-          attrs: { role: 'button', 'aria-expanded': expanded ? 'true' : 'false' },
+          attrs: { role: 'button', tabindex: '-1', 'aria-expanded': expanded ? 'true' : 'false' },
           on: {
             click: function (e: Event) {
               e.preventDefault();
@@ -98,8 +98,52 @@
     positionMenu(menu, anchorEl);
 
     anchorEl.classList.add('pill-open');
+    anchorEl.setAttribute('aria-expanded', 'true');
     CX.openMenu = { el: menu, pill: def.key, anchor: anchorEl, sig: menuSig(def) };
+    menu.addEventListener('keydown', function (e: KeyboardEvent) {
+      onMenuKey(menu, anchorEl, e);
+    });
+    const start = menu.querySelector<HTMLElement>('.menu-item.selected') || reachable(menu)[0];
+    if (start) start.focus({ preventScroll: true });
   };
+
+  function reachable(menu: HTMLElement): HTMLElement[] {
+    const all = Array.prototype.slice.call(menu.querySelectorAll('.menu-item')) as HTMLElement[];
+    return all.filter(function (item) {
+      const group = item.closest('.menu-group-items');
+      return !group || !!(group.parentElement && group.parentElement.classList.contains('open'));
+    });
+  }
+
+  function onMenuKey(menu: HTMLElement, anchor: HTMLElement, e: KeyboardEvent): void {
+    if (e.isComposing) return;
+    const items = reachable(menu);
+    const at = items.indexOf(document.activeElement as HTMLElement);
+    let next = -1;
+    if (e.key === 'ArrowDown') next = at < 0 ? 0 : (at + 1) % items.length;
+    else if (e.key === 'ArrowUp') next = at < 0 ? items.length - 1 : (at - 1 + items.length) % items.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = items.length - 1;
+    else if ((e.key === 'Enter' || e.key === ' ') && at >= 0) {
+      e.preventDefault();
+      items[at].click();
+      if (!menu.isConnected) anchor.focus();
+      else items[at].focus();
+      return;
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeMenu();
+      anchor.focus();
+      return;
+    } else if (e.key === 'Tab') {
+      closeMenu();
+      return;
+    }
+    if (next < 0 || !items[next]) return;
+    e.preventDefault();
+    items[next].focus();
+  }
 
   const positionMenu = CC.placeMenu;
   CX.positionMenu = positionMenu;
@@ -112,7 +156,10 @@
   function closeMenu(): void {
     if (!CX.openMenu) return;
     if (CX.openMenu.el && CX.openMenu.el.parentNode) CX.openMenu.el.parentNode.removeChild(CX.openMenu.el);
-    if (CX.openMenu.anchor) CX.openMenu.anchor.classList.remove('pill-open');
+    if (CX.openMenu.anchor) {
+      CX.openMenu.anchor.classList.remove('pill-open');
+      CX.openMenu.anchor.setAttribute('aria-expanded', 'false');
+    }
     CX.openMenu = null;
   }
   CX.closeMenu = closeMenu;
