@@ -36,7 +36,7 @@ carries the vendored web assets), the two kotlinx.serialization jars listed belo
 `searchableOptions` jar. Everything with a third-party license in that list has an entry here.
 
 Last verified: 2026-08-11, against the upstream `LICENSE` files at the pinned tags
-(`markedjs/marked@v12.0.0`, `cure53/DOMPurify@3.4.13`, `highlightjs/highlight.js@11.11.2`,
+(`markedjs/marked@v12.0.0`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.11.2`,
 `Kotlin/kotlinx.serialization@v1.7.3`).
 
 ---
@@ -62,9 +62,9 @@ subset build as generated (see its entry).
   — a single line that names neither MarkedJS nor Gruber and states a date range that does not
   appear in the license. `LICENSE.md` at `v12.0.0` is the grant and is what is reproduced above.
 
-### DOMPurify — 3.4.13
+### DOMPurify — 3.4.16
 - **License:** `MPL-2.0 OR Apache-2.0` — dual-licensed, as upstream's own `package.json` states it
-  verbatim at this tag. At `3.4.13` the two grants live in two files: `LICENSE` carries the bare
+  verbatim at this tag. At `3.4.16` the two grants live in two files: `LICENSE` carries the bare
   Apache-2.0 text and `LICENSE-MPL` carries the MPL-2.0 text.
 - **License chosen by this project: Apache-2.0.**
   A dual `OR` license is a choice the redistributor must make and record; leaving it unstated is an
@@ -82,14 +82,14 @@ subset build as generated (see its entry).
 - **Note — this entry is the exception to the "read the `LICENSE`, not the banner" rule, and it is
   worth stating why.** Up to and including `3.0.11`, DOMPurify's `LICENSE` opened with a header
   naming the author (*"DOMPurify / Copyright 2023 Dr.-Ing. Mario Heiderich, Cure53"*) followed by the
-  dual-license statement, and that named individual was the notice to preserve. At `3.4.13` that
+  dual-license statement, and that named individual was the notice to preserve. At `3.4.16` that
   header is **gone**: `LICENSE` is the unmodified Apache-2.0 boilerplate, whose only copyright line
   is the appendix's unfilled `Copyright {yyyy} {name of copyright owner}` placeholder. So the sole
   copyright notice upstream still asserts is the banner inside `purify.min.js` — *"(c) Cure53 and
   other contributors"* — which the vendored file carries intact, as Apache-2.0 §4(c) requires. Both
   forms are reproduced above rather than picking one, because dropping the named form would discard a
   notice that upstream did assert, and it costs nothing to keep.
-- **Verified:** the DOMPurify repository publishes **no `NOTICE` file** at tag `3.4.13`, so having
+- **Verified:** the DOMPurify repository publishes **no `NOTICE` file** at tag `3.4.16`, so having
   chosen Apache-2.0 there is nothing further to propagate under Apache-2.0 §4(d).
 
 ### highlight.js — 11.11.2
