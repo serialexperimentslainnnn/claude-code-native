@@ -61,7 +61,7 @@ interface PermissionCard {
 interface PermissionsNs {
   mount(): HTMLElement | null;
   esc(s: unknown): string;
-  md(s: unknown): string;
+  md(s: unknown): DocumentFragment;
   send(obj: unknown): void;
   sendFor(card: PermissionCard, obj: Record<string, unknown>): void;
   isHttpUrl(u: unknown): boolean;
