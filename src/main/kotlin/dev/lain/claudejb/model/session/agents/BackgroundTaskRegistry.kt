@@ -18,11 +18,14 @@ class BackgroundTaskRegistry(
         val toolUseId: String? = null,
         val ownerToolUseId: String? = null,
         val outputFile: String? = null,
-        val output: String = "",
         val command: String? = null,
         val seenLive: Boolean = false,
         val completedAtMillis: Long? = null,
+        val outputVersion: Int = 0,
+        internal val ring: OutputRing = OutputRing(MAX_OUTPUT),
     ) {
+        val output: String get() = ring.text()
+
         fun label(): String =
             description.ifBlank { command?.lineSequence()?.firstOrNull().orEmpty() }
                 .ifBlank { taskType }
@@ -50,7 +53,7 @@ class BackgroundTaskRegistry(
                 toolUseId = r.toolUseId,
                 ownerToolUseId = r.ownerToolUseId,
                 outputFile = r.outputFile,
-                output = r.output.ifBlank { r.notes }.takeLast(MAX_OUTPUT),
+                ring = OutputRing(MAX_OUTPUT, r.output.ifBlank { r.notes }),
                 command = r.command,
                 completedAtMillis = runStartedAtMillis,
             )
@@ -106,11 +109,13 @@ class BackgroundTaskRegistry(
         val taskId = out.backgroundTaskId ?: return false
         val chunk = listOfNotNull(out.stdout, out.stderr).filter { it.isNotBlank() }.joinToString("\n")
         val previous = tasks[taskId]
-        val next = (previous ?: Task(taskId)).copy(
+        val task = previous ?: Task(taskId)
+        if (chunk.isNotBlank()) task.ring.append("$chunk\n")
+        val next = task.copy(
             toolUseId = event.toolUseId,
             ownerToolUseId = previous?.ownerToolUseId ?: event.parentToolUseId,
             outputFile = previous?.outputFile ?: out.outputFile ?: TaskOutputFile.parse(event.content),
-            output = (previous?.output.orEmpty() + if (chunk.isBlank()) "" else "$chunk\n").takeLast(MAX_OUTPUT),
+            outputVersion = task.ring.version,
         )
         if (next == previous) return false
         if (previous == null) order += taskId
@@ -121,9 +126,8 @@ class BackgroundTaskRegistry(
     fun appendTailedOutput(taskId: String, text: String): Boolean {
         if (text.isBlank()) return false
         val previous = tasks[taskId] ?: return false
-        val merged = (previous.output + text).takeLast(MAX_OUTPUT)
-        if (merged == previous.output) return false
-        tasks[taskId] = previous.copy(output = merged)
+        if (!previous.ring.append(text)) return false
+        tasks[taskId] = previous.copy(outputVersion = previous.ring.version)
         return true
     }
 
@@ -137,6 +141,6 @@ class BackgroundTaskRegistry(
 
         private val TERMINAL_STATUSES = setOf("completed", "failed", "cancelled", "stopped", "killed", "error")
 
-        private const val MAX_OUTPUT = 200_000
+        internal const val MAX_OUTPUT = 200_000
     }
 }
