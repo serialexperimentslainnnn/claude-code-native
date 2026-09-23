@@ -5,6 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.util.concurrency.AppExecutorUtil
 import dev.lain.claudejb.controller.session.ChatSessionManager
 import dev.lain.claudejb.controller.session.ClaudeSession
 import dev.lain.claudejb.controller.session.history.SessionHistory
@@ -37,25 +38,25 @@ internal class TabSessionCommands(
 
     fun restoreOrCreate() {
         val manager = ChatSessionManager.getInstance(project)
-        if (!ClaudeSettings.getInstance(project).restoreOpenChatsOnStartup) {
-            if (registry.isEmpty()) openChat(manager.create())
-            return
-        }
         val quiet = !registry.isEmpty()
-        ApplicationManager.getApplication().executeOnPooledThread {
+        ClaudeSettings.getInstance(project).warm().thenAcceptAsync({ settings ->
+            if (!settings.restoreOpenChatsOnStartup) {
+                edt(project) { if (registry.isEmpty()) openChat(manager.create()) }
+                return@thenAcceptAsync
+            }
             val ids = SessionHistory.getInstance(project).openSessions()
                 .filter { SessionStore.exists(it) }
                 .ifEmpty { listOfNotNull(SessionListing.list(project).firstOrNull()?.sessionId) }
             if (ids.isEmpty()) {
                 edt(project) { if (registry.isEmpty()) openChat(manager.create()) }
-                return@executeOnPooledThread
+                return@thenAcceptAsync
             }
             ids.forEachIndexed { index, id ->
                 val title = SessionTitleReader.readTitle(id)
                 val entries = SessionTranscriptReader.readEntries(id, SessionTranscriptReader.DEFAULT_RESTORE_CAP, project.basePath)
                 edt(project) { restore(manager, id, title, entries, select = !quiet && index == ids.lastIndex) }
             }
-        }
+        }, AppExecutorUtil.getAppExecutorService())
     }
 
     private fun restore(manager: ChatSessionManager, id: String, title: String?, entries: List<EntryDTO>, select: Boolean) {
