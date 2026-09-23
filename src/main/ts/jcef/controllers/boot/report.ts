@@ -112,6 +112,7 @@
     reportedCount++;
     CC.send({ type: 'diag', report: 'uncaught ' + what + ': ' + text });
   }
+  CC.reportUncaught = reportUncaught;
   window.addEventListener('error', function (ev: ErrorEvent) {
     reportUncaught('error', ev.error || ev.message);
   });
