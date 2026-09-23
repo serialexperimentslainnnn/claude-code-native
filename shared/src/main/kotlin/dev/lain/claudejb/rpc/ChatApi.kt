@@ -8,6 +8,7 @@ import fleet.rpc.remoteApiDescriptor
 import kotlinx.coroutines.flow.Flow
 
 @Rpc
+@Suppress("SuspendFunWithFlowReturnType")
 interface ChatApi : RemoteApi<Unit> {
     suspend fun chats(projectId: ProjectId): List<ChatRef>
 
