@@ -7,7 +7,7 @@ import dev.lain.claudejb.util.InstalledPlugins
 
 object TerminalLauncher {
 
-    fun interface Host {
+    interface Host {
         fun open(workingDirectory: String?, tabName: String, command: String): Boolean
     }
 
