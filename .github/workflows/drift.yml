@@ -34,7 +34,7 @@ jobs:
     timeout-minutes: 30
     container:
       # `jvm-test`: this job runs `npm install` and the global claude CLI install AND `./gradlew checkDrift`.
-      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.1.0
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

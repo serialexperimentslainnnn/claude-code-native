@@ -43,21 +43,13 @@
 
 # Declared before FROM so it can be used there. The default names this repository's own package; a fork
 # overrides it with --build-arg rather than editing the file.
-ARG NODE_IMAGE=ghcr.io/serialexperimentslainnnn/node-test:v1.0.0
+ARG NODE_IMAGE=ghcr.io/serialexperimentslainnnn/node-test:v1.1.0
 FROM ${NODE_IMAGE}
 
 # NB there is no dnf tuning here and that is not an omission: `max_parallel_downloads=20` and
 # `fastestmirror=True` were written into /etc/dnf/dnf.conf by node-test, and this image starts from its
 # filesystem — so the JDK transaction below already runs with them. Adding the lines again would append a
 # SECOND copy of each key to dnf.conf rather than overriding anything.
-#
-# Temurin, not Fedora's OpenJDK.
-#
-# Fedora 44 no longer packages java-21-openjdk — it has moved on to a newer LTS — and the JDK version is not
-# ours to float: build.gradle.kts pins the toolchain to 21 because the IDE runs on JBR 21, which is the
-# ceiling. Building on 25 would produce class files no target IDE can load. Adoptium's repository is the
-# same source the `setup-java` action uses on the hosted runners, so the image and the pipeline compile
-# against the same JDK rather than two different builds of "21".
 #
 # There is deliberately no `dnf-plugins-core`: nothing here calls `dnf config-manager` — the repo file is
 # written with `printf` — and `curl` is already in the base image, so installing it dragged in a ~150 MB
@@ -81,7 +73,7 @@ RUN curl -fsSL https://packages.adoptium.net/artifactory/api/gpg/key/public \
         'gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-Adoptium' \
         > /etc/yum.repos.d/adoptium.repo \
     && dnf -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs install \
-        temurin-21-jdk \
+        temurin-25-jdk \
         python3 \
         zip \
     && dnf clean all \
@@ -125,9 +117,9 @@ RUN dnf -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs install \
 # silently break on the next base-image bump. The symlink keeps the ENV below stable across rebuilds.
 RUN JH="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")" \
     && echo "JAVA_HOME=$JH" >> /etc/environment \
-    && ln -sfn "$JH" /opt/java-21 \
+    && ln -sfn "$JH" /opt/java-25 \
     && "$JH/bin/java" -version
-ENV JAVA_HOME=/opt/java-21
+ENV JAVA_HOME=/opt/java-25
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Gradle writes here, and the path MUST match GRADLE_USER_HOME in the workflow. If they diverge, the warm
