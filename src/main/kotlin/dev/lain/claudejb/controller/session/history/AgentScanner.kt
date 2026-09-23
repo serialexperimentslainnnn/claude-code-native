@@ -106,7 +106,7 @@ class AgentScanner(
 
     private fun replayTasks(id: String, onReplayed: () -> Unit) {
         runCatching {
-            val replayed = SessionStore.readLines(id)?.let { BackgroundTaskReplay.parse(it) }.orEmpty()
+            val replayed = SessionStore.useLines(id) { BackgroundTaskReplay.parse(it) }.orEmpty()
             if (tasks.seed(replayed)) ui.edt(onReplayed)
         }.onFailure { log.warn("could not replay background tasks for $id", it) }
     }

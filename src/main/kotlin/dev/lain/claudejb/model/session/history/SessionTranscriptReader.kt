@@ -27,11 +27,30 @@ object SessionTranscriptReader {
 
     private const val TOON = "toon"
 
-    fun readEntries(sessionId: String, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> =
-        SessionStore.readLines(sessionId)?.let { parseEntries(it, maxEntries, projectRoot) } ?: emptyList()
+    fun readEntries(sessionId: String, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> {
+        val cap = maxEntries?.takeIf { it > 0 }
+            ?: return SessionStore.readLines(sessionId)?.let { parseEntries(it, null, projectRoot) }.orEmpty()
+        return SessionStore.useLinesFromEnd(sessionId) { tailEntries(it, cap, projectRoot) }.orEmpty()
+    }
 
-    fun parseEntries(lines: List<String>, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> =
-        entriesOf(parseRecords(lines), maxEntries, projectRoot)
+    fun parseEntries(lines: List<String>, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> {
+        val cap = maxEntries?.takeIf { it > 0 } ?: return entriesOf(parseRecords(lines), null, projectRoot)
+        return tailEntries(lines.asReversed().asSequence(), cap, projectRoot)
+    }
+
+    private fun tailEntries(newestFirst: Sequence<String>, maxEntries: Int, projectRoot: String?): List<EntryDTO> {
+        val chunks = ArrayList<List<EntryDTO>>()
+        var count = 0
+        for (line in newestFirst) {
+            if (count >= maxEntries) break
+            val record = parseRecord(line) ?: continue
+            val entries = entriesOf(record, projectRoot)
+            if (entries.isEmpty()) continue
+            chunks += entries
+            count += entries.size
+        }
+        return settle(chunks.asReversed().flatten(), maxEntries)
+    }
 
     fun parseRecord(line: String): JsonObject? =
         if (line.isBlank()) null else runCatching { JSON.parseToJsonElement(line).jsonObject }.getOrNull()
@@ -44,17 +63,25 @@ object SessionTranscriptReader {
         projectRoot: String? = null,
     ): List<EntryDTO> {
         val out = ArrayList<EntryDTO>()
-        for (obj in records) {
-            runCatching {
-                when (obj["type"]?.jsonPrimitive?.contentOrNull) {
-                    "user" -> parseUser(obj, out)
-                    "assistant" -> parseAssistant(obj, out, projectRoot)
-                    else -> Unit
-                }
+        for (obj in records) collect(obj, out, projectRoot)
+        return settle(out, maxEntries)
+    }
+
+    private fun entriesOf(record: JsonObject, projectRoot: String?): List<EntryDTO> =
+        ArrayList<EntryDTO>().also { collect(record, it, projectRoot) }
+
+    private fun collect(obj: JsonObject, out: MutableList<EntryDTO>, projectRoot: String?) {
+        runCatching {
+            when (obj["type"]?.jsonPrimitive?.contentOrNull) {
+                "user" -> parseUser(obj, out)
+                "assistant" -> parseAssistant(obj, out, projectRoot)
+                else -> Unit
             }
         }
-        return capTail(markInFlight(decodeOwnOutputs(tagCommandOutputs(out))), maxEntries)
     }
+
+    private fun settle(entries: List<EntryDTO>, maxEntries: Int?): List<EntryDTO> =
+        decodeOwnOutputs(capTail(markInFlight(tagCommandOutputs(entries)), maxEntries))
 
     private fun decodeOwnOutputs(entries: List<EntryDTO>): List<EntryDTO> {
         val ownCalls = entries.asSequence()
