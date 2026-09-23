@@ -2,7 +2,6 @@ package dev.lain.claudejb.controller.mcp.tools.vcs
 
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.github.GitHubAvailability
-import dev.lain.claudejb.controller.github.GitHubGateway
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.controller.mcp.tools.run.Jobs
 import dev.lain.claudejb.model.mcp.Param
@@ -21,11 +20,11 @@ import kotlinx.serialization.json.put
 internal class PullRequestOpsTools(
     private val project: Project,
     private val reveal: Reveal,
-    gateway: () -> GitHubGateway = { GitHubGateway(project) },
+    gateway: () -> GitHubAccess = { GitHubAccess.of(project) },
     private val pollMillis: Long = POLL_MILLIS,
 ) {
 
-    private val github: GitHubGateway by lazy { GitHubAvailability.require().let { gateway() } }
+    private val github: GitHubAccess by lazy { GitHubAvailability.require().let { gateway() } }
 
     fun domain(): ToolDomain = ToolDomain(
         "pull_request_ops",
@@ -101,7 +100,7 @@ internal class PullRequestOpsTools(
         )
     }
 
-    private fun settled(state: GitHubGateway.Mergeability): Boolean =
+    private fun settled(state: GitHubAccess.Mergeability): Boolean =
         state.mergeState != UNKNOWN && state.checks.none { it.state in PENDING }
 
     private fun number(args: ToolArgs): Long {
@@ -110,7 +109,7 @@ internal class PullRequestOpsTools(
         return number
     }
 
-    private fun mergeabilityJson(number: Long, state: GitHubGateway.Mergeability): JsonObject = buildJsonObject {
+    private fun mergeabilityJson(number: Long, state: GitHubAccess.Mergeability): JsonObject = buildJsonObject {
         put("number", number)
         put("settled", settled(state))
         put("mergeable", state.mergeable)

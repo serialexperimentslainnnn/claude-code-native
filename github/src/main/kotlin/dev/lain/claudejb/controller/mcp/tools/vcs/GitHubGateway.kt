@@ -1,8 +1,15 @@
-package dev.lain.claudejb.controller.github
+package dev.lain.claudejb.controller.mcp.tools.vcs
 
 import com.intellij.collaboration.api.data.GraphQLRequestPagination
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import dev.lain.claudejb.controller.github.GitHubAvailability
+import dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess.Branches
+import dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess.Check
+import dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess.Head
+import dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess.Mergeability
+import dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess.Repository
+import dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess.Request
 import dev.lain.claudejb.model.mcp.ToolException
 import org.jetbrains.plugins.github.api.GHGQLRequests
 import org.jetbrains.plugins.github.api.GHRepositoryCoordinates
@@ -16,32 +23,20 @@ import org.jetbrains.plugins.github.authentication.accounts.GHAccountManager
 import org.jetbrains.plugins.github.util.GHHostedRepositoriesManager
 import java.io.IOException
 
-internal class GitHubGateway(private val project: Project) {
-
-    class Repository(val server: String, val owner: String, val name: String)
-
-    class Head(val number: Long, val title: String, val state: String, val draft: Boolean, val author: String, val url: String)
-
-    class Request(val head: Head, val updatedAt: String, val branches: Branches? = null)
-
-    class Branches(val base: String, val head: String, val body: String, val reviewDecision: String, val headSha: String = "")
-
-    class Check(val name: String, val state: String, val required: Boolean, val url: String)
-
-    class Mergeability(val mergeable: String, val mergeState: String, val canMerge: Boolean, val headSha: String, val checks: List<Check>)
+internal class GitHubGateway(private val project: Project) : GitHubAccess {
 
     private fun requireGitHub() {
         GitHubAvailability.require()
     }
 
-    fun repository(): Repository {
+    override fun repository(): Repository {
         requireGitHub()
         val coordinates = mapping().repository
         val path = coordinates.repositoryPath
         return Repository(coordinates.serverPath.toString(), path.owner, path.repository)
     }
 
-    suspend fun pullRequests(state: String, max: Int): List<Request> {
+    override suspend fun pullRequests(state: String, max: Int): List<Request> {
         requireGitHub()
         val (executor, coordinates) = client()
         val query = "repo:${slug(coordinates)} type:pr $state sort:updated-desc"
@@ -51,7 +46,7 @@ internal class GitHubGateway(private val project: Project) {
         return response.nodes.map { Request(head(it), it.updatedAt.toInstant().toString()) }
     }
 
-    suspend fun pullRequest(number: Long): Request {
+    override suspend fun pullRequest(number: Long): Request {
         requireGitHub()
         val (executor, coordinates) = client()
         val pr = api { executor.executeSuspend(GHGQLRequests.PullRequest.findOne(coordinates, number)) }
@@ -60,7 +55,7 @@ internal class GitHubGateway(private val project: Project) {
         return Request(head(pr), pr.updatedAt.toInstant().toString(), branches)
     }
 
-    suspend fun createPullRequest(base: String, head: String, title: String, body: String, draft: Boolean): Request {
+    override suspend fun createPullRequest(base: String, head: String, title: String, body: String, draft: Boolean): Request {
         requireGitHub()
         val (executor, coordinates) = client()
         val repository = api { executor.executeSuspend(GHGQLRequests.Repo.find(coordinates)) }
@@ -70,13 +65,13 @@ internal class GitHubGateway(private val project: Project) {
         return Request(head(created), created.updatedAt.toInstant().toString())
     }
 
-    suspend fun comment(number: Long, body: String): String {
+    override suspend fun comment(number: Long, body: String): String {
         requireGitHub()
         val (executor, coordinates) = client()
         return api { executor.executeSuspend(GithubApiRequests.Repos.Issues.Comments.create(coordinates, number, body)) }.htmlUrl
     }
 
-    suspend fun mergeability(number: Long): Mergeability {
+    override suspend fun mergeability(number: Long): Mergeability {
         requireGitHub()
         val (executor, coordinates) = client()
         val data = api { executor.executeSuspend(GHGQLRequests.PullRequest.mergeabilityData(coordinates, number)) }
@@ -93,7 +88,7 @@ internal class GitHubGateway(private val project: Project) {
         return Mergeability(data.mergeable.name.lowercase(), state.name.lowercase(), state.canMerge(), head, statuses + runs)
     }
 
-    suspend fun merge(number: Long, subject: String, body: String, headSha: String) {
+    override suspend fun merge(number: Long, subject: String, body: String, headSha: String) {
         requireGitHub()
         val (executor, coordinates) = client()
         val path = coordinates.repositoryPath
@@ -101,7 +96,7 @@ internal class GitHubGateway(private val project: Project) {
         api { executor.executeSuspend(request) }
     }
 
-    suspend fun getJson(path: String): Any? {
+    override suspend fun getJson(path: String): Any? {
         requireGitHub()
         val (executor, coordinates) = client()
         val url = GithubApiRequests.getUrl(coordinates.serverPath, "/repos/" + slug(coordinates) + path)

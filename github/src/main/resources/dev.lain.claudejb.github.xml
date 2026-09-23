@@ -1,0 +1,11 @@
+<idea-plugin>
+    <dependencies>
+        <plugin id="org.jetbrains.plugins.github"/>
+        <module name="dev.lain.claudejb.backend"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="dev.lain.claudejb.controller.mcp.tools.vcs.GitHubAccess"
+                        serviceImplementation="dev.lain.claudejb.controller.mcp.tools.vcs.GitHubGateway"/>
+    </extensions>
+</idea-plugin>

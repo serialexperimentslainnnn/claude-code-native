@@ -53,7 +53,7 @@ class GitHubGatewayContractTest {
         const val GUARD = "requireGitHub"
 
         val GITHUB_TYPE = Regex("""\borg\.jetbrains\.plugins\.github\.[A-Za-z]""")
-        val ENTRY = Regex("""^ {4}(suspend )?fun \w+\(.*""")
+        val ENTRY = Regex("""^ {4}(override )?(suspend )?fun \w+\(.*""")
         const val PLUGIN = "org.jetbrains.plugins.github"
 
         val BUNDLED = Regex("""bundledPlugins?\(([^)]*)\)""")

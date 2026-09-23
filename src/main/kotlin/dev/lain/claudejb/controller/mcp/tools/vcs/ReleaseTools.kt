@@ -2,7 +2,6 @@ package dev.lain.claudejb.controller.mcp.tools.vcs
 
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.github.GitHubAvailability
-import dev.lain.claudejb.controller.github.GitHubGateway
 import dev.lain.claudejb.controller.github.MarketplaceGateway
 import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
@@ -19,9 +18,9 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-internal class ReleaseTools(private val project: Project, gateway: () -> GitHubGateway = { GitHubGateway(project) }) {
+internal class ReleaseTools(private val project: Project, gateway: () -> GitHubAccess = { GitHubAccess.of(project) }) {
 
-    private val github: GitHubGateway by lazy { GitHubAvailability.require().let { gateway() } }
+    private val github: GitHubAccess by lazy { GitHubAvailability.require().let { gateway() } }
 
     fun domain(): ToolDomain = ToolDomain(
         "release",

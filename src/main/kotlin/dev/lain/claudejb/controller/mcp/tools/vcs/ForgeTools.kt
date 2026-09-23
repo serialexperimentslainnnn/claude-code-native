@@ -6,7 +6,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindowId
 import dev.lain.claudejb.controller.git.ForgeViewNavigator
 import dev.lain.claudejb.controller.github.GitHubAvailability
-import dev.lain.claudejb.controller.github.GitHubGateway
 import dev.lain.claudejb.controller.mcp.IdeActions
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.controller.mcp.TargetContext
@@ -28,10 +27,10 @@ internal class ForgeTools(
     private val project: Project,
     private val actions: IdeActions,
     private val reveal: Reveal,
-    gateway: () -> GitHubGateway = { GitHubGateway(project) },
+    gateway: () -> GitHubAccess = { GitHubAccess.of(project) },
 ) {
 
-    private val github: GitHubGateway by lazy { GitHubAvailability.require().let { gateway() } }
+    private val github: GitHubAccess by lazy { GitHubAvailability.require().let { gateway() } }
 
     fun domain(): ToolDomain = ToolDomain(
         "forge",
@@ -90,7 +89,7 @@ internal class ForgeTools(
         return "none"
     }
 
-    private fun row(request: GitHubGateway.Request): JsonObject = buildJsonObject {
+    private fun row(request: GitHubAccess.Request): JsonObject = buildJsonObject {
         put("number", request.head.number)
         put("title", request.head.title)
         put("state", request.head.state)
