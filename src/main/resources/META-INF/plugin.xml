@@ -1,9 +1,6 @@
 <idea-plugin>
     <id>dev.lain.claude-code-for-jetbrains</id>
     <name>Claude Code Native</name>
-    <!-- `email` is an optional attribute and is deliberately omitted: a plugin descriptor is a public
-         document, and an address published there is scraped, not contacted. Support and vulnerability
-         reports both route through the repository (issues / private security advisories). -->
     <vendor url="https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains">lain</vendor>
 
     <description><![CDATA[
@@ -13,8 +10,9 @@
         its stream-json protocol: no Node.js at runtime, no terminal window, no API key required if you
         already have a Claude subscription.</p>
 
-        <p>Works in any JetBrains IDE on the <b>2025.3 platform or newer</b> — IntelliJ IDEA, PyCharm,
-        WebStorm, PhpStorm, GoLand, RubyMine, CLion, Rider, DataGrip, DataSpell, Aqua and RustRover.</p>
+        <p>Works in any JetBrains IDE on the <b>2026.2 platform or newer</b> — IntelliJ IDEA, PyCharm,
+        WebStorm, PhpStorm, GoLand, RubyMine, CLion, Rider, DataGrip, DataSpell and RustRover — locally,
+        in Remote Development and in Code With Me.</p>
 
         <p><em>Unofficial, community-built, open-source plugin. Not affiliated with, sponsored by, or
         endorsed by Anthropic or JetBrains. It requires the user's own separately-installed
@@ -121,10 +119,9 @@
 
         <h2>Requirements</h2>
         <ul>
-            <li>JetBrains IDE <b>2025.3 or newer</b> (build 253+). 2025.1 and 2025.2 are <b>not</b> supported:
-                the whole chat UI is an embedded browser (JCEF), and 2025.3 is the first release where the
-                platform exposes it as a declarable module — which is what keeps the plugin working on 2026.2,
-                where JCEF moved out of the IDE core into a bundled plugin of its own</li>
+            <li>JetBrains IDE <b>2026.2 or newer</b> (build 262.8665+). Earlier releases are <b>not</b>
+                supported: the plugin is split into a frontend and a backend so that it runs in Remote
+                Development and Code With Me, and 2026.2 is the platform that plugin model targets</li>
             <li><a href="https://claude.ai/code"><code>claude</code> CLI</a> installed and on PATH or
                 <code>~/.local/bin/</code> (<code>npm install -g @anthropic-ai/claude-code</code>)</li>
             <li>A Claude subscription (Pro / Max / Team / Enterprise) or an <code>ANTHROPIC_API_KEY</code></li>
