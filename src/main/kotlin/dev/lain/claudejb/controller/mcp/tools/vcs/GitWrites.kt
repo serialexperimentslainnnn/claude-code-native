@@ -5,7 +5,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vcs.FilePath
 import dev.lain.claudejb.model.mcp.ToolException
 
-interface GitWrites {
+interface GitWorkingCopy {
 
     fun stage(paths: List<FilePath>)
 
@@ -22,6 +22,9 @@ interface GitWrites {
     fun pull(remoteName: String?, branch: String): String
 
     fun push(remoteName: String?, branch: String): String
+}
+
+interface GitRepositoryOps {
 
     fun stash(action: String, message: String?): List<String>
 
@@ -32,6 +35,9 @@ interface GitWrites {
     fun show(reference: String, path: String): List<String>
 
     fun branchOp(action: String, reference: String, target: String?)
+}
+
+interface GitWrites : GitWorkingCopy, GitRepositoryOps {
 
     companion object {
         const val MISSING = "the Git plugin (Git4Idea) is disabled in this IDE"

@@ -42,7 +42,7 @@ internal class ChangesTools(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
-    private val git: GitWrites by lazy { GitWrites.of(project) }
+    private val git: GitRepositoryOps by lazy { GitWrites.of(project) }
 
     fun domain(): ToolDomain = ToolDomain(
         "changes",

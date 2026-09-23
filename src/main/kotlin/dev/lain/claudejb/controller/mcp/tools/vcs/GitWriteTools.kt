@@ -26,7 +26,7 @@ internal class GitWriteTools(
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) {
 
-    private val git: GitWrites by lazy { GitWrites.of(project) }
+    private val git: GitWorkingCopy by lazy { GitWrites.of(project) }
 
     private val history: GitHistoryService get() = project.service()
 
