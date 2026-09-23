@@ -2,8 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const CEILING = 250;
-const TS_ROOT = path.resolve(__dirname, '../../../main/ts/jcef');
-const CSS_ROOT = path.resolve(__dirname, '../../../main/resources/jcef/css');
+const TS_ROOT = path.resolve(__dirname, '../../../../frontend/src/main/ts/jcef');
+const CSS_ROOT = path.resolve(__dirname, '../../../../frontend/src/main/resources/jcef/css');
 
 const OVERSIZE = new Set([]);
 

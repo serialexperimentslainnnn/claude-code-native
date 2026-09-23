@@ -2,8 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
-const JCEF = path.resolve(__dirname, '../../../main/resources/jcef');
-const EMIT = path.resolve(__dirname, '../../../../build/web/jcef');
+const JCEF = path.resolve(__dirname, '../../../../frontend/src/main/resources/jcef');
+const EMIT = path.resolve(__dirname, '../../../../frontend/build/web/jcef');
 
 function appDir(name) {
   return fs.existsSync(path.join(EMIT, name)) ? EMIT : JCEF;
@@ -88,7 +88,7 @@ function loadFrontend(files = [], { vendor = true } = {}) {
   return window;
 }
 
-const SOURCES = path.resolve(__dirname, '../../../main/ts/jcef');
+const SOURCES = path.resolve(__dirname, '../../../../frontend/src/main/ts/jcef');
 
 function modulesUnder(root, prefix = '') {
   if (!fs.existsSync(root)) return [];
