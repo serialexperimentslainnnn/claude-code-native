@@ -39,10 +39,14 @@
     applyGodMode();
   };
 
+  function pressed(btn: HTMLElement, on: boolean): void {
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
   function applyFollow(): void {
     if (followBtnRef) {
-      if (followOn) followBtnRef.classList.add('active');
-      else followBtnRef.classList.remove('active');
+      followBtnRef.classList.toggle('active', followOn);
+      pressed(followBtnRef, followOn);
     }
     if (CC && typeof CC.emit === 'function') CC.emit('follow', followOn);
   }
@@ -72,8 +76,8 @@
 
   function applyGuard(): void {
     if (!guardBtnRef) return;
-    if (guardOn) guardBtnRef.classList.add('active');
-    else guardBtnRef.classList.remove('active');
+    guardBtnRef.classList.toggle('active', guardOn);
+    pressed(guardBtnRef, guardOn);
     guardBtnRef.title = guardOn
       ? 'Sensitive Guard is on — click to switch it off'
       : 'Sensitive Guard is OFF — click to switch it back on';
@@ -89,6 +93,7 @@
   function applyRemoteControl(): void {
     if (!rcBtnRef) return;
     rcBtnRef.classList.toggle('active', rcOn);
+    pressed(rcBtnRef, rcOn);
     rcBtnRef.classList.toggle('failed', !rcOn && !!rcError);
     if (!rcOn && rcError) rcBtnRef.title = rcError;
     else if (rcOn) rcBtnRef.title = 'Remote Control is on — click to disconnect this chat from claude.ai';
@@ -103,6 +108,14 @@
     rcError = nextError;
     applyRemoteControl();
   };
+
+  function watchVibe(btn: HTMLElement): void {
+    const sync = function (): void {
+      pressed(btn, !!(CC.isVibe && CC.isVibe()));
+    };
+    sync();
+    new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  }
 
   function iconButton(cls: string, label: string, glyph: string, onClick: (e: Event) => void): HTMLElement {
     const btn = h('button', {
@@ -141,6 +154,7 @@
       },
       vibeIcon
     );
+    watchVibe(vibeBtn);
 
     const followBtn = iconButton('bar-icon active', 'Auto-follow scrolling', followGlyph(), function () {
       followOn = !followOn;
@@ -148,6 +162,7 @@
     });
     followBtn.title = 'Auto-scroll (follow output)';
     followBtnRef = followBtn;
+    pressed(followBtn, followOn);
 
     const guardBtn = h('button', {
       class: 'bar-icon active',
