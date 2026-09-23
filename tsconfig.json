@@ -9,8 +9,8 @@
     "types": [],
     "skipLibCheck": true,
     "newLine": "lf",
-    "rootDir": "src/main/ts/jcef",
-    "outDir": "build/web/jcef"
+    "rootDir": "frontend/src/main/ts/jcef",
+    "outDir": "frontend/build/web/jcef"
   },
-  "include": ["src/main/ts/jcef/**/*.ts"]
+  "include": ["frontend/src/main/ts/jcef/**/*.ts"]
 }
