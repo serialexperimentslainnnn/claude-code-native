@@ -4,6 +4,81 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.5.0] — 2026-09-23
+
+**The chat works in Remote Development.** The plugin is split into a frontend, drawn where the UI runs, and a
+backend, beside the project, joined by the platform's RPC. **This release needs IntelliJ Platform 2026.2
+(build 262.8665.258) or newer.** On 2025.3.1 or 2026.1 stay on 6.0.1, or update the IDE.
+
+### Added
+- **Remote Development.** The plugin is a split plugin with three content modules: `dev.lain.claudejb.shared`
+  holds the RPC chat contract (`ChatApi`); `dev.lain.claudejb.frontend` the tool window, the embedded browser,
+  the page serving and the theme, and loads where the UI runs — JetBrains Client in Remote Development;
+  `dev.lain.claudejb.backend` the sessions, the MCP servers, the guard, the settings, Git and the diffs, and
+  loads on the host. The page talks to the backend over the platform's RPC. A local IDE, Remote Development
+  and the Code With Me host take one code path: no mode detection, no port forwarding. The plugin is installed
+  on the host and on the client; the client gets its copy from the Marketplace through plugin sync.
+- **Code With Me, for the host.** The host's chat works as in a local IDE. Guests get no chat: JetBrains is
+  retiring Code With Me, and 2026.1 was the last release with official support.
+- **Optional modules for the IDE plugins the tools reach** — Git, GitHub, Java, Terminal, IntelliLang,
+  Database. Each loads only when its plugin is present.
+
+### Changed
+- **The floor is 2026.2 (build 262.8665.258); the range runs to 263.\*.** 2025.3 and 2026.1 are no longer
+  supported: the RPC API the split rests on is internal there, and the plugin uses no internal API.
+- **Streaming no longer re-renders the whole message every 30 ms.** Assistant deltas arrive on a coalescing
+  drain and are appended; running rows and live tool output are patched in place.
+- **Lighter on the IDE.** The VFS is refreshed only after tools that write, not after every MCP call; live tool
+  output is coalesced and edits are diffed off the EDT; prompts are written to the CLI off the EDT; the page is
+  assembled once per IDE as one script; restoring a chat reads its transcript from the end; agent transcripts
+  are tailed from their last offset; background-task output is kept in a ring; the quota is polled every 3 s
+  and at each message boundary; the MCP helper JVMs start small.
+- **Smaller MCP answers.** `read_file` splits its budget between the files of a batch; `search_text` and
+  `project_problems` group by file; every `max` a tool takes has a ceiling; commit rows are abbreviated and
+  working-tree diffs built file by file; the services listing is trimmed.
+- **Libraries.** DOMPurify 3.4.16, highlight.js 11.12.0, marked 18.0.14. Build: Kotlin 2.4, a JDK 25
+  toolchain, Gradle 9.7.1, IntelliJ Platform Gradle Plugin 2.19.0, detekt 2.0.0-alpha.6, Spotless 8.10.2,
+  JUnit 6.1.3. kotlinx-serialization is no longer bundled; the platform's copy is used. The npm toolchain
+  stays on its locked versions.
+
+### Fixed
+- **The trust dialog no longer reappears every 3 s after *Cancel*,** and **a CLI that crashes on start is no
+  longer respawned forever.** The launch gates run off the EDT and the boot watcher stops on a refusal or a
+  crash.
+- **Closed chat tabs no longer leak memory.** A closed chat is disposed through the Disposer, and open tabs
+  are persisted off the EDT.
+- **The IDE no longer freezes when `claude` stops reading its input.** A CLI blocked on stdin is ended, and
+  its stdout is scanned once.
+- **Answers stream as they are written.** A streaming entry stays running until its message settles.
+- **A prompt with attachments is no longer lost when the session cannot start.**
+- **One malformed MCP frame no longer takes an MCP server down**, frame headers are bounded, and the bridge's
+  reply thread stays alive.
+- **`run_configuration` reports the exit code of the run it started.**
+- **Batches no longer half-apply.** Every call and every batch item gets an answer whatever the tool throws,
+  and folded batch results settle clean items as successes.
+- **A control request always completes**, even on a malformed reply or a long run.
+- **Unified diffs count their context lines and merge overlapping hunks.**
+- **Shell processes and finished jobs are released**, and each line of a run's output tail is capped.
+- **A prompted Git action is released when no turn starts.**
+- **The environment script is sourced with the POSIX shell.**
+- **The vulnerability database download is bounded in time and size.**
+- **The chat page works from the keyboard and with a screen reader.** Tool cards have a keyboard toggle and
+  no endless animation; menus, the attach menu and the buttons are reachable and operable; the composer
+  toggles expose their state with `aria-pressed`; Enter while an IME is composing no longer sends; focus and
+  current data survive dashboard and tab redraws; a settings row shows as pending until the host confirms it.
+- **Closing the last chat tab shows the new one.**
+
+### Security
+- **A renewed credential is kept when the keyring refuses the write**, instead of being wiped.
+- **An MCP admission credit is granted only after the spawn succeeds, and it expires.**
+- **The token file rotates with an atomic move.**
+- **An API key is verified before it is approved**, and refused when it cannot be verified.
+- **Guard decisions no longer block the protocol reader**, and the alert list is bounded.
+- **A permission card resolves once and is rebuilt when its content changes**; a cancelled permission is
+  withdrawn in order, behind the decision it cancels.
+- **Each guard alert is announced once.**
+- **Only http(s), `jb://` and relative links are forwarded from the page**, middle clicks included.
+
 ## [6.0.1] — 2026-09-22
 
 ### Fixed

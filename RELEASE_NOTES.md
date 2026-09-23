@@ -1,3 +1,52 @@
+## v6.5.0 — 2026-09-23
+
+**The chat works in Remote Development.** Until now, in a remote setup the plugin loaded only on the host, where
+the chat page cannot be drawn. The plugin is now split in two: the tool window and the embedded browser run
+where you see them — in JetBrains Client — and the sessions, the IDE servers, the guard, your settings, Git and
+the diffs run on the host, beside the project. The two talk over the platform's own RPC, so there is no port to
+forward and nothing to configure, and a local IDE takes exactly the same path. Install the plugin on the host;
+the client gets its copy from the Marketplace through plugin sync.
+
+**Code With Me: the host keeps its chat.** Guests get none. JetBrains is retiring Code With Me — 2026.1 was the
+last release with official support — so the plugin does not build a guest experience on it.
+
+**This release requires 2026.2 (build 262.8665.258) or newer.** The RPC that joins the two halves is internal
+in 2025.3 and 2026.1, and the plugin uses no internal API. On 2025.3.1 or 2026.1, stay on **6.0.1** — it keeps
+working — or update the IDE.
+
+**Answers stream as they are written, and the chat stays light while they do.** A streaming answer used to
+re-render the whole message every 30 ms; now only what arrived is appended, and running rows and live tool
+output are patched in place. The IDE is spared work too: the file system is refreshed only after tools that
+write, the page is assembled once per IDE, a restored chat is read from the end of its transcript, and prompts
+reach the CLI off the UI thread.
+
+**Smaller answers from the IDE tools, so a session spends fewer tokens.** A batch of `read_file` calls shares
+one budget, search results and project problems come grouped by file, and every limit a tool takes has a
+ceiling.
+
+**A round of bugs, gone.** The trust dialog no longer comes back every three seconds after you press *Cancel*.
+A CLI that crashes on start is no longer restarted forever. Closed chat tabs no longer hold on to memory. The
+IDE no longer freezes when `claude` stops reading its input. A prompt with attachments is no longer lost when
+the session cannot start. One malformed message no longer takes an IDE server down. `run_configuration`
+reports the exit code of the run it started, and a batch no longer applies half its items. Closing the last
+chat tab shows the new one.
+
+**The chat page works from the keyboard and with a screen reader.** Tool cards open and close from the
+keyboard, menus and the attach menu can be driven without a mouse, toggles announce their state, pressing
+Enter while an input method is composing no longer sends the prompt, and focus stays where it was when the
+page redraws.
+
+**Security.** A renewed sign-in is no longer wiped when the keyring refuses to store it. The IDE servers admit
+a client only after its process has started, and only for a short while. The token file is replaced
+atomically. An API key is checked before it is accepted. The guard no longer holds up the conversation while
+it decides, a permission card is answered once and redrawn when its content changes, each guard alert is
+announced once, and the page forwards only web, `jb://` and relative links.
+
+**Under the hood.** DOMPurify 3.4.16, highlight.js 11.12.0 and marked 18.0.14 in the page; Kotlin 2.4 on a
+JDK 25 toolchain, Gradle 9.7.1 and the IntelliJ Platform Gradle Plugin 2.19.0 in the build. The plugin no
+longer bundles its own kotlinx-serialization and uses the platform's. The code that reaches Git, GitHub, Java,
+Terminal, IntelliLang and Database lives in optional modules that load only when those plugins are present.
+
 ## v6.0.1 — 2026-09-22
 
 **`find_symbols` works in Rider again.** Asking Claude for a symbol there failed outright with
