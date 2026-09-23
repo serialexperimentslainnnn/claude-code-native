@@ -21,10 +21,9 @@ grant is silent.
 
 The vendored versions below are the ones read out of the shipped files themselves (`marked`'s and
 `highlight.js`'s embedded version strings, DOMPurify's `version` constant), not the ones named in a
-banner. `marked.min.js` and `purify.min.js` were additionally confirmed **byte-identical** to the
-upstream published `dist` for their stated version, which is what substantiates "redistributed
-verbatim, unmodified" below; `highlight.min.js` is a curated subset build and so matches no upstream
-artifact by construction.
+banner. All three files were additionally confirmed **byte-identical** to the upstream published
+artifact for their stated version (the npm tarball, integrity-checked against the registry), which is
+what substantiates "redistributed verbatim, unmodified" below.
 
 The license texts referenced as `LICENSES/…` live at the repository root during development and are
 packaged into the artifact under `META-INF/licenses/` (see `build.gradle.kts`), alongside this file
@@ -36,7 +35,7 @@ carries the vendored web assets), the two kotlinx.serialization jars listed belo
 `searchableOptions` jar. Everything with a third-party license in that list has an entry here.
 
 Last verified: 2026-08-11, against the upstream `LICENSE` files at the pinned tags
-(`markedjs/marked@v12.0.0`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.11.2`,
+(`markedjs/marked@v12.0.0`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.12.0`,
 `Kotlin/kotlinx.serialization@v1.7.3`).
 
 ---
@@ -45,8 +44,7 @@ Last verified: 2026-08-11, against the upstream `LICENSE` files at the pinned ta
 
 These are vendored into the plugin's embedded web UI under `jcef/` and are served to the JCEF
 browser at runtime. Each is redistributed exactly as published upstream, with its license banner
-intact and no edit of our own — verbatim for marked and DOMPurify, and for highlight.js the upstream
-subset build as generated (see its entry).
+intact and no edit of our own.
 
 ### marked — 12.0.0
 - **License:** `MIT AND BSD-3-Clause` — marked itself is MIT; its `LICENSE.md` additionally
@@ -92,12 +90,13 @@ subset build as generated (see its entry).
 - **Verified:** the DOMPurify repository publishes **no `NOTICE` file** at tag `3.4.16`, so having
   chosen Apache-2.0 there is nothing further to propagate under Apache-2.0 §4(d).
 
-### highlight.js — 11.11.2
+### highlight.js — 11.12.0
 - **License:** BSD-3-Clause (`SPDX-License-Identifier: BSD-3-Clause`)
 - **Copyright:** Copyright (c) 2006, Ivan Sagalaev. All rights reserved.
 - **Project:** https://github.com/highlightjs/highlight.js
 - **Full text:** `LICENSES/BSD-3-Clause.txt` — byte-identical to the upstream `LICENSE` at this tag.
-- **Note:** a curated subset build (37 bundled grammars), redistributed as built. The banner inside
+- **Note:** the upstream common build (`@highlightjs/cdn-assets@11.12.0`, `highlight.min.js`, 36
+  bundled grammars), redistributed verbatim. The banner inside
   `highlight.min.js` reads *"(c) 2006-2026 Josh Goebel &lt;hello@joshgoebel.com&gt; and other
   contributors"*, but the `LICENSE` at this tag still names only Ivan Sagalaev — so the copyright
   above is the license's, not the banner's, and it has not changed across the versions vendored here.
