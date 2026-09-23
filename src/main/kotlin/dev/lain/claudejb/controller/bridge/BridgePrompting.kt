@@ -17,7 +17,7 @@ internal class BridgePrompting(private val presenter: ChatPresenter) {
 
             is Msg.RemoveQueued -> session.prompts.remove(m.index)
 
-            is Msg.Copy -> presenter.copyToClient(m.text)
+            is Msg.Copy -> presenter.frontend.copyToClient(m.text)
         }
     }
 

@@ -29,7 +29,7 @@ class ExplainSelectionAction : AnAction() {
         val registry = ChatRegistry.getInstance(project)
         val chat = registry.selectedOrNew()
         chat.session.send(prompt)
-        chat.focusInput()
+        chat.frontend.focusInput()
         registry.showToolWindow()
     }
 

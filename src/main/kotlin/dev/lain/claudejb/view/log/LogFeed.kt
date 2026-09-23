@@ -24,7 +24,7 @@ internal class LogFeed(private val presenter: ChatPresenter) {
         offEdt {
             val lines = LogRing.snapshot(JcefLogData.levelOf(level))
             val text = JcefLogData.reportText(lines, header(binary, level, lines.size, LogRing.since(-1).dropped))
-            edt(presenter.project) { presenter.copyToClient(text) }
+            edt(presenter.project) { presenter.frontend.copyToClient(text) }
         }
     }
 

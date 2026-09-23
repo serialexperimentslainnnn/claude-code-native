@@ -14,7 +14,7 @@ internal object IdeActionInvoker {
             LOG.warn("No chat is open to run '$actionId' for the Git view's '$gitActionId' button")
             return JcefGitData.ActionState.FAILED
         }
-        presenter.runIdeAction(actionId)
+        presenter.frontend.runIdeAction(actionId)
         return JcefGitData.ActionState.COMPLETED
     }
 }

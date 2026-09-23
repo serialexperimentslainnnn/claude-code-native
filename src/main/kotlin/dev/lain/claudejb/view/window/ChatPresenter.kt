@@ -44,7 +44,9 @@ internal class ChatPresenter(
 
     val transcript = ChatTranscriptView(session, ::emit)
 
-    val tray = AttachmentTray(project, ::emit, ::focusInput)
+    val frontend = FrontendPushes(::exec)
+
+    val tray = AttachmentTray(project, ::emit, frontend::focusInput)
 
     val edits = ChatEditReview(project, session, tray::notify)
 
@@ -82,7 +84,7 @@ internal class ChatPresenter(
         session.addListener(this)
         session.login.attachUi(onboarding)
 
-        pushVibe()
+        frontend.pushVibe()
         snapshots.now(*Kind.entries.toTypedArray())
         tray.push()
         security.pushVuln()
@@ -168,8 +170,6 @@ internal class ChatPresenter(
     fun cardSession(scope: String): ClaudeSession =
         if (scope == JcefBridge.SCOPE_GIT) gitChat.session() else session
 
-    fun pushVibe() = exec(FrontendChannel.VIBE, ChatRegistry.vibe.toString())
-
     fun openDashboard() {
         snapshots.now(Kind.SESSION)
         security.pushVuln()
@@ -183,12 +183,6 @@ internal class ChatPresenter(
         registry.git.request()
         exec("showGitView", PushStream.NO_ARGS)
     }
-
-    fun focusInput() = exec(FrontendChannel.FOCUS, PushStream.NO_ARGS)
-
-    fun copyToClient(text: String) = exec(FrontendChannel.COPY, JcefBridge.jsString(text))
-
-    fun runIdeAction(actionId: String) = exec(FrontendChannel.ACTION, JcefBridge.jsString(actionId))
 
     fun mentionCurrentFile() = tray.addCurrentFile()
 

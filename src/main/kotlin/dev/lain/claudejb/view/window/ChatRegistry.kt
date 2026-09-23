@@ -91,7 +91,7 @@ internal class ChatRegistry(private val project: Project) : Disposable {
         runCatching { presenter.transcript.showTranscript(null) }
             .onFailure { LOG.warn("Claude Code: showing '${presenter.session.title}' failed to reset its transcript", it) }
         repaint(Kind.TABS)
-        presenter.focusInput()
+        presenter.frontend.focusInput()
     }
 
     fun reveal(presenter: ChatPresenter) {
@@ -181,7 +181,7 @@ internal class ChatRegistry(private val project: Project) : Disposable {
 
         fun changeVibe(on: Boolean) {
             vibe = on
-            everywhere(ChatPresenter::pushVibe)
+            everywhere { it.frontend.pushVibe() }
         }
 
         fun tabTitle(title: String): String =
