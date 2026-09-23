@@ -6,6 +6,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -65,21 +66,19 @@ internal object BatchRows {
 
     private suspend fun row(item: ToolArgs, identity: String, one: suspend (ToolArgs) -> JsonObject): JsonObject {
         val id = (item.json[identity] as? JsonPrimitive)?.takeUnless { it is JsonNull }?.content
-        val result = try {
-            one(item)
-        } catch (e: Exception) {
-            rethrowIfCancelled(e)
-            return failed(identity, id, e)
-        } catch (e: LinkageError) {
-            return failed(identity, id, e)
+        val result = runCatching { one(item) }.getOrElse { cause ->
+            if (cause !is Exception && cause !is LinkageError) throw cause
+            rethrowIfCancelled(cause)
+            return failed(identity, id, cause)
         }
         return buildJsonObject {
             if (id != null) put(identity, id)
-            result.forEach { (key, value) ->
-                if ((key != identity || id == null) && !(key == TRUNCATED && value == FALSE)) put(key, value)
-            }
+            result.forEach { (key, value) -> if (kept(key, value, identity, id)) put(key, value) }
         }
     }
+
+    private fun kept(key: String, value: JsonElement, identity: String, id: String?): Boolean =
+        (key != identity || id == null) && !(key == TRUNCATED && value == FALSE)
 
     private fun failed(identity: String, id: String?, cause: Throwable): JsonObject = buildJsonObject {
         put(identity, id ?: "")

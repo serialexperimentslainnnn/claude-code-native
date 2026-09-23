@@ -71,10 +71,11 @@ internal class ServerEndpoint(
 
     private suspend fun attend(client: SocketChannel) {
         try {
-            if (admit()) Connection(client).serve()
-        } catch (e: Exception) {
-            rethrowIfCancelled(e)
-            log.warn("${server.key}: a connection failed", e)
+            runCatching { if (admit()) Connection(client).serve() }.onFailure { cause ->
+                if (cause !is Exception) throw cause
+                rethrowIfCancelled(cause)
+                log.warn("${server.key}: a connection failed", cause)
+            }
         } finally {
             release(client)
         }
@@ -109,15 +110,16 @@ internal class ServerEndpoint(
                 send(JsonRpc.error(null, JsonRpc.PARSE_ERROR, "Parse error"))
                 return
             }
-            try {
+            runCatching {
                 when (val parsed = JsonRpc.parse(message)) {
                     is JsonRpc.Request -> request(parsed, message)
                     is JsonRpc.Notification -> notification(parsed, message)
                     else -> mcp.handle(message)?.let { send(it) }
                 }
-            } catch (e: Exception) {
-                rethrowIfCancelled(e)
-                log.warn("${server.key}: a frame could not be handled", e)
+            }.onFailure { cause ->
+                if (cause !is Exception) throw cause
+                rethrowIfCancelled(cause)
+                log.warn("${server.key}: a frame could not be handled", cause)
                 idOf(message)?.let { send(JsonRpc.error(it, JsonRpc.INTERNAL_ERROR, FAILED)) }
             }
         }
@@ -144,13 +146,13 @@ internal class ServerEndpoint(
             job.start()
         }
 
-        private suspend fun answer(id: JsonElement, message: JsonElement): JsonObject? = try {
-            mcp.handle(message)
-        } catch (e: Exception) {
-            rethrowIfCancelled(e)
-            log.warn("${server.key}: a request failed", e)
-            JsonRpc.error(id, JsonRpc.INTERNAL_ERROR, FAILED)
-        }
+        private suspend fun answer(id: JsonElement, message: JsonElement): JsonObject? =
+            runCatching { mcp.handle(message) }.getOrElse { cause ->
+                if (cause !is Exception) throw cause
+                rethrowIfCancelled(cause)
+                log.warn("${server.key}: a request failed", cause)
+                JsonRpc.error(id, JsonRpc.INTERNAL_ERROR, FAILED)
+            }
 
         private suspend fun notification(notification: JsonRpc.Notification, message: JsonElement) {
             if (!authorized(notification.params)) return
@@ -171,12 +173,12 @@ internal class ServerEndpoint(
             writing.withLock { withContext(io) { runCatching { Frames.write(output, text) } } }
         }
 
-        private fun encoded(reply: JsonObject): String = try {
-            Toon.encode(reply)
-        } catch (e: RuntimeException) {
-            log.warn("${server.key}: a reply could not be encoded", e)
-            Toon.encode(JsonRpc.error(reply["id"], JsonRpc.INTERNAL_ERROR, UNENCODABLE))
-        }
+        private fun encoded(reply: JsonObject): String =
+            runCatching { Toon.encode(reply) }.getOrElse { cause ->
+                if (cause !is RuntimeException) throw cause
+                log.warn("${server.key}: a reply could not be encoded", cause)
+                Toon.encode(JsonRpc.error(reply["id"], JsonRpc.INTERNAL_ERROR, UNENCODABLE))
+            }
     }
 
     companion object {
