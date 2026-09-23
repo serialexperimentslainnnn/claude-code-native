@@ -5,12 +5,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.awt.image.BufferedImage
-import java.io.File
-import java.nio.file.Path
 import java.util.Base64
-import javax.imageio.ImageIO
 
 class ImageAttachmentsTest {
 
@@ -27,32 +22,6 @@ class ImageAttachmentsTest {
     fun `mediaTypeForExtension returns null for non-images`() {
         assertNull(ImageAttachments.mediaTypeForExtension("txt"))
         assertNull(ImageAttachments.mediaTypeForExtension(""))
-    }
-
-    @Test
-    fun `imageFromFile reads a PNG and base64-encodes it`(@TempDir dir: Path) {
-        val png = File(dir.toFile(), "pic.png")
-        val image = BufferedImage(2, 2, BufferedImage.TYPE_INT_ARGB)
-        image.setRGB(0, 0, 0xFFFF0000.toInt())
-        ImageIO.write(image, "png", png)
-
-        val attachment = ImageAttachments.imageFromFile(png.absolutePath)
-        requireNotNull(attachment) { "expected a non-null Image attachment" }
-        assertEquals("pic.png", attachment.displayName)
-        assertEquals("image/png", attachment.mediaType)
-        assertTrue(attachment.base64.isNotEmpty(), "base64 must not be empty")
-        assertTrue(Base64.getDecoder().decode(attachment.base64).contentEquals(png.readBytes()))
-    }
-
-    @Test
-    fun `imageFromFile returns null for a missing file`(@TempDir dir: Path) {
-        assertNull(ImageAttachments.imageFromFile(File(dir.toFile(), "nope.png").absolutePath))
-    }
-
-    @Test
-    fun `imageFromFile returns null for an unsupported extension`(@TempDir dir: Path) {
-        val txt = File(dir.toFile(), "data.txt").apply { writeText("not an image") }
-        assertNull(ImageAttachments.imageFromFile(txt.absolutePath))
     }
 
     private val pngMagic = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A)

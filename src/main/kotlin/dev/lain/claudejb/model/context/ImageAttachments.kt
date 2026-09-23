@@ -1,6 +1,5 @@
 package dev.lain.claudejb.model.context
 
-import java.io.File
 import java.util.Base64
 
 internal object ImageAttachments {
@@ -55,18 +54,6 @@ internal object ImageAttachments {
         b.hasSignature(RIFF_SIGNATURE) && b.hasSignature(WEBP_FORM_TYPE, RIFF_FORM_TYPE_OFFSET) -> "image/webp"
         else -> null
     }
-
-    fun imageFromFile(path: String): Attachment.Image? = runCatching {
-        val file = File(path)
-        val bytes = file.takeIf { it.isFile }?.readBytes() ?: return null
-        if (bytes.isEmpty()) return null
-        val mediaType = mediaTypeForExtension(file.extension.lowercase()) ?: return null
-        Attachment.Image(
-            displayName = file.name,
-            mediaType = mediaType,
-            base64 = Base64.getEncoder().encodeToString(bytes),
-        )
-    }.getOrNull()
 
     fun mediaTypeForExtension(ext: String): String? = when (ext) {
         "png" -> "image/png"
