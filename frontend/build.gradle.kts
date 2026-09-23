@@ -8,14 +8,14 @@ dependencies {
     implementation(project(":shared"))
 }
 
-val npmInstall by tasks.registering(Exec::class) {
+val npmInstall = tasks.register<Exec>("npmInstall") {
     workingDir(rootDir)
     inputs.files(rootProject.file("package.json"), rootProject.file("package-lock.json"))
     outputs.file(rootProject.file("node_modules/.package-lock.json"))
     commandLine(npm, "ci")
 }
 
-val compileWeb by tasks.registering(Exec::class) {
+val compileWeb = tasks.register<Exec>("compileWeb") {
     dependsOn(npmInstall)
     workingDir(rootDir)
     inputs.dir("src/main/ts/jcef")

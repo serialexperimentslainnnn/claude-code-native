@@ -97,7 +97,7 @@ val npm = if (System.getProperty("os.name").startsWith("Windows")) "npm.cmd" els
 val fakeClaude: String = file("bin/fake-claude").absolutePath
 
 tasks {
-    val frontendTest by registering(Exec::class) {
+    val frontendTest = register<Exec>("frontendTest") {
         dependsOn(":frontend:compileWeb")
         inputs.dir("src/test/frontend")
         inputs.dir("frontend/src/main/resources/jcef")
@@ -125,7 +125,7 @@ tasks {
     }
 }
 
-val bench by intellijPlatformTesting.testIde.registering {
+intellijPlatformTesting.testIde.register("bench") {
     testFrameworks(TestFrameworkType.Platform)
     task {
         group = "verification"
