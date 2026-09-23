@@ -11,9 +11,9 @@ import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.ToolWindowManager
 import dev.lain.claudejb.controller.commands.TabSessionCommands
-import dev.lain.claudejb.controller.mcp.IdeMcpService
 import dev.lain.claudejb.controller.session.ChatSessionManager
 import dev.lain.claudejb.controller.session.ClaudeSession
+import dev.lain.claudejb.controller.session.McpLink
 import dev.lain.claudejb.model.session.launch.LaunchOptions
 import dev.lain.claudejb.model.settings.ClaudeSettings
 import dev.lain.claudejb.rpc.ChatEvent
@@ -64,7 +64,7 @@ internal class ChatRegistry(private val project: Project) : Disposable {
     fun open(session: ClaudeSession, select: Boolean): ChatPresenter {
         if (!prewarmed) {
             prewarmed = true
-            IdeMcpService.getInstance(project).prewarm()
+            McpLink.prewarm(project)
         }
         session.settings.adopt(LaunchOptions.from(ClaudeSettings.getInstance(project)))
         session.start()

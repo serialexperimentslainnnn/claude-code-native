@@ -2,7 +2,7 @@ package dev.lain.claudejb.controller.bridge
 
 import dev.lain.claudejb.controller.commands.git.GitActionCatalog
 import dev.lain.claudejb.controller.commands.git.GitIntegration
-import dev.lain.claudejb.controller.mcp.IdeMcpService
+import dev.lain.claudejb.controller.session.McpLink
 import dev.lain.claudejb.model.bridge.Msg
 import dev.lain.claudejb.model.settings.ClaudeSettings
 import dev.lain.claudejb.model.settings.WorkloadWindow
@@ -32,7 +32,7 @@ internal class BridgeSessionControl(private val presenter: ChatPresenter) {
             Msg.McpRefresh -> presenter.feed.requestMcp()
 
             is Msg.McpReconnect -> {
-                IdeMcpService.getInstance(session.project).admitReconnect(m.name)
+                McpLink.admitReconnect(session.project, m.name)
                 session.queries.reconnectMcp(m.name)
                 presenter.feed.requestMcp()
             }
