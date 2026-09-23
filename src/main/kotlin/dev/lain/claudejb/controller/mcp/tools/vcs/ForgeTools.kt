@@ -41,7 +41,7 @@ internal class ForgeTools(
 
     private suspend fun pullRequests(args: ToolArgs): ToolResult {
         val state = args.optionalString("state") ?: "open"
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val filter = STATES[state] ?: throw ToolException("state must be one of ${STATES.keys.joinToString()}")
         val repository = github.repository()
         val requests = github.pullRequests(filter, max)
@@ -163,7 +163,7 @@ internal class ForgeTools(
                 "Requests view is shown. Refused when the GitHub plugin, an account or a GitHub remote is missing.",
             listOf(
                 Param("state", "open (default), closed, merged or all", required = false),
-                Param("max", "Maximum pull requests (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("pull requests", DEFAULT_MAX),
             ),
         )
 

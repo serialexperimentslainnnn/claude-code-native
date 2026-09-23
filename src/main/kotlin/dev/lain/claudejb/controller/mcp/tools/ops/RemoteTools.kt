@@ -84,7 +84,7 @@ internal class RemoteTools(private val project: Project, private val actions: Id
     }
 
     private suspend fun problems(group: String, tab: String, args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (rows, tabId) = withContext(Dispatchers.EDT) {
             val collector = ProblemsCollector.getInstance(project)
             val all = collector.getProblemFiles().flatMap { collector.getFileProblems(it) } + collector.getOtherProblems()
@@ -174,7 +174,7 @@ internal class RemoteTools(private val project: Project, private val actions: Id
                 "Problems view; run and open fire the Qodana plugin's own actions, discovered on this IDE.",
             listOf(
                 Param("action", "results (default), run or open", required = false),
-                Param("max", "Maximum problems (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("problems", DEFAULT_MAX),
             ),
             mutates = true,
         )
@@ -183,7 +183,7 @@ internal class RemoteTools(private val project: Project, private val actions: Id
             "vulnerable_dependencies",
             "The vulnerable dependencies the Package Checker found, as the Problems view's Vulnerable Dependencies tab lists " +
                 "them; the tab is shown without focus.",
-            listOf(Param("max", "Maximum problems (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("problems", DEFAULT_MAX)),
         )
     }
 }

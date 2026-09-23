@@ -36,7 +36,7 @@ internal class BreakpointTools(private val project: Project) {
     private suspend fun breakpoint(args: ToolArgs): ToolResult = when (val action = args.string("action")) {
         "add" -> add(args)
         "remove" -> remove(args)
-        "list" -> list(args.int("max", DEFAULT_MAX))
+        "list" -> list(args.max(DEFAULT_MAX, Param.MAX_CEILING))
         else -> throw ToolException("action must be add, remove or list, not $action")
     }
 
@@ -125,7 +125,7 @@ internal class BreakpointTools(private val project: Project) {
                 Param("line", "1-based line (add, remove)", type = "integer", required = false),
                 Param("condition", "Expression that must be true for the breakpoint to stop (add)", required = false),
                 Param("temporary", "true to remove the breakpoint once it is hit (add, default false)", type = "boolean", required = false),
-                Param("max", "Maximum breakpoints to list (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("breakpoints to list", DEFAULT_MAX),
             ),
             mutates = true,
         )

@@ -51,7 +51,7 @@ internal class TestTools(private val project: Project, scope: CoroutineScope) {
 
     private suspend fun runOne(args: ToolArgs, deadline: Deadline): JsonObject {
         val tailLines = OutputTail.lines(args)
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val job = args.optionalString("job")?.let { jobs.find(it) } ?: start(args, deadline)
         val outcome = jobs.await(job, deadline.remaining())
         val failures = outcome?.failures.orEmpty()
@@ -131,7 +131,7 @@ internal class TestTools(private val project: Project, scope: CoroutineScope) {
 
     private suspend fun tests(args: ToolArgs): ToolResult {
         val path = args.string("path")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (rows, total) = indexed {
             val psiFile = Locations.psiFile(project, path)
             val document = psiFile.viewProvider.document
@@ -201,7 +201,7 @@ internal class TestTools(private val project: Project, scope: CoroutineScope) {
                 Param("name", "A run configuration name, instead of path", required = false),
                 Jobs.WAIT,
                 OutputTail.TAIL,
-                Param("max", "Maximum failures to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("failures", DEFAULT_MAX),
                 Jobs.JOB,
             ),
             mutates = true,
@@ -212,7 +212,7 @@ internal class TestTools(private val project: Project, scope: CoroutineScope) {
             "Lists the test classes and test methods the IDE's test frameworks recognise in one file, with their lines.",
             listOf(
                 Param("path", "File path, absolute or relative to the project root"),
-                Param("max", "Maximum tests to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("tests", DEFAULT_MAX),
             ),
         )
     }

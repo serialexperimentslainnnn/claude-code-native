@@ -86,7 +86,7 @@ internal class HistoryTools(
 
     private suspend fun fileHistory(args: ToolArgs): ToolResult {
         val path = args.string("path")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val file = readAction { ReadTools.resolveFile(project, path) }
         val relative = Locations.relative(project, file)
         val commits = withContext(io) { project.service<GitHistoryService>().fileHistory(relative, max) }
@@ -184,7 +184,7 @@ internal class HistoryTools(
             "file_history",
             "The commits that touched a file, renames followed, newest first, as Git ▸ Show History lists them; the " +
                 "history tab is shown.",
-            listOf(PATH, Param("max", "Maximum commits (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(PATH, Param.max("commits", DEFAULT_MAX)),
         )
 
         val LOCAL_HISTORY = ToolSpec(

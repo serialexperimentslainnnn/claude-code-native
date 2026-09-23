@@ -40,7 +40,7 @@ internal class ActionTools(private val project: Project, private val actions: Id
 
     private suspend fun list(args: ToolArgs): ToolResult {
         val query = args.optionalString("query").orEmpty()
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = withContext(Dispatchers.EDT) {
             val manager = ActionManager.getInstance()
             val context = TargetContext(project).project()
@@ -189,7 +189,7 @@ internal class ActionTools(private val project: Project, private val actions: Id
                 "Use it to find the id for ide_action when no named tool covers a menu entry.",
             listOf(
                 Param("query", "Case-insensitive fragment of the action id or its menu text (default: all)", required = false),
-                Param("max", "Maximum actions to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("actions", DEFAULT_MAX),
             ),
         )
 

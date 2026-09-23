@@ -29,7 +29,7 @@ internal class SshTools(private val project: Project) {
     )
 
     private suspend fun hosts(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = mutableListOf<JsonObject>()
         val errors = mutableListOf<String>()
         for (provider in SshCredentialProvider.EP_NAME.extensionList) {
@@ -71,7 +71,7 @@ internal class SshTools(private val project: Project) {
             "Lists the SSH hosts configured in the IDE (remote interpreters, SDKs, deployment servers) with host, port, user and " +
                 "the authentication kind: password, key or agent. Passwords, passphrases and key files are never returned, and " +
                 "nothing is connected to; run ssh yourself to reach a host.",
-            listOf(Param("max", "Maximum hosts to return (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("hosts", DEFAULT_MAX)),
         )
     }
 }

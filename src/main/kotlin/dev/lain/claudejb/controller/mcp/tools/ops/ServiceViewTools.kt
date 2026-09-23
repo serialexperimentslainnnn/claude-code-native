@@ -118,7 +118,7 @@ internal class ServiceViewTools(private val project: Project, scope: CoroutineSc
 
     private suspend fun events(args: ToolArgs): ToolResult {
         val since = args.int("since", 0).toLong()
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = synchronized(events) { events.filter { it.seq > since } }
         return ToolResult.toon(
             buildJsonObject {
@@ -175,7 +175,7 @@ internal class ServiceViewTools(private val project: Project, scope: CoroutineSc
                 "sequence number; pass since to get only what happened after the last one you saw.",
             listOf(
                 Param("since", "Sequence number of the last event already seen (default 0)", type = "integer", required = false),
-                Param("max", "Maximum events (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("events", DEFAULT_MAX),
             ),
         )
     }

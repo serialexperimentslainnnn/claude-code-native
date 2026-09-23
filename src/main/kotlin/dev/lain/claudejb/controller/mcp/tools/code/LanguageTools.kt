@@ -32,7 +32,7 @@ internal class LanguageTools(private val project: Project, private val actions: 
 
     private suspend fun injections(args: ToolArgs): ToolResult {
         val path = args.string("path")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = smartReadAction(project) {
             val psiFile = Locations.psiFile(project, path)
             val document = psiFile.viewProvider.document
@@ -106,7 +106,7 @@ internal class LanguageTools(private val project: Project, private val actions: 
                 "injected language and fragment text.",
             listOf(
                 Param("path", "File path, absolute or relative to the project root"),
-                Param("max", "Maximum fragments (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("fragments", DEFAULT_MAX),
             ),
         )
 

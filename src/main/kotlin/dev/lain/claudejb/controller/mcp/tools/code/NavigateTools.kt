@@ -40,7 +40,7 @@ internal class NavigateTools(private val project: Project) {
 
     private suspend fun findOne(args: ToolArgs): JsonObject {
         val query = args.string("query")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val libraries = args.boolean("libraries", false)
         val (outcome, rows) = indexed {
             val scope = if (libraries) GlobalSearchScope.allScope(project) else GlobalSearchScope.projectScope(project)
@@ -70,7 +70,7 @@ internal class NavigateTools(private val project: Project) {
     }
 
     private suspend fun referencesOne(args: ToolArgs): JsonObject {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = indexed {
             val rows = ArrayList<JsonObject>()
             ReferencesSearch.search(resolved(args)).forEach { reference ->
@@ -83,7 +83,7 @@ internal class NavigateTools(private val project: Project) {
     }
 
     private suspend fun implementationsOne(args: ToolArgs): JsonObject {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = indexed {
             val rows = ArrayList<JsonObject>()
             DefinitionsScopedSearch.search(resolved(args)).forEach { element ->
@@ -148,7 +148,7 @@ internal class NavigateTools(private val project: Project) {
                 Param("query", "Part of the symbol name, case-insensitive", required = false),
                 Batch.param(Batch.QUERIES, "Several queries at once, one result per query; the other arguments apply to each"),
                 Param("libraries", "true to include library symbols (default false)", type = "boolean", required = false),
-                Param("max", "Maximum symbols to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("symbols", DEFAULT_MAX),
             ),
         )
 
@@ -163,14 +163,14 @@ internal class NavigateTools(private val project: Project) {
             "references",
             "Lists the places that reference the symbol at a position; several positions at once with positions.",
             Locations.OPTIONAL_POSITION + Batch.positions("the references of each") +
-                Param("max", "Maximum references to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("references", DEFAULT_MAX),
         )
 
         val IMPLEMENTATIONS = ToolSpec(
             "implementations",
             "Lists the implementations or overrides of the symbol at a position; several positions at once with positions.",
             Locations.OPTIONAL_POSITION + Batch.positions("the implementations of each") +
-                Param("max", "Maximum results to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("results", DEFAULT_MAX),
         )
     }
 }
