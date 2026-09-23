@@ -35,7 +35,7 @@ internal class DbTools(project: Project, private val gateway: DbGateway = DbGate
     }
 
     private suspend fun connections(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val all = readAction { gateway.connections() }
         return ToolResult.toon(
             buildJsonObject {
@@ -62,7 +62,7 @@ internal class DbTools(project: Project, private val gateway: DbGateway = DbGate
     private suspend fun schema(args: ToolArgs): ToolResult {
         val connection = args.string("connection")
         val table = args.optionalString("table")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = readAction {
             if (table == null) gateway.tables(connection).map(::tableRow) else gateway.columns(connection, table).map(::columnRow)
         }
@@ -94,7 +94,7 @@ internal class DbTools(project: Project, private val gateway: DbGateway = DbGate
     private suspend fun queryOne(args: ToolArgs): JsonObject {
         val connection = args.string("connection")
         val sql = args.string("code")
-        val max = args.int("max", DEFAULT_MAX).coerceIn(1, MAX_ROWS)
+        val max = args.max(DEFAULT_MAX, MAX_ROWS)
         val result = runInterruptible(Dispatchers.IO) { gateway.query(connection, sql, max, QUERY_TIMEOUT_SECONDS) }
         val labels = labels(result.columns)
         return buildJsonObject {
@@ -126,7 +126,7 @@ internal class DbTools(project: Project, private val gateway: DbGateway = DbGate
             "db_connections",
             "Lists the data sources configured in the IDE's Database tool window: name, DBMS and JDBC URL with credentials " +
                 "redacted. Call it first to learn the connection name the other db tools take.",
-            listOf(Param("max", "Maximum data sources to return (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("data sources", DEFAULT_MAX)),
         )
 
         val DB_SCHEMA = ToolSpec(
@@ -137,7 +137,7 @@ internal class DbTools(project: Project, private val gateway: DbGateway = DbGate
             listOf(
                 Param("connection", "The data source name as db_connections lists it"),
                 Param("table", "A table or view, as name or schema.name, to list its columns instead of the tables", required = false),
-                Param("max", "Maximum rows to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("rows", DEFAULT_MAX),
             ),
         )
 
@@ -150,7 +150,7 @@ internal class DbTools(project: Project, private val gateway: DbGateway = DbGate
                 Param("connection", "The data source name as db_connections lists it"),
                 Param("code", "The SQL statement to run", required = false),
                 Batch.param(Batch.STATEMENTS, "Several SQL statements at once, one result each, on the same connection"),
-                Param("max", "Maximum rows to return (default $DEFAULT_MAX, at most $MAX_ROWS)", type = "integer", required = false),
+                Param.max("rows", DEFAULT_MAX, MAX_ROWS),
             ),
             mutates = true,
         )

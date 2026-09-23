@@ -57,7 +57,9 @@ data class Param(
     val items: Items? = null,
 ) {
     companion object {
-        fun max(what: String, default: Int, ceiling: Int): Param =
+        const val MAX_CEILING = 500
+
+        fun max(what: String, default: Int, ceiling: Int = MAX_CEILING): Param =
             Param("max", "Maximum $what to return (default $default, at most $ceiling)", type = "integer", required = false)
     }
 }

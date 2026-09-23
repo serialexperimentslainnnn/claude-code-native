@@ -61,7 +61,7 @@ internal class EditOpsTools(private val project: Project, private val reveal: Re
     private suspend fun searchReplace(args: ToolArgs): ToolResult {
         val query = args.string("query")
         val replacement = args.string("replacement")
-        val max = args.int("max", DEFAULT_MAX_FILES)
+        val max = args.max(DEFAULT_MAX_FILES, Param.MAX_CEILING)
         val directory = readAction { args.optionalString("path")?.let { ReadTools.resolveDirectory(project, it).path } }
         val model = replace.model(query, replacement, args.boolean("regex", false), args.boolean("case_sensitive", false), directory)
         val explicit = args.strings("paths")
@@ -155,7 +155,7 @@ internal class EditOpsTools(private val project: Project, private val reveal: Re
                 Batch.param(Batch.PATHS, "Only these files, all in one call, instead of every file that matches"),
                 Param(
                     "max",
-                    "Maximum files to change when paths is not given (default $DEFAULT_MAX_FILES)",
+                    "Maximum files to change when paths is not given (default $DEFAULT_MAX_FILES, at most ${Param.MAX_CEILING})",
                     type = "integer",
                     required = false,
                 ),
