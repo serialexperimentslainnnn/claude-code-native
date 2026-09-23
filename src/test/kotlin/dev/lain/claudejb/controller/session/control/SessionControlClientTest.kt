@@ -120,7 +120,7 @@ class SessionControlClientTest {
     }
 
     @Test
-    fun `a request the binary reports as started is long-running, so its watchdog is dropped and the late answer lands`() {
+    fun `a request the binary reports as started gets a longer watchdog and the late answer lands`() {
         val sent = mutableListOf<String>()
         val scheduler = FakeScheduler()
         val client = client(sent, scheduler, listOf("req_1").iterator())
@@ -134,12 +134,41 @@ class SessionControlClientTest {
 
         client.onProgress("req_1")
         assertEquals(1, scheduler.cancelled)
-        scheduler.fireAll()
+        assertEquals(1, scheduler.tasks.size)
         assertEquals("unset", captured)
 
         val payload = buildJsonObject { put("response", "forty-two") }
         client.onControlResult(ClaudeEvent.ControlResult("req_1", success = true, payload = payload, error = null))
         assertEquals("forty-two", captured)
+    }
+
+    @Test
+    fun `a long-running request that never answers still completes`() {
+        val scheduler = FakeScheduler()
+        val client = client(mutableListOf(), scheduler, listOf("req_1").iterator())
+        var calls = 0
+        client.query(buildRequest = { "line" }, onResult = { _: String? -> calls++ }, decode = { it?.str("x") })
+
+        client.onProgress("req_1")
+        scheduler.fireAll()
+
+        assertEquals(1, calls)
+    }
+
+    @Test
+    fun `a reply that cannot be decoded still answers, with nothing`() {
+        val scheduler = FakeScheduler()
+        val client = client(mutableListOf(), scheduler, listOf("req_1").iterator())
+        var captured: String? = "unset"
+        client.query(
+            buildRequest = { "line" },
+            onResult = { v: String? -> captured = v },
+            decode = { error("malformed") },
+        )
+
+        client.onControlResult(ClaudeEvent.ControlResult("req_1", success = true, payload = buildJsonObject {}, error = null))
+
+        assertNull(captured)
     }
 
     @Test
