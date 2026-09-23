@@ -24,6 +24,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import java.io.BufferedInputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.StandardProtocolFamily
@@ -86,7 +87,7 @@ internal class ServerEndpoint(
 
     private inner class Connection(client: SocketChannel) {
 
-        private val input: InputStream = Channels.newInputStream(client)
+        private val input: InputStream = BufferedInputStream(Channels.newInputStream(client))
         private val output: OutputStream = Channels.newOutputStream(client)
         private val writing = Mutex()
         private val jobs = ConcurrentHashMap<String, Job>()
