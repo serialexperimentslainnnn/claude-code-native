@@ -25,7 +25,7 @@ file is the verifiable per-release gate.
       frontend passes vitest, ESLint and Prettier.
 - [ ] `./gradlew koverVerify` — coverage gates hold (see **Coverage policy** below).
 - [ ] `./gradlew verifyPlugin` — **Compatible** across the declared range: the
-      floor (253) through the newest IDEA **and PyCharm** EAP/RC.
+      floor (262.8665.258) through the newest IDEA **and PyCharm** EAP/RC.
 - [ ] Verifier report clean at all four failure levels the build declares —
       compatibility problems, internal API, override-only API, and **deprecated
       API**. A deprecation is a blocker here, not a warning.
@@ -82,7 +82,7 @@ silent — stays inside the gate and is subject to the floor like any other pack
 
 **Excluded, and why it is stated rather than gated at a token value.** `ui/` needs a live IDE and a live
 Chromium; it is covered by a different layer — the vitest suite, which drives the *real shipped JS* out of
-`src/main/resources/jcef/`, plus the mandatory manual pass in §Smoke test below. `context/` and `process/` wrap
+`frontend/src/main/resources/jcef/`, plus the mandatory manual pass in §Smoke test below. `context/` and `process/` wrap
 the OS (system clipboard, process spawn, shell environment) and most of what is uncovered there cannot execute
 on a CI box. That is a **known gap**, listed so nobody mistakes it for coverage; the pure parts of both —
 `ClipboardCli` and `ImageAttachments` in `context/` (`ClipboardCliTest`, `ImageAttachmentsTest`), and

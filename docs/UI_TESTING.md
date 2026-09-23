@@ -132,7 +132,7 @@ Notes:
 
 | Test | Proves |
 |------|--------|
-| `ChatSmokeUiTest` | The tool window gives a **live web view**, not the "needs JCEF" Swing fallback: `#conversation` and the composer textarea exist, the bar draws ≥1 chat and marks exactly one with `aria-current`. This is the cheap guard on the failure the **`253.29346.138`** floor exists for (no `com.intellij.modules.jcef` ⇒ `NoClassDefFoundError` in `JcefHost.<init>`). |
+| `ChatSmokeUiTest` | The tool window gives a **live web view**, not the "needs JCEF" Swing fallback: `#conversation` and the composer textarea exist, the bar draws ≥1 chat and marks exactly one with `aria-current`. This is the cheap guard on the failure the frontend module's hard `com.intellij.modules.jcef` dependency exists for (without it ⇒ `NoClassDefFoundError` in `JcefHost.<init>`). |
 | `ComposerUiTest` | Keystrokes from the **OS keyboard** reach the page (the focus bug that made a new tab unusable for a whole release), and Enter sends while Shift+Enter keeps a multi-line draft. |
 | `NewChatTabUiTest` | The whole 5.5.0 tab round trip: a Swing action builds a panel, `ChatTabsPanel` adds a `CardLayout` card and pushes the chat list into **every** open page, a pill click comes back as a `selectChat` bridge message, the strip swaps the card, both pages repaint with the selection moved. |
 | `TabBarScrollUiTest` | The chat row scrolls by wheel (Chromium will not move a horizontal scroller with a vertical wheel — `tabs/scroll.ts` translates the gesture) and by grabbing it. **Overflow is a layout fact**, so jsdom cannot answer this: there `scrollWidth`/`clientWidth`/`scrollLeft` are all 0. |

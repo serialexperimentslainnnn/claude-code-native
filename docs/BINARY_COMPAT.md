@@ -12,28 +12,33 @@ This document records both, and what to do when either moves.
 | | Value | Where it is declared |
 |---|---|---|
 | Protocol baseline | `claude` **2.1.226** / SDK **0.3.231** | `scripts/drift-baseline.properties` |
-| IDE range | **253.29346.138 → 263.\*** (2025.3.**1** → the 2026.3 branch) | `build.gradle.kts` → `ideaVersion` |
-| Compiled against | IDEA `253.29346.138` — the floor itself | `build.gradle.kts` → `intellijIdea("253.29346.138") { useInstaller = false }` |
-| Verified against | the recommended range **plus** the newest IDEA **and PyCharm** EAP/RC | `pluginVerification.ides` |
+| IDE range | **262.8665.258 → 263.\*** (2026.2 → the 2026.3 branch) | `build.gradle.kts` → `platformBuild`, `ideaVersion` |
+| Compiled against | IDEA `262.8665.258` — the floor itself | `build.gradle.kts` → `intellijIdea(platformBuild) { useInstaller = false }` |
+| Verified against | the floor and the recommended range **plus** the newest IDEA **and PyCharm** EAP/RC | `pluginVerification.ides` |
 
 **There is no enforced minimum binary version.** The plugin does not probe for one and would not refuse an
 older `claude`; the baseline above is the version the protocol layer was last *reconciled* against, which is
 a different claim. An older binary is simply untested — it will typically work, because everything the plugin
 sends is long-established, and it will silently omit whatever it does not implement.
 
-**The IDE floor is JCEF, not an API tidy-up — and it is a BUILD, not a branch.** The entire UI *is* the
-embedded browser, so `plugin.xml` declares `com.intellij.modules.jcef` as a mandatory dependency; without it
-the classloader hands the plugin no `com.intellij.ui.jcef.*` and every chat dies in `JcefHost.<init>`. That
-module id is absent from 2025.1 and 2025.2 altogether, and it is still absent from the first 2025.3
-(`253.28294.334`) — it arrives in **`253.29346.138` (2025.3.1)**, which is therefore the floor and is written
-as that full build number everywhere it is declared. A `sinceBuild` of the bare branch `253` would offer the
-plugin to `253.28294.334`, where the platform refuses to load it (`has dependency on
-'com.intellij.modules.jcef' which is not installed`). The dependency cannot be softened either: an optional
-dependency that cannot be satisfied is skipped, which trades a clean refusal for a `NoClassDefFoundError`.
+**The IDE floor is the platform RPC — and it is a BUILD, not a branch.** The plugin is split into three
+content modules: `dev.lain.claudejb.shared` (the chat contract), `dev.lain.claudejb.frontend` (the tool window
+and the embedded browser, where the UI runs) and `dev.lain.claudejb.backend` (everything else, beside the
+project). They talk over the platform's RPC, which is what makes the chat work in Remote Development, and that
+API is internal in 2025.3 and 2026.1. The plugin uses no internal API
+([`PLATFORM_API_POLICY.md`](PLATFORM_API_POLICY.md)), so the floor is **`262.8665.258` (2026.2)**, written as
+that full build number everywhere it is declared.
 
-`JcefDependencyContractTest` is the gate. It fails if the sources use JCEF and the descriptor stops declaring
-it, if the declaration becomes optional, if `sinceBuild` is a branch rather than a full build number, or if
-it is below `253.29346.138`. `verifyPlugin` does **not** catch any of it — it resolves against the whole IDE
+**The embedded browser is a hard dependency of the frontend module.** The entire UI *is* the embedded browser,
+so `dev.lain.claudejb.frontend.xml` declares `com.intellij.modules.jcef`; since 262 those classes come from a
+bundled plugin, and a module that does not declare it gets no `com.intellij.ui.jcef.*` — every chat dies in
+`JcefHost.<init>`. The dependency cannot be softened: an optional dependency that cannot be satisfied is
+skipped, which trades a clean refusal for a `NoClassDefFoundError`.
+
+`JcefDependencyContractTest` is the gate. It fails if a module's sources use JCEF and its descriptor does not
+declare it, if the declaration sits only in an optional module, if `sinceBuild` is a branch rather than a full
+build number, or if it is below the first build that ships the JCEF module. `verifyPlugin` does **not** catch
+any of it — it resolves against the whole IDE
 distribution rather than against the plugin's classloader, which is where the failure lives, so it can report
 *Compatible* on an IDE the plugin cannot start on.
 

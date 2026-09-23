@@ -8,8 +8,8 @@ end to end by `McpClientHeadlessTest`: connect, authenticate, `initialize`, `dom
 
 ## Where the servers are
 
-One set per open project, started when a chat tab launches `claude` — or, when the chat page cannot be
-drawn (see *Split mode*), by the plugin on its own. They listen on Unix sockets, never on a port:
+One set per open project, started with its first chat, on the machine that holds the project (the host, in
+Remote Development). They listen on Unix sockets, never on a port:
 
 ```
 <IDE temp>/claude-ide-mcp/<random id>/
@@ -22,9 +22,7 @@ be too long. The id is random per project open and the directory dies with the p
 
 - the `claude` process the plugin launched received it in `--mcp-config` (`ps` shows the socket path in the
   bridge's arguments);
-- `idea.log` prints `IDE MCP servers listening under <dir>` when they start;
-- in split mode, the notification *The chat could not be shown, but the IDE MCP servers are up* offers
-  **Copy MCP configuration**, a ready `mcpServers` block.
+- `idea.log` prints `IDE MCP servers listening under <dir>` when they start.
 
 A server whose plugins are all missing (for example `vcs` without Git4Idea) has no socket at all.
 
@@ -77,16 +75,21 @@ announced with a notification, and Settings ▸ Claude Code ▸ *Ask me before a
 to our servers* holds it until the user answers **Allow** (closing the notice rejects it). Whoever the
 client is, the Security Guard judges every `run(tool, args)` before anything runs.
 
-## Split mode
+## Remote Development
 
-In Remote Development a plugin that is not split loads **on the backend only**, and the UI it draws
-there is projected to the frontend at poor fidelity; JCEF is a frontend API. So the plugin, its sockets,
-its token and the `claude` process it launches are all on the backend host, and the chat page cannot be
-drawn at all.
+The plugin is a split plugin with three content modules: `dev.lain.claudejb.shared` holds the chat contract
+(`ChatApi`), `dev.lain.claudejb.frontend` the tool window, the embedded browser, the page and its theme, and
+`dev.lain.claudejb.backend` the sessions, these servers, the guard, the settings, Git and the diffs. In Remote
+Development the frontend module loads in JetBrains Client and the backend module on the host, and the page
+reaches the backend through the platform's RPC. The chat works there as it does locally. The plugin is
+installed on the host and on the client; the client gets its copy from the Marketplace through plugin sync.
 
-The plugin does not ask the platform whether it is split — those APIs are internal
-(`RemoteDevApiContractTest`). It notices the chat page failing to arrive over every delivery route
-(`PageDelivery`), and then starts the servers anyway and raises the notification above with the
-configuration to copy. A client on the backend host — a `claude` in an SSH shell, or anything that reads
-this page — drives the IDE without the chat. A client on the frontend machine cannot reach a Unix socket
-of another host; that is by design, not an omission.
+The servers, their sockets, their token and the `claude` process are always on the host, beside the project.
+A client on the host — a `claude` in an SSH shell, or anything that reads this page — connects as described
+above. A client on the client machine cannot reach a Unix socket of another host; that is by design, not an
+omission.
+
+There is one code path for a local IDE, Remote Development and the Code With Me host, and no mode detection:
+the plugin never asks the platform whether it is split — those APIs are internal
+(`RemoteDevApiContractTest`) — and no port is forwarded. In Code With Me only the host has the chat; guests
+have none.

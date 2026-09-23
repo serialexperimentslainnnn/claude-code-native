@@ -32,7 +32,7 @@ or the permission surface, say what happens to a user who already ran it.
 - [ ] Commits follow Conventional Commits (the `commit-msg` hook enforces it —
       install once with `git config core.hooksPath .githooks`).
 - [ ] `./gradlew test verifyPlugin buildPlugin` passes locally.
-- [ ] `verifyPlugin` is **Compatible** across the declared range (253 → 263.\*)
+- [ ] `verifyPlugin` is **Compatible** across the declared range (262.8665.258 → 263.\*)
       and reports no new internal-API usage (`@ApiStatus.Internal`).
       The CDN download is unreliable here; use
       `-PlocalIdePath=<dir>[,<dir>…]` with locally-extracted IDEs.
@@ -45,7 +45,7 @@ or the permission surface, say what happens to a user who already ran it.
 - [ ] No new deprecated or scheduled-for-removal IntelliJ Platform APIs.
 - [ ] Tests added or updated for the new behaviour — `src/test/kotlin/…` for
       Kotlin, `src/test/frontend/…` (`npm test`) for anything under
-      `src/main/resources/jcef/`.
+      `frontend/src/main/resources/jcef/` or `frontend/src/main/ts/`.
 - [ ] Protocol changes: `./gradlew checkDrift` is green and the baseline in
       `scripts/drift-baseline.properties` matches what was verified.
 - [ ] New dependency? Its licence is compatible with GPL-3.0-only and it is

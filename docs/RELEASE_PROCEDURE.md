@@ -132,7 +132,7 @@ npm audit --omit=dev --audit-level=low
 Everything CI runs, run locally first — including the audit of the *distributed*
 scope, which is the one that blocks. All tests must pass, and `verifyPlugin`
 must report **Compatible** across the declared range — the floor,
-`253.29346.138`, through the newest IDEA **and PyCharm** EAP/RC — with no
+`262.8665.258`, through the newest IDEA **and PyCharm** EAP/RC — with no
 internal-API, override-only or **deprecated** API usage, all four of which are
 failure levels in the build.
 `buildPlugin` produces `build/distributions/claude-code-native-X.Y.Z.zip`.

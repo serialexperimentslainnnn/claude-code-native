@@ -1,7 +1,7 @@
 # Claude Code Native
 
-[![Version](https://img.shields.io/badge/version-6.0.0-E07B5A)](CHANGELOG.md)
-[![IDE](https://img.shields.io/badge/JetBrains-2025.3.1%20%E2%86%92%20263.*-000000?logo=jetbrains)](#requirements)
+[![Version](https://img.shields.io/badge/version-6.5.0-E07B5A)](CHANGELOG.md)
+[![IDE](https://img.shields.io/badge/JetBrains-2026.2%20%E2%86%92%20263.*-000000?logo=jetbrains)](#requirements)
 [![Marketplace](https://img.shields.io/badge/Marketplace-Claude%20Code%20Native-2A2A2A)](https://plugins.jetbrains.com/plugin/31965-claude-code-native)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
@@ -39,11 +39,15 @@ JetBrains. It needs your own `claude` CLI and your own Claude subscription or AP
 
 ## Requirements
 
-**A JetBrains IDE on 2025.3.1 or newer** (`sinceBuild 253.29346.138`, `untilBuild 263.*`): IntelliJ IDEA,
+**A JetBrains IDE on 2026.2 or newer** (`sinceBuild 262.8665.258`, `untilBuild 263.*`): IntelliJ IDEA,
 PyCharm, WebStorm, PhpStorm, GoLand, RubyMine, CLion, Rider, DataGrip, DataSpell, Aqua, RustRover. The floor
-is hard: the chat is the IDE's embedded browser (JCEF), which from build 262 is a bundled plugin the plugin
-must declare, and that module id first exists in 2025.3.1. On 2025.1, 2025.2 or 2025.3.0 stay on plugin
-5.1.1, or update the IDE.
+is hard: the chat is split between the IDE's frontend and its backend so that it works in Remote Development,
+and the platform RPC that joins them is internal before 2026.2. On 2025.3.1 or 2026.1 stay on plugin 6.0.1,
+on 2025.1, 2025.2 or 2025.3.0 on 5.1.1, or update the IDE.
+
+**Remote Development works.** The chat is drawn in JetBrains Client and the sessions run on the host, beside
+the project, over the platform's RPC: no port to forward. Install the plugin on the host; the client gets its
+copy from the Marketplace through plugin sync. In **Code With Me** only the host has the chat; guests get none.
 
 **The `claude` CLI.** You do not have to install it yourself: if the plugin cannot find it, its first screen
 offers the official install route for your OS and runs it in the IDE terminal. It looks first at **Settings
@@ -442,14 +446,13 @@ exports and imports a settings file and migrates from another JetBrains IDE on t
 The four servers are ordinary MCP servers that happen to live inside the plugin. Claude Code is their first
 client, not their only one: anything that speaks MCP can open the socket, authenticate with the session's
 token and run the same tools under the same guard. The bundled stdio bridge and the socket protocol are in
-[`docs/MCP_CLIENT.md`](docs/MCP_CLIENT.md). When the chat page cannot be shown at all, the servers still
-start and a notification carries the configuration to paste into your client.
+[`docs/MCP_CLIENT.md`](docs/MCP_CLIENT.md). In Remote Development they run on the host, beside the project.
 
 ## Troubleshooting
 
 | Symptom | Usually |
 |---|---|
-| The chat never loads, or the window is blank | JCEF is unavailable: below 2025.3.1 this version does not run; otherwise check `ide.browser.jcef.enabled` in the Registry |
+| The chat never loads, or the window is blank | Below 2026.2 this version does not run; otherwise JCEF is unavailable: check `ide.browser.jcef.enabled` in the Registry (in Remote Development, on the client) |
 | "Claude Code was not found" with the binary installed | It is somewhere the plugin does not look, or the IDE did not inherit your `PATH`; paste the path into the card |
 | A tool call is refused with no card to override | The guard blocked it; the message names the rule and the Settings path. Foreign-territory blocks are absolute by design |
 | Claude uses `Bash` or `grep` although the IDE tools exist | The flame is off, or a rule is: turn God Mode on, or the rule in Settings ▸ Claude Code ▸ Claude IDE Integration |
@@ -463,7 +466,7 @@ Deeper cases with log locations: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTIN
 
 ## Build from source
 
-JDK 21 and Node 22+ (`.nvmrc`). `./gradlew buildPlugin` produces `build/distributions/claude-code-native-6.0.0.zip`;
+JDK 25 and Node 24 (`.nvmrc`). `./gradlew buildPlugin` produces `build/distributions/claude-code-native-6.5.0.zip`;
 `./gradlew test` runs the JVM suite, `npm test` the frontend suite, `./gradlew detekt spotlessCheck` and
 `npm run lint` the static gates, `./gradlew verifyPlugin` the Plugin Verifier against the declared range.
 The rules the code is held to — no deprecated or internal platform API, a 250-line ceiling per file, no

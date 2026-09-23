@@ -21,7 +21,7 @@ that enumerates.
 
 First, because everything else rests on the compiler telling the truth.
 
-- ☑ `sinceBuild` pinned to the current stable. Already `253.29346.138`, `untilBuild` `263.*`.
+- ☑ `sinceBuild` pinned to the current stable: `262.8665.258`, `untilBuild` `263.*`.
 - ☑ `allWarningsAsErrors = true` in `build.gradle.kts`. A deprecated API emits a warning and
   `@ApiStatus.Experimental` does not, so this forbids exactly what is forbidden and tolerates exactly what
   is tolerated, with no list to maintain.
