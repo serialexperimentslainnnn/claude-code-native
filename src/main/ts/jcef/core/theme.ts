@@ -44,6 +44,7 @@
     if (!body) return;
     body.classList.toggle('reduced-motion', !!on);
     CC.reducedMotion = !!on;
+    syncVibeTimer();
   }
 
   CC.diagnostics = function (): void {
@@ -85,9 +86,11 @@
     return 'hsla(' + Math.round(((h % 360) + 360) % 360) + ',' + s + '%,' + l + '%,' + a + ')';
   }
 
+  const VIBE_TICK_MS = 120;
+
   function vibeStep(): void {
-    if (!vibeOn) return;
-    vibeHue = (vibeHue + 6) % 360;
+    if (!vibeOn || document.hidden) return;
+    vibeHue = (vibeHue + 24) % 360;
     const s = document.documentElement.style;
     const h = vibeHue;
     s.setProperty('--accent', hsl(h, 90, 60));
@@ -99,19 +102,40 @@
     s.setProperty('--warning', hsl(h + 260, 80, 64));
   }
 
+  function syncVibeTimer(): void {
+    const cycling = vibeOn && !CC.reducedMotion;
+    if (cycling && !vibeTimer) vibeTimer = window.setInterval(vibeStep, VIBE_TICK_MS);
+    if (!cycling && vibeTimer) {
+      window.clearInterval(vibeTimer);
+      vibeTimer = 0;
+    }
+  }
+
+  function ensureNyanSymbol(): void {
+    if (document.getElementById('cc-nyan')) return;
+    const holder = document.createElement('div');
+    holder.hidden = true;
+    holder.innerHTML = CC.nyanSvg()
+      .replace('<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">', '<svg><symbol id="cc-nyan" viewBox="0 0 24 24" fill="none">')
+      .replace(/<\/svg>$/, '</symbol></svg>');
+    document.body.appendChild(holder);
+  }
+
+  CC.nyanUse = function (): string {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><use href="#cc-nyan"/></svg>';
+  };
+
   function setVibe(on: boolean): void {
     if (on === vibeOn) return;
     vibeOn = on;
     const body = document.body;
     if (on) {
       if (body) body.classList.add('vibe');
+      if (body) ensureNyanSymbol();
       vibeStep();
-      if (!vibeTimer) vibeTimer = window.setInterval(vibeStep, 30);
+      syncVibeTimer();
     } else {
-      if (vibeTimer) {
-        window.clearInterval(vibeTimer);
-        vibeTimer = 0;
-      }
+      syncVibeTimer();
       if (body) body.classList.remove('vibe');
       const root = document.documentElement;
       const v = CC.__themeVars || {};

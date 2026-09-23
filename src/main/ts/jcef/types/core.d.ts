@@ -134,6 +134,7 @@ interface CcShared {
   reducedMotion?: boolean;
   isVibe(): boolean;
   nyanSvg(): string;
+  nyanUse(): string;
   transcript: TranscriptNs;
   composer: ComposerNs;
   permissions: PermissionsNs;

@@ -6,12 +6,29 @@
 
   const h = CX.h;
 
+  let readoutKey = '';
+  let barsKey = '';
+
   CX.renderReadout = function (s: ComposerState): void {
     const els = CX.els;
     if (!els || !els.readout) return;
     const ro = els.readout;
-    ro.innerHTML = '';
     const running = !!s.turnActive;
+    const key = JSON.stringify([
+      running,
+      s.thinkingStatus,
+      s.context && s.context.pct,
+      s.tokensOut,
+      s.reasoningTokens,
+      s.costUsd,
+    ]);
+    if (key === readoutKey && ro.firstChild) {
+      renderUsageBars(s);
+      if (typeof CX.renderMini === 'function') CX.renderMini();
+      return;
+    }
+    readoutKey = key;
+    ro.innerHTML = '';
 
     const status = h(
       'span',
@@ -48,8 +65,15 @@
     const els = CX.els;
     if (!els || !els.usageBars) return;
     const host = els.usageBars;
-    host.innerHTML = '';
     const usage = Array.isArray(s.usage) ? s.usage : [];
+    const key = JSON.stringify(
+      usage.map(function (w) {
+        return w ? [w.label, w.pct, CC.resetInShort(w.resetsAt)] : null;
+      })
+    );
+    if (key === barsKey && host.firstChild) return;
+    barsKey = key;
+    host.innerHTML = '';
     let shown = 0;
     for (let u = 0; u < usage.length; u++) {
       const win = usage[u] || {};

@@ -106,13 +106,18 @@
     return kept.length ? h('div', { class: 'mini-line' }, kept) : null;
   }
 
+  let miniKey = '';
+
   function drawMini(): void {
     const m = mini;
     if (!m) return;
     const s = sessionPayload() || {};
+    const account = s.account || {};
+    const key = JSON.stringify([s.model, s.cwd, s.home, account.email, account.org, account.plan, account.provider]);
+    if (key === miniKey && m.grid.firstChild) return;
+    miniKey = key;
     clearMini();
 
-    const account = s.account || {};
     const lines = [
       factLine([fact('Model', s.model), workingDirFact(s.cwd, s.home)]),
       factLine([
