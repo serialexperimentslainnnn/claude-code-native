@@ -30,13 +30,12 @@ packaged into the artifact under `META-INF/licenses/` (see `build.gradle.kts`), 
 at `META-INF/THIRD-PARTY-NOTICES.md` and the project's own license at `META-INF/LICENSE`.
 
 The inventory is **complete against the artifact, not against the source tree**: the only files in
-`claude-code-native-<version>.zip` under `claude-code-native/lib/` are the plugin's own jar (which
-carries the vendored web assets), the two kotlinx.serialization jars listed below, and the generated
-`searchableOptions` jar. Everything with a third-party license in that list has an entry here.
+`claude-code-native-<version>.zip` under `claude-code-native/lib/` are the plugin's own jars (one of
+which carries the vendored web assets) and the generated `searchableOptions` jar. Everything with a
+third-party license in that list has an entry here.
 
 Last verified: 2026-09-23, against the upstream `LICENSE` files at the pinned tags
-(`markedjs/marked@v18.0.14`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.12.0`,
-`Kotlin/kotlinx.serialization@v1.9.0`).
+(`markedjs/marked@v18.0.14`, `cure53/DOMPurify@3.4.16`, `highlightjs/highlight.js@11.12.0`).
 
 ---
 
@@ -67,9 +66,7 @@ intact and no edit of our own.
   Apache-2.0 text and `LICENSE-MPL` carries the MPL-2.0 text.
 - **License chosen by this project: Apache-2.0.**
   A dual `OR` license is a choice the redistributor must make and record; leaving it unstated is an
-  unmade decision. Apache-2.0 is selected because it is already the license of another component in
-  this artifact (kotlinx.serialization), so the artifact carries one fewer distinct license text, and
-  because Apache-2.0 grants patent rights explicitly whereas MPL-2.0's grant is narrower in scope.
+  unmade decision. Apache-2.0 is selected because it grants patent rights explicitly whereas MPL-2.0's grant is narrower in scope.
   MPL-2.0's per-file copyleft would also attach obligations if the file were ever modified — it is
   not, but choosing Apache-2.0 removes the question entirely. Because the choice is Apache-2.0, the
   MPL-2.0 text is deliberately **not** carried in `LICENSES/`.
@@ -104,24 +101,6 @@ intact and no edit of our own.
 
 ---
 
-## Shipped as separate jars in `lib/`
-
-### kotlinx.serialization (`kotlinx-serialization-core-jvm`, `kotlinx-serialization-json-jvm`) — 1.9.0
-- **License:** Apache-2.0 (`SPDX-License-Identifier: Apache-2.0`)
-- **Copyright:** Copyright 2017-2025 JetBrains s.r.o.
-- **Project:** https://github.com/Kotlin/kotlinx.serialization
-- **Full text:** `LICENSES/Apache-2.0.txt`
-- **Verified:** the published jars carry no `META-INF/LICENSE` **and no `META-INF/NOTICE`** (checked
-  in `kotlinx-serialization-core-jvm-1.9.0.jar` and `-json-jvm-1.9.0.jar`), so the license was read
-  from the project's `LICENSE.txt` at tag `v1.9.0` rather than inferred from the artifact. That file
-  is the bare Apache-2.0 text with no copyright line appended; the copyright above is the one the
-  project's own source headers carry (`Copyright 2017-<year> JetBrains s.r.o.`, latest year 2025).
-- **NOTICE (Apache-2.0 §4(d)):** the repository carries `license/NOTICE.txt` at tag `v1.9.0`, which
-  reads, verbatim: *"kotlinx.serialization library. Copyright 2017-2019 JetBrains s.r.o and
-  respective authors and developers"*. It is reproduced here because the jars do not carry it.
-
----
-
 ## Not redistributed
 
 The following are used during development or referenced as documentation and are **not** part of the
@@ -133,3 +112,5 @@ published artifact, so they create no redistribution obligation here:
 - **The `claude` CLI itself** — a separate program the user installs and licenses independently. The
   plugin executes it; it does not redistribute it.
 - **The IntelliJ Platform** — provided by the host IDE at runtime, not bundled.
+- **kotlinx.serialization** — the plugin uses the copy the IntelliJ Platform ships, and bundles no
+  jar of its own.
