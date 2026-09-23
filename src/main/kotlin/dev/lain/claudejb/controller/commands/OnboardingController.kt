@@ -152,12 +152,13 @@ internal class OnboardingController(
         }
         pushAuthState("verifying")
         ApplicationManager.getApplication().executeOnPooledThread {
-            ApiKeyApproval.approve(trimmed)
             val binary = ClaudeBinaryLocator.locate(ClaudeSettings.getInstance(project).claudePath)
             val state = binary?.let { AuthCli.status(it, mapOf(SecretStore.API_KEY to trimmed)) }
+            val refusal = apiKeyRefusal(binary != null, state)
+            if (refusal == null) ApiKeyApproval.approve(trimmed)
             ApplicationManager.getApplication().invokeLater {
-                if (state != null && !state.loggedIn) {
-                    pushAuthState("error", message = "That API key was refused. Check it and try again.")
+                if (refusal != null) {
+                    pushAuthState("error", message = refusal)
                     return@invokeLater
                 }
                 ClaudeSettings.getInstance(project).setProviderApiKey(Provider.ANTHROPIC, trimmed)
@@ -193,4 +194,11 @@ internal class OnboardingController(
     private companion object {
         const val BOOT_WATCH_MS = 3_000
     }
+}
+
+internal fun apiKeyRefusal(binaryFound: Boolean, state: AuthCli.AuthState?): String? = when {
+    !binaryFound -> "Claude Code is not installed yet, so the API key cannot be checked. Install it, then enter the key again."
+    state == null -> "The API key could not be verified: Claude Code gave no answer. Check the key and try again."
+    !state.loggedIn -> "That API key was refused. Check it and try again."
+    else -> null
 }
