@@ -11,13 +11,17 @@ import org.intellij.plugins.intelliLang.inject.TemporaryPlacesRegistry
 internal class IntelliLangGateway(private val project: Project) : LanguageInjection {
 
     override suspend fun inject(host: PsiLanguageInjectionHost, languageId: String): Boolean {
-        if (!InstalledPlugins.isEnabled(PLUGIN_ID)) throw ToolException(LanguageInjection.MISSING)
-        val language = InjectedLanguage.create(languageId) ?: throw ToolException("IntelliLang knows no language with id $languageId")
+        val language = injectable(languageId)
         return writeCommandAction(project, "Claude: inject $languageId") {
             runCatching { TemporaryPlacesRegistry.getInstance(project).addHostWithUndo(host, language) }
                 .getOrElse { throw ToolException("IntelliLang refused the injection: ${it.message}", it) }
             true
         }
+    }
+
+    private fun injectable(languageId: String): InjectedLanguage {
+        if (!InstalledPlugins.isEnabled(PLUGIN_ID)) throw ToolException(LanguageInjection.MISSING)
+        return InjectedLanguage.create(languageId) ?: throw ToolException("IntelliLang knows no language with id $languageId")
     }
 
     private companion object {

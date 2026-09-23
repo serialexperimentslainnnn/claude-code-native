@@ -16,7 +16,6 @@ import dev.lain.claudejb.model.mcp.ToolDomain
 import dev.lain.claudejb.model.mcp.ToolException
 import dev.lain.claudejb.model.mcp.ToolResult
 import dev.lain.claudejb.model.mcp.ToolSpec
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -63,11 +62,7 @@ internal class LanguageTools(private val project: Project, private val actions: 
     private suspend fun injectAt(args: ToolArgs): ToolResult {
         val languageId = args.string("language")
         val language = Language.findLanguageByID(languageId) ?: throw ToolException("this IDE has no language with id $languageId")
-        val host = smartReadAction(project) {
-            val position = Locations.locate(project, args)
-            PsiTreeUtil.getParentOfType(position.psiFile.findElementAt(position.offset), PsiLanguageInjectionHost::class.java, false)
-                ?: throw ToolException("nothing at that position can host an injection (a string literal can)")
-        }
+        val host = injectionHost(args)
         val injection = project.serviceOrNull<LanguageInjection>() ?: throw ToolException(LanguageInjection.MISSING)
         val injected = injection.inject(host, language.id)
         return ToolResult.toon(
@@ -78,6 +73,12 @@ internal class LanguageTools(private val project: Project, private val actions: 
                 put("injected", injected)
             },
         )
+    }
+
+    private suspend fun injectionHost(args: ToolArgs): PsiLanguageInjectionHost = smartReadAction(project) {
+        val position = Locations.locate(project, args)
+        PsiTreeUtil.getParentOfType(position.psiFile.findElementAt(position.offset), PsiLanguageInjectionHost::class.java, false)
+            ?: throw ToolException("nothing at that position can host an injection (a string literal can)")
     }
 
     private suspend fun docs(args: ToolArgs): ToolResult {
