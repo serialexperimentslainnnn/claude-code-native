@@ -53,16 +53,15 @@ class ChatLink internal constructor(
     }
 
     private suspend fun deliver(item: Outgoing) {
-        try {
+        runCatching {
             val api = ChatApi.getInstance()
             when (item) {
                 is Outgoing.Post -> api.post(projectId, chatId, item.json)
                 Outgoing.Ready -> api.ready(projectId, chatId)
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn("Claude Code could not hand a chat page message to the host", e)
+        }.onFailure { cause ->
+            if (cause !is Exception || cause is CancellationException) throw cause
+            log.warn("Claude Code could not hand a chat page message to the host", cause)
         }
     }
 

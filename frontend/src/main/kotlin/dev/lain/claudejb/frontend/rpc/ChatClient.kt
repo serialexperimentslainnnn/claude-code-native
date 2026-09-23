@@ -35,12 +35,9 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
 
     fun select(chatId: ChatId) {
         scope.launch {
-            try {
-                ChatApi.getInstance().select(project.projectId(), chatId)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                log.warn("Claude Code could not tell the host which chat is on screen", e)
+            runCatching { ChatApi.getInstance().select(project.projectId(), chatId) }.onFailure { cause ->
+                if (cause !is Exception || cause is CancellationException) throw cause
+                log.warn("Claude Code could not tell the host which chat is on screen", cause)
             }
         }
     }
@@ -53,18 +50,16 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
     ): ChatLink = ChatLink(scope, project.projectId(), chatId, onPush, isWebReady).also { Disposer.register(parent, it) }
 
     private suspend fun reachable(): Boolean =
-        try {
-            withTimeout(CONNECT_TIMEOUT_MS) { ChatApi.getInstance().chats(project.projectId()) }
-            true
-        } catch (_: TimeoutCancellationException) {
-            log.warn("Claude Code chat host did not answer within ${CONNECT_TIMEOUT_MS}ms")
-            false
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.warn("Claude Code chat host is not reachable from this client", e)
-            false
-        }
+        runCatching { withTimeout(CONNECT_TIMEOUT_MS) { ChatApi.getInstance().chats(project.projectId()) } }
+            .map { true }
+            .getOrElse { cause ->
+                when (cause) {
+                    is TimeoutCancellationException -> log.warn("Claude Code chat host did not answer within ${CONNECT_TIMEOUT_MS}ms")
+                    !is Exception, is CancellationException -> throw cause
+                    else -> log.warn("Claude Code chat host is not reachable from this client", cause)
+                }
+                false
+            }
 
     private suspend fun follow(listener: ChatListener) {
         val projectId = project.projectId()
