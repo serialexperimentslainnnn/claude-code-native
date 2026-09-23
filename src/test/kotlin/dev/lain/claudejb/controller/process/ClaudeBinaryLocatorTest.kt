@@ -2,6 +2,7 @@ package dev.lain.claudejb.controller.process
 
 import com.intellij.openapi.util.SystemInfo
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assumptions.assumeFalse
@@ -27,6 +28,29 @@ class ClaudeBinaryLocatorTest {
         val located = ClaudeBinaryLocator.locate(exe.absolutePath)
         assertNotNull(located)
         assertEquals(exe.canonicalPath, located!!.canonicalPath)
+    }
+
+    @Test
+    fun `a remembered binary that is gone or no longer executable is not returned again`(@TempDir tmp: Path) {
+        assumeFalse(SystemInfo.isWindows, "POSIX exec bit semantics")
+        val exe = makeExecutable(tmp.toFile(), "claude")
+        assertEquals(exe.canonicalPath, ClaudeBinaryLocator.locate(exe.absolutePath)?.canonicalPath)
+
+        exe.setExecutable(false, false)
+        assertNotEquals(exe.canonicalPath, ClaudeBinaryLocator.locate(exe.absolutePath)?.canonicalPath)
+
+        exe.delete()
+        assertNotEquals(exe.canonicalPath, ClaudeBinaryLocator.locate(exe.absolutePath)?.canonicalPath)
+    }
+
+    @Test
+    fun `a changed override is honoured at once`(@TempDir tmp: Path) {
+        assumeFalse(SystemInfo.isWindows, "POSIX exec bit semantics")
+        val first = makeExecutable(File(tmp.toFile(), "a").apply { mkdirs() }, "claude")
+        val second = makeExecutable(File(tmp.toFile(), "b").apply { mkdirs() }, "claude")
+
+        assertEquals(first.canonicalPath, ClaudeBinaryLocator.locate(first.absolutePath)?.canonicalPath)
+        assertEquals(second.canonicalPath, ClaudeBinaryLocator.locate(second.absolutePath)?.canonicalPath)
     }
 
     @Test
