@@ -1,6 +1,6 @@
 package dev.lain.claudejb.bench
 
-import dev.lain.claudejb.view.jcef.PageAssembly
+import dev.lain.claudejb.frontend.jcef.PageAssembly
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
