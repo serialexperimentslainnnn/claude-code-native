@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [6.5.0] — 2026-09-23
+## [6.5.0] — 2026-09-24
 
 **The chat works in Remote Development.** The plugin is split into a frontend, drawn where the UI runs, and a
 backend, beside the project, joined by the platform's RPC. **This release needs IntelliJ Platform 2026.2
@@ -21,7 +21,7 @@ backend, beside the project, joined by the platform's RPC. **This release needs 
 - **Code With Me, for the host.** The host's chat works as in a local IDE. Guests get no chat: JetBrains is
   retiring Code With Me, and 2026.1 was the last release with official support.
 - **Optional modules for the IDE plugins the tools reach** — Git, GitHub, Java, Terminal, IntelliLang,
-  Database. Each loads only when its plugin is present.
+  Database, line bookmarks and, on 2026.3, the Problems view. Each loads only when its plugin is present.
 
 ### Changed
 - **The floor is 2026.2 (build 262.8665.258); the range runs to 263.\*.** 2025.3 and 2026.1 are no longer
@@ -36,6 +36,10 @@ backend, beside the project, joined by the platform's RPC. **This release needs 
 - **Smaller MCP answers.** `read_file` splits its budget between the files of a batch; `search_text` and
   `project_problems` group by file; every `max` a tool takes has a ceiling; commit rows are abbreviated and
   working-tree diffs built file by file; the services listing is trimmed.
+- **`project_problems` and `problems_view` are offered only where the IDE lets a plugin read the Problems
+  view.** On 2026.3, where the Problems view is its own plugin, they reach it through that plugin's modules.
+- **`plugins` says that parts of the IDE shipped as modules, such as IntelliLang, are not listed**, so an
+  absent entry is not read as a missing feature.
 - **Libraries.** DOMPurify 3.4.16, highlight.js 11.12.0, marked 18.0.14. Build: Kotlin 2.4, a JDK 25
   toolchain, Gradle 9.7.1, IntelliJ Platform Gradle Plugin 2.19.0, detekt 2.0.0-alpha.6, Spotless 8.10.2,
   JUnit 6.1.3. kotlinx-serialization is no longer bundled; the platform's copy is used. The npm toolchain
@@ -67,6 +71,9 @@ backend, beside the project, joined by the platform's RPC. **This release needs 
   toggles expose their state with `aria-pressed`; Enter while an IME is composing no longer sends; focus and
   current data survive dashboard and tab redraws; a settings row shows as pending until the host confirms it.
 - **Closing the last chat tab shows the new one.**
+- **`scratch_create` keeps the name it is given.** A scratch with the same name and another extension no
+  longer makes the IDE number the new one; only an exact match does. The answer carries the language the IDE
+  resolved, or none, instead of an empty string.
 
 ### Security
 - **A renewed credential is kept when the keyring refuses the write**, instead of being wiped.
@@ -78,6 +85,8 @@ backend, beside the project, joined by the platform's RPC. **This release needs 
   withdrawn in order, behind the decision it cancels.
 - **Each guard alert is announced once.**
 - **Only http(s), `jb://` and relative links are forwarded from the page**, middle clicks included.
+- **The guard's outside-project rule lets the IDE's own scratch folder through, and nothing else there.**
+  Every other rule still judges a scratch file.
 
 ## [6.0.1] — 2026-09-22
 

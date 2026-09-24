@@ -1,4 +1,4 @@
-## v6.5.0 — 2026-09-23
+## v6.5.0 — 2026-09-24
 
 **The chat works in Remote Development.** Until now, in a remote setup the plugin loaded only on the host, where
 the chat page cannot be drawn. The plugin is now split in two: the tool window and the embedded browser run
@@ -29,7 +29,8 @@ A CLI that crashes on start is no longer restarted forever. Closed chat tabs no 
 IDE no longer freezes when `claude` stops reading its input. A prompt with attachments is no longer lost when
 the session cannot start. One malformed message no longer takes an IDE server down. `run_configuration`
 reports the exit code of the run it started, and a batch no longer applies half its items. Closing the last
-chat tab shows the new one.
+chat tab shows the new one. A scratch file keeps the name you give it, even when one with the same name and
+another extension exists.
 
 **The chat page works from the keyboard and with a screen reader.** Tool cards open and close from the
 keyboard, menus and the attach menu can be driven without a mouse, toggles announce their state, pressing
@@ -45,7 +46,8 @@ announced once, and the page forwards only web, `jb://` and relative links.
 **Under the hood.** DOMPurify 3.4.16, highlight.js 11.12.0 and marked 18.0.14 in the page; Kotlin 2.4 on a
 JDK 25 toolchain, Gradle 9.7.1 and the IntelliJ Platform Gradle Plugin 2.19.0 in the build. The plugin no
 longer bundles its own kotlinx-serialization and uses the platform's. The code that reaches Git, GitHub, Java,
-Terminal, IntelliLang and Database lives in optional modules that load only when those plugins are present.
+Terminal, IntelliLang, Database, line bookmarks and the 2026.3 Problems view lives in optional modules that
+load only when those plugins are present.
 
 ## v6.0.1 — 2026-09-22
 
