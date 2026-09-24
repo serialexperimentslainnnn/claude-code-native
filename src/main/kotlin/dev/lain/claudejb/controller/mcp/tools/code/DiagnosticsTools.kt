@@ -1,7 +1,5 @@
 package dev.lain.claudejb.controller.mcp.tools.code
 
-import com.intellij.analysis.problemsView.toolWindow.ProblemsViewTab
-import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.project.Project
@@ -33,8 +31,8 @@ internal class DiagnosticsTools(
         "What the IDE's own analysis flags: the highlights of one file, the Problems view for the whole project, and its tabs",
         listOfNotNull(
             Tool(PROBLEMS) { ToolResult.toon(Batch.run(it, Batch.PATHS, ::problemsOne)) },
-            Tool(PROJECT_PROBLEMS, ::projectProblems).takeIf { ProblemsViewApi.available },
-            Tool(PROBLEMS_VIEW, ::problemsView).takeIf { ProblemsViewApi.available },
+            Tool(PROJECT_PROBLEMS, ::projectProblems).takeIf { view() != null },
+            Tool(PROBLEMS_VIEW, ::problemsView).takeIf { view() != null },
         ),
     )
 
@@ -74,7 +72,8 @@ internal class DiagnosticsTools(
     private suspend fun projectProblems(args: ToolArgs): ToolResult {
         val max = args.max(DEFAULT_MAX, MAX_PROBLEMS)
         val group = args.optionalString("group")
-        val snapshot = readAction { ProjectProblems.snapshot(project, group, max) }
+        val access = view() ?: throw ToolException(ProblemsViewAccess.MISSING)
+        val snapshot = readAction { ProjectProblems.snapshot(project, access.entries(), group, max) }
         if (reveal.mirroring) reveal.problems("")
         return ToolResult.toon(snapshot.toJson(max))
     }
@@ -84,7 +83,7 @@ internal class DiagnosticsTools(
         val tabs = withContext(Dispatchers.EDT) { tabs() }
         val chosen = wanted?.let { name -> tab(tabs, name) }
         chosen?.let { reveal.problems(it.id) }
-        val selected = withContext(Dispatchers.EDT) { ProblemsViewToolWindowUtils.getSelectedTab(project)?.getTabId() ?: "" }
+        val selected = withContext(Dispatchers.EDT) { view()?.selectedTab().orEmpty() }
         return ToolResult.toon(
             buildJsonObject {
                 put("selected", selected)
@@ -110,12 +109,11 @@ internal class DiagnosticsTools(
     private class ProblemsTab(val id: String, val name: String)
 
     private fun tabs(): List<ProblemsTab> {
-        val toolWindow = ProblemsViewToolWindowUtils.getToolWindow(project) ?: throw ToolException("this IDE has no Problems tool window")
-        return toolWindow.contentManager.contents.mapNotNull { content ->
-            val tab = content.component as? ProblemsViewTab ?: return@mapNotNull null
-            ProblemsTab(tab.getTabId(), plain(content.displayName ?: tab.getName(0)))
-        }
+        val tabs = view()?.tabs() ?: throw ToolException("this IDE has no Problems tool window")
+        return tabs.map { ProblemsTab(it.id, plain(it.title)) }
     }
+
+    private fun view(): ProblemsViewAccess? = ProblemsViewAccess.of(project)
 
     private fun plain(title: String): String = StringUtil.removeHtmlTags(title).replace(WHITESPACE, " ").trim()
 

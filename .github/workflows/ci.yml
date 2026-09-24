@@ -534,7 +534,7 @@ jobs:
             unzip -Z -1 "$jar" | grep -v '/$' \
               | grep -vE '^dev/lain/claudejb/.*\.class$' \
               | grep -vE '^META-INF/' \
-              | grep -vE '^dev\.lain\.claudejb\.(shared|frontend|backend|git|github|java|intellilang|terminal|bookmarks|database)\.xml$' \
+              | grep -vE '^dev\.lain\.claudejb\.(shared|frontend|backend|git|github|java|intellilang|terminal|bookmarks|database|problems)\.xml$' \
               | grep -vE '^icons/[^/]+\.svg$' \
               | grep -vE '^jcef/(.+\.(js|html)|css/.+\.css)$' >> /tmp/unexpected.txt || true
           done < /tmp/jars.txt

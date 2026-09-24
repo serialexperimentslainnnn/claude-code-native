@@ -23,7 +23,19 @@ tasks.matching { it.name.startsWith("kover") && (it.name.contains("Report") || i
 }
 
 dependencies {
-    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks", "database").forEach {
+    listOf(
+        "shared",
+        "frontend",
+        "backend",
+        "git",
+        "github",
+        "java",
+        "intellilang",
+        "terminal",
+        "bookmarks",
+        "database",
+        "problems",
+    ).forEach {
         "kover"(project(":$it"))
     }
 }

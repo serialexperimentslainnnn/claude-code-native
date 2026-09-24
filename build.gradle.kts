@@ -21,7 +21,7 @@ version = "6.5.0"
 val platformBuild = "262.8665.258"
 val serialization = "1.9.0"
 val pluginModules =
-    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks", "database")
+    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks", "database", "problems")
 
 allprojects {
     plugins.withId("org.jetbrains.kotlin.jvm") {

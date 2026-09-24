@@ -38,6 +38,7 @@
 !/intellilang/**
 !/bookmarks/**
 !/database/**
+!/problems/**
 !/terminal/**
 !/bin/**
 !/gradle/**

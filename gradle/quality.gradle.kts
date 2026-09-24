@@ -4,7 +4,7 @@ import dev.detekt.gradle.DetektCreateBaselineTask
 import dev.detekt.gradle.extensions.DetektExtension
 
 val pluginModules =
-    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks", "database")
+    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks", "database", "problems")
 
 configure<DetektExtension> {
     buildUponDefaultConfig.set(true)
