@@ -22,6 +22,18 @@ class ChatContractTest {
         roundTrip(PagePush.serializer(), PagePush("batch", "[{\"id\":1}]"))
         roundTrip(TerminalLaunch.serializer(), TerminalLaunch("/work", "Claude login", "claude auth login"))
         roundTrip(TerminalLaunch.serializer(), TerminalLaunch(null, "Claude", "claude"))
+        roundTrip(
+            GearItem.serializer(),
+            GearItem(
+                listOf(3),
+                "Git Operations",
+                enabled = true,
+                children = listOf(
+                    GearItem(listOf(3, 0), "Pull", enabled = false),
+                    GearItem(listOf(3, 1), "", enabled = false, separator = true),
+                ),
+            ),
+        )
     }
 
     @Test

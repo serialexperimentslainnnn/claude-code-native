@@ -5,9 +5,11 @@ import dev.lain.claudejb.integration.FakeClaudeTestBase
 import dev.lain.claudejb.rpc.ChatEvent
 import dev.lain.claudejb.rpc.ChatId
 import dev.lain.claudejb.view.window.ChatRegistry
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 
 class ChatApiImplHeadlessTest : FakeClaudeTestBase() {
 
@@ -32,7 +34,8 @@ class ChatApiImplHeadlessTest : FakeClaudeTestBase() {
         val id = project.projectId()
         val events = api.events(id)
         val chat = api.newChat(id)
-        assertEquals(chat, (events.first() as ChatEvent.Opened).chat)
+        val opened = withTimeout(EVENT_TIMEOUT_MS) { events.filterIsInstance<ChatEvent.Opened>().first { it.chat.id == chat.id } }
+        assertEquals(chat, opened.chat)
         assertTrue(api.chats(id).contains(chat))
 
         api.select(id, chat.id)
@@ -57,7 +60,21 @@ class ChatApiImplHeadlessTest : FakeClaudeTestBase() {
         assertEquals(emptyList<Any>(), api.pushes(id, stranger).toList())
     }
 
+    fun `test the host describes its gear menu and ignores an entry that is gone`() = runBlocking {
+        val id = project.projectId()
+        api.newChat(id)
+        val items = api.gear(id)
+        val settings = items.single { it.text == "Settings…" }
+        assertTrue(settings.enabled)
+        assertTrue(items.any { it.separator })
+        assertEquals(items.size, items.map { it.path }.distinct().size)
+        api.runGear(id, listOf(Int.MAX_VALUE))
+        api.runGear(id, emptyList())
+    }
+
     private companion object {
         const val FIXTURE = "multi_message.jsonl"
+
+        const val EVENT_TIMEOUT_MS = 10_000L
     }
 }

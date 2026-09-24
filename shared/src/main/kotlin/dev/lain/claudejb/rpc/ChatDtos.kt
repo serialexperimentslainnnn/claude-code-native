@@ -15,6 +15,15 @@ data class PagePush(val method: String, val json: String)
 data class TerminalLaunch(val workingDirectory: String?, val tabName: String, val command: String)
 
 @Serializable
+data class GearItem(
+    val path: List<Int>,
+    val text: String,
+    val enabled: Boolean,
+    val separator: Boolean = false,
+    val children: List<GearItem> = emptyList(),
+)
+
+@Serializable
 sealed interface ChatEvent {
     @Serializable
     data class Opened(val chat: ChatRef, val select: Boolean) : ChatEvent

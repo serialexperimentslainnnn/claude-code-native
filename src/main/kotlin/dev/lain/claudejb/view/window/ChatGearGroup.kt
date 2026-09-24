@@ -1,13 +1,11 @@
 package dev.lain.claudejb.view.window
 
-import com.intellij.openapi.actionSystem.ActionGroup
-import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.Separator
 import com.intellij.openapi.options.ShowSettingsUtil
-import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
+import dev.lain.claudejb.controller.commands.GearChildren
 import dev.lain.claudejb.controller.commands.SessionDiffAction
 import dev.lain.claudejb.controller.commands.git.GitContextActions
 import dev.lain.claudejb.controller.commands.git.GitIdeMenu
@@ -15,15 +13,10 @@ import dev.lain.claudejb.controller.commands.git.GitPromptedActions
 import dev.lain.claudejb.controller.session.ChatSessionManager
 import dev.lain.claudejb.view.settings.ClaudeSettingsConfigurable
 
-class ChatGearGroup : ActionGroup(), DumbAware {
+internal class ChatGearGroup : GearChildren {
 
-    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
-
-    override fun getChildren(e: AnActionEvent?): Array<AnAction> {
-        val project = e?.project ?: return EMPTY_ARRAY
-        if (project.isDisposed) return EMPTY_ARRAY
-        return entries(project, ChatRegistry.getInstance(project)).toTypedArray()
-    }
+    override fun children(project: Project): List<AnAction> =
+        if (project.isDisposed) emptyList() else entries(project, ChatRegistry.getInstance(project))
 
     private fun entries(project: Project, registry: ChatRegistry): List<AnAction> = buildList {
         val selected = { registry.selected() }
@@ -57,9 +50,5 @@ class ChatGearGroup : ActionGroup(), DumbAware {
 
     private fun simple(text: String, action: () -> Unit): AnAction = object : AnAction(text) {
         override fun actionPerformed(e: AnActionEvent) = action()
-    }
-
-    companion object {
-        const val ID = "ClaudeCode.ToolWindowGear"
     }
 }

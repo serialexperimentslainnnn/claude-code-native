@@ -11,6 +11,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.platform.project.projectId
 import dev.lain.claudejb.rpc.ChatApi
 import dev.lain.claudejb.rpc.ChatId
+import dev.lain.claudejb.rpc.GearItem
 import dev.lain.claudejb.rpc.PagePush
 import fleet.rpc.client.durable
 import kotlinx.coroutines.CancellationException
@@ -22,6 +23,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
 
 @Service(Service.Level.PROJECT)
 class ChatClient(val project: Project, private val scope: CoroutineScope) {
@@ -38,6 +40,22 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
             runCatching { ChatApi.getInstance().select(project.projectId(), chatId) }.onFailure { cause ->
                 if (cause !is Exception || cause is CancellationException) throw cause
                 log.warn("Claude Code could not tell the host which chat is on screen", cause)
+            }
+        }
+    }
+
+    fun gear(onItems: (List<GearItem>) -> Unit) {
+        scope.launch {
+            val items = fetchGear()
+            onEdt { onItems(items) }
+        }
+    }
+
+    fun runGear(path: List<Int>) {
+        scope.launch {
+            runCatching { ChatApi.getInstance().runGear(project.projectId(), path) }.onFailure { cause ->
+                if (cause !is Exception || cause is CancellationException) throw cause
+                log.warn("Claude Code could not run the host's menu entry", cause)
             }
         }
     }
@@ -59,6 +77,17 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
                     else -> log.warn("Claude Code chat host is not reachable from this client", cause)
                 }
                 false
+            }
+
+    private suspend fun fetchGear(): List<GearItem> =
+        runCatching { withTimeout(GEAR_TIMEOUT) { ChatApi.getInstance().gear(project.projectId()) } }
+            .getOrElse { cause ->
+                when (cause) {
+                    is TimeoutCancellationException -> log.warn("Claude Code chat host did not list its menu within $GEAR_TIMEOUT")
+                    !is Exception, is CancellationException -> throw cause
+                    else -> log.warn("Claude Code could not read the host's menu", cause)
+                }
+                emptyList()
             }
 
     private suspend fun follow(listener: ChatListener) {
@@ -83,5 +112,7 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
         private val log = logger<ChatClient>()
 
         private const val CONNECT_TIMEOUT_MS = 30_000L
+
+        private val GEAR_TIMEOUT = 10.seconds
     }
 }

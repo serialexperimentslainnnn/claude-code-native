@@ -1,7 +1,5 @@
 package dev.lain.claudejb.frontend.window
 
-import com.intellij.openapi.actionSystem.ActionGroup
-import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.DumbAware
@@ -27,11 +25,7 @@ class ClaudeToolWindowFactory : ToolWindowFactory, DumbAware {
         content.setPreferredFocusedComponent { tabs.focusTarget() }
         content.setDisposer(tabs)
         toolWindow.contentManager.addContent(content)
-        (ActionManager.getInstance().getAction(GEAR_GROUP) as? ActionGroup)?.let(toolWindow::setAdditionalGearActions)
+        toolWindow.setTitleActions(listOf(HostOptionsAction(client)))
         client.connect(tabs, tabs)
-    }
-
-    private companion object {
-        const val GEAR_GROUP = "ClaudeCode.ToolWindowGear"
     }
 }

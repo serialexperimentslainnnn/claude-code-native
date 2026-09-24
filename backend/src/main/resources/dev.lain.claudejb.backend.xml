@@ -36,7 +36,6 @@
     </applicationListeners>
 
     <actions>
-        <group id="ClaudeCode.ToolWindowGear" class="dev.lain.claudejb.view.window.ChatGearGroup"/>
         <action id="dev.lain.claudejb.ExplainSelection"
                 class="dev.lain.claudejb.controller.actions.ExplainSelectionAction"
                 text="Explain with Claude"

@@ -2,15 +2,18 @@ package dev.lain.claudejb.rpc.backend
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.project.Project
 import com.intellij.platform.project.ProjectId
 import com.intellij.platform.project.findProjectOrNull
 import dev.lain.claudejb.rpc.ChatApi
 import dev.lain.claudejb.rpc.ChatEvent
 import dev.lain.claudejb.rpc.ChatId
 import dev.lain.claudejb.rpc.ChatRef
+import dev.lain.claudejb.rpc.GearItem
 import dev.lain.claudejb.rpc.PagePush
 import dev.lain.claudejb.view.window.ChatPresenter
 import dev.lain.claudejb.view.window.ChatRegistry
+import dev.lain.claudejb.view.window.GearMenu
 import dev.lain.claudejb.view.window.PushSink
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
@@ -79,8 +82,19 @@ internal class ChatApiImpl : ChatApi {
         presenter.replay()
     }
 
-    private fun registry(projectId: ProjectId): ChatRegistry? =
-        projectId.findProjectOrNull()?.takeUnless { it.isDisposed }?.let(ChatRegistry::getInstance)
+    override suspend fun gear(projectId: ProjectId): List<GearItem> {
+        val project = project(projectId) ?: return emptyList()
+        return onEdt { GearMenu.items(project) }
+    }
+
+    override suspend fun runGear(projectId: ProjectId, path: List<Int>) {
+        val project = project(projectId) ?: return
+        ApplicationManager.getApplication().invokeLater { if (!project.isDisposed) GearMenu.run(project, path) }
+    }
+
+    private fun project(projectId: ProjectId): Project? = projectId.findProjectOrNull()?.takeUnless { it.isDisposed }
+
+    private fun registry(projectId: ProjectId): ChatRegistry? = project(projectId)?.let(ChatRegistry::getInstance)
 
     private fun presenter(projectId: ProjectId, chatId: ChatId): ChatPresenter? = registry(projectId)?.presenter(chatId)
 
