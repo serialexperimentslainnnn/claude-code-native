@@ -29,6 +29,11 @@ class OptionalModulesHeadlessTest : BasePlatformTestCase() {
         assertNotNull("dev.lain.claudejb.intellilang did not load", project.serviceOrNull<LanguageInjection>())
     }
 
+    fun `test the database module reaches the database plugin's classes, not only its own service`() {
+        val db = project.serviceOrNull<DbAccess>() ?: return fail("the database module did not load")
+        assertEquals(emptyList<DbAccess.Connection>(), db.connections())
+    }
+
     fun `test every optional module loads its service where the IDE has its plugin`() {
         val silent = modules.filter { (plugin, lookup) -> loaded(plugin) && lookup() == null }.keys
         assertEquals("optional modules that did not load although their plugin is there", emptySet<String>(), silent)

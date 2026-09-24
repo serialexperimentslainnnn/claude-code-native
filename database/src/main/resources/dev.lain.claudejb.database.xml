@@ -1,6 +1,8 @@
 <idea-plugin>
     <dependencies>
         <plugin id="com.intellij.database"/>
+        <module name="intellij.database"/>
+        <module name="intellij.database.connectivity"/>
         <module name="dev.lain.claudejb.backend"/>
     </dependencies>
 
