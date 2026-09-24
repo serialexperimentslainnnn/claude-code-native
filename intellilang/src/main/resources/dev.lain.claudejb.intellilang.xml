@@ -1,6 +1,6 @@
 <idea-plugin>
     <dependencies>
-        <module name="org.intellij.intelliLang"/>
+        <module name="intellij.platform.langInjection"/>
         <module name="dev.lain.claudejb.backend"/>
     </dependencies>
 

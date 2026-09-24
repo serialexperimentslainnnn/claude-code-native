@@ -81,6 +81,6 @@ class DbGatewayContractTest {
 
         val GUARD = Regex("""private fun $GUARD_NAME\(\) \{""")
         val AVAILABLE_DECLARATION = Regex("""fun $AVAILABLE\(\): Boolean""")
-        val ENTRY = Regex("""^ {4}fun \w+\(.*""")
+        val ENTRY = Regex("""^ {4}(override )?fun \w+\(.*""")
     }
 }

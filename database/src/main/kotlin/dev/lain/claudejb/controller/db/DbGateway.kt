@@ -1,6 +1,5 @@
 package dev.lain.claudejb.controller.db
 
-import com.intellij.execution.services.ServiceViewContributor
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.model.mcp.ToolException
@@ -9,41 +8,33 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 
-internal class DbGateway(private val project: Project) {
-
-    class Connection(val name: String, val kind: String, val url: String)
-
-    class Table(val schema: String, val name: String, val kind: String, val columns: Int)
-
-    class Column(val name: String, val type: String, val nullable: Boolean, val primary: Boolean)
-
-    class Rows(val columns: List<String>, val rows: List<List<String>>, val updated: Int, val truncated: Boolean)
+internal class DbGateway(private val project: Project) : DbAccess {
 
     private fun requireDatabase() {
         if (!isAvailable()) throw ToolException(MISSING)
     }
 
-    fun connections(): List<Connection> {
+    override fun connections(): List<DbAccess.Connection> {
         requireDatabase()
         return dataSources().map { source ->
-            Connection(name(source), text { call(source, "getDbms") }, redacted(text { call(delegate(source), "getUrl") }))
+            DbAccess.Connection(name(source), text { call(source, "getDbms") }, redacted(text { call(delegate(source), "getUrl") }))
         }
     }
 
-    fun tables(connection: String): List<Table> {
+    override fun tables(connection: String): List<DbAccess.Table> {
         requireDatabase()
         return tablesOf(dataSource(connection)).map { table ->
-            Table(schema(table), name(table), text { call(table, "getKind") }.lowercase(), columnsOf(table).size)
+            DbAccess.Table(schema(table), name(table), text { call(table, "getKind") }.lowercase(), columnsOf(table).size)
         }
     }
 
-    fun columns(connection: String, table: String): List<Column> {
+    override fun columns(connection: String, table: String): List<DbAccess.Column> {
         requireDatabase()
         val found = tablesOf(dataSource(connection)).filter { matches(it, table) }
         if (found.isEmpty()) throw ToolException("no table named $table in $connection; db_schema without table lists them")
         if (found.size > 1) throw ToolException("$table is ambiguous; qualify it: ${found.joinToString { qualified(it) }}")
         return columnsOf(found.single()).map { column ->
-            Column(
+            DbAccess.Column(
                 name(column),
                 text { typeName(call(column, "getDataType")) },
                 !flag { call(column, "isNotNull") },
@@ -52,7 +43,7 @@ internal class DbGateway(private val project: Project) {
         }
     }
 
-    fun query(connection: String, sql: String, maxRows: Int, timeoutSeconds: Int): Rows {
+    override fun query(connection: String, sql: String, maxRows: Int, timeoutSeconds: Int): DbAccess.Rows {
         requireDatabase()
         val source = dataSource(connection)
         val builder = call(static(type(CONNECTION_MANAGER), "getInstance"), "build", project, delegate(source))
@@ -74,9 +65,10 @@ internal class DbGateway(private val project: Project) {
         }
     }
 
-    private fun updated(statement: Any?): Rows = Rows(emptyList(), emptyList(), (call(statement, "getUpdateCount") as? Int) ?: 0, false)
+    private fun updated(statement: Any?): DbAccess.Rows =
+        DbAccess.Rows(emptyList(), emptyList(), (call(statement, "getUpdateCount") as? Int) ?: 0, false)
 
-    private fun rows(resultSet: Any?, maxRows: Int): Rows {
+    private fun rows(resultSet: Any?, maxRows: Int): DbAccess.Rows {
         try {
             val meta = call(resultSet, "getMetaData")
             val width = (call(meta, "getColumnCount") as? Int) ?: 0
@@ -85,7 +77,7 @@ internal class DbGateway(private val project: Project) {
             while (collected.size <= maxRows && call(resultSet, "next") == true) {
                 collected += (1..width).map { text { call(resultSet, "getString", it) } }
             }
-            return Rows(labels, collected.take(maxRows), 0, collected.size > maxRows)
+            return DbAccess.Rows(labels, collected.take(maxRows), 0, collected.size > maxRows)
         } finally {
             runCatching { call(resultSet, "close") }
         }
@@ -135,15 +127,7 @@ internal class DbGateway(private val project: Project) {
     private fun typeName(dataType: Any?): Any? = dataType?.javaClass?.getField("typeName")?.get(dataType)
 
     private fun type(name: String): Class<*> =
-        loaders().firstNotNullOfOrNull { loader -> runCatching { loader.loadClass(name) }.getOrNull() }
-            ?: throw ToolException(notExposed(name))
-
-    private fun loaders(): List<ClassLoader> {
-        val modules = ServiceViewContributor.CONTRIBUTOR_EP_NAME.extensionList
-            .filter { it.javaClass.name.startsWith(PACKAGE) }
-            .map { it.javaClass.classLoader }
-        return (listOf(javaClass.classLoader) + modules).distinct()
-    }
+        runCatching { javaClass.classLoader.loadClass(name) }.getOrNull() ?: throw ToolException(notExposed(name))
 
     private fun static(type: Class<*>, name: String, vararg args: Any?): Any? {
         val method = type.methods.firstOrNull { it.name == name && Modifier.isStatic(it.modifiers) && accepts(it, args) }
@@ -178,7 +162,6 @@ internal class DbGateway(private val project: Project) {
     companion object {
 
         const val PLUGIN_ID = "com.intellij.database"
-        private const val PACKAGE = "com.intellij.database."
 
         private const val FACADE = "com.intellij.database.psi.DbPsiFacade"
         private const val DAS_UTIL = "com.intellij.database.util.DasUtil"

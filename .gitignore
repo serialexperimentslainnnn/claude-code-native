@@ -37,6 +37,7 @@
 !/java/**
 !/intellilang/**
 !/bookmarks/**
+!/database/**
 !/terminal/**
 !/bin/**
 !/gradle/**

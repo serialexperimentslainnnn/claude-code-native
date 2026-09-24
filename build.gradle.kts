@@ -20,7 +20,8 @@ version = "6.5.0"
 
 val platformBuild = "262.8665.258"
 val serialization = "1.9.0"
-val pluginModules = listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks")
+val pluginModules =
+    listOf("shared", "frontend", "backend", "git", "github", "java", "intellilang", "terminal", "bookmarks", "database")
 
 allprojects {
     plugins.withId("org.jetbrains.kotlin.jvm") {
@@ -87,7 +88,9 @@ dependencies {
             "Git4Idea",
             "org.jetbrains.plugins.github",
             "com.intellij.java",
+            "com.intellij.database",
         )
+        bundledModule("org.intellij.intelliLang")
         testFramework(TestFrameworkType.Platform)
     }
     pluginModules.forEach { testImplementation(project(":$it")) }
