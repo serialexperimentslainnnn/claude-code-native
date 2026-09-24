@@ -27,6 +27,17 @@ internal class BridgeAttachments(private val presenter: ChatPresenter) {
             is Msg.AttachPaths -> attachPaths(m.paths)
             is Msg.Attach -> attachImage(m.name, m.mediaType, m.base64)
             is Msg.AttachImageData -> attachImage(PASTED_NAME + m.mime.substringAfter('/'), m.mime, m.base64)
+            is Msg.ClipboardEmpty -> tray.notify(clipboardNotice(m))
+        }
+    }
+
+    private fun clipboardNotice(m: Msg.ClipboardEmpty): String {
+        val help = m.help.ifBlank { null }
+        return when {
+            m.image && help != null -> "Couldn't read an image from the clipboard — $help"
+            m.image -> "No image found in the clipboard."
+            help != null -> "Couldn't read the clipboard — $help"
+            else -> "Clipboard is empty or unreadable."
         }
     }
 

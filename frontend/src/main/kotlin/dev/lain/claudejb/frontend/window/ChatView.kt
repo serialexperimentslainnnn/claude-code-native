@@ -25,7 +25,7 @@ internal class ChatView(
 
     private val host = JcefHost(this, ::onPageMessage, onResync = ::resync)
 
-    private val link = client.link(chatId, this, ::onPush) { host.isWebReady }
+    private val link = client.link(chatId, this, ::onPush)
 
     override val component: JComponent get() = host.component
 
@@ -46,7 +46,7 @@ internal class ChatView(
     private fun onPageMessage(json: String) {
         val message = PageMessage.parse(json)
         when {
-            message.type in FrontendChannel.clientMessages -> paste(message.type)
+            message.type in FrontendChannel.clientMessages -> paste(message)
 
             message.type == PageMessage.OPEN && PageMessage.isSecureLink(message.url) -> BrowserUtil.browse(message.url.trim())
 
@@ -60,6 +60,7 @@ internal class ChatView(
     private fun pageReady() {
         host.markWebReady()
         pushTheme()
+        host.exec("window.CC && window.CC.composer && (window.CC.composer.hostClipboard = ${ClientClipboard.preferHost})")
         link.ready()
     }
 
@@ -89,15 +90,23 @@ internal class ChatView(
         edtNow { terminal.open(launch) }
     }
 
-    private fun paste(type: String) {
+    private fun paste(message: PageMessage) {
         ApplicationManager.getApplication().executeOnPooledThread {
-            val image = ClientClipboard.pngBase64()
-            when {
-                image != null -> link.post(PageMessage.imageAttachment(image))
-                type == PageMessage.PASTE_TEXT -> ClientClipboard.text()?.let { host.call(INSERT_TEXT, PageMessage.quote(it)) }
+            val image = ClientClipboard.image()
+            if (image != null) {
+                link.post(PageMessage.imageAttachment(image))
+                return@executeOnPooledThread
+            }
+            if (message.type == PageMessage.PASTE_TEXT) {
+                val text = ClientClipboard.text()
+                if (text != null) host.call(INSERT_TEXT, PageMessage.quote(text)) else emptyClipboard(image = false)
+            } else if (message.notify || !ClientClipboard.hasText()) {
+                emptyClipboard(image = true)
             }
         }
     }
+
+    private fun emptyClipboard(image: Boolean) = link.post(PageMessage.clipboardEmpty(image, ClientClipboard.imageHelp()))
 
     private fun pushTheme() = edtNow {
         host.exec("window.cc.theme && window.cc.theme(" + JcefTheme.vars() + ")", THEME_KEY)
