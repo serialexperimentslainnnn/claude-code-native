@@ -35,6 +35,23 @@ class OwnToolsTest {
     }
 
     @Test
+    fun `a shell call carries its command apart from the rest of its args, and no other call has a command`() {
+        val shell = input("""{"tool":"shell","args":{"command":"podman push img:v1","tail":15}}""")
+        val call = OwnTools.parse("mcp__run__run", shell)!!
+        assertEquals("podman push img:v1", OwnTools.command(call, OwnTools.argsOf(shell)))
+        assertEquals("tail: 15", OwnTools.detailsToon(call, OwnTools.argsOf(shell)))
+        val only = input("""{"tool":"shell","args":{"command":"git status"}}""")
+        assertNull(OwnTools.detailsToon(call, OwnTools.argsOf(only)))
+        val job = input("""{"tool":"shell","args":{"job":"shell-3"}}""")
+        assertNull(OwnTools.command(call, OwnTools.argsOf(job)))
+        assertEquals("job: shell-3", OwnTools.detailsToon(call, OwnTools.argsOf(job)))
+        val other = input("""{"tool":"run_configuration","args":{"command":"x","name":"Tests"}}""")
+        val otherCall = OwnTools.parse("mcp__run__run", other)!!
+        assertNull(OwnTools.command(otherCall, OwnTools.argsOf(other)))
+        assertEquals(OwnTools.argsToon(OwnTools.argsOf(other)), OwnTools.detailsToon(otherCall, OwnTools.argsOf(other)))
+    }
+
+    @Test
     fun `the guard sees a run call flat, with the tool name kept and every argument at the top level`() {
         val flat = OwnTools.guardInput(input("""{"tool":"write_file","args":{"path":"/home/u/.bash_aliases","content":"alias"}}"""))
         assertEquals("write_file", flat["tool"]!!.jsonPrimitive.content)

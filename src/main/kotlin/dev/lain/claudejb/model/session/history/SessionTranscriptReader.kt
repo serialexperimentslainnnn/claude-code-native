@@ -246,8 +246,8 @@ object SessionTranscriptReader {
             parentToolUseId = origin.parent,
             atMillis = origin.atMillis,
             filePath = if (own != null) OwnTools.path(args) else ToolNaming.toolFilePath(name, input, projectRoot),
-            commandText = ToolInputScanner.commandText(input),
-            messageText = if (own != null) OwnTools.argsToon(args) else ToolInputScanner.messageText(input),
+            commandText = if (own != null) OwnTools.command(own, args) else ToolInputScanner.commandText(input),
+            messageText = if (own != null) OwnTools.detailsToon(own, args) else ToolInputScanner.messageText(input),
         )
     }
 

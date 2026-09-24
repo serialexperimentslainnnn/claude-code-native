@@ -79,7 +79,8 @@ class ToolEvents(
             parentToolUseId = event.parentToolUseId,
             toolState = ToolState.LOADING,
             filePath = OwnTools.path(item.args),
-            messageText = if (item.review == null) OwnTools.argsToon(item.args) else null,
+            commandText = OwnTools.command(call, item.args),
+            messageText = if (item.review == null) OwnTools.detailsToon(call, item.args) else null,
             reviewable = item.review != null,
         )
         liveOutput.flushEarly(item.id)

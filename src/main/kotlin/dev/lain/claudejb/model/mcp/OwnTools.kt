@@ -19,6 +19,8 @@ object OwnTools {
     const val TOOL_USE_ID_KEY = "claudecode/toolUseId"
     const val READ_FILE = "read_file"
     const val INSERT = "InsertText"
+    const val SHELL = "shell"
+    private const val COMMAND = "command"
 
     private val META_TOOL = Regex("^mcp__([a-z]+)__(domains|tools|run)$")
     private val EDITS = setOf("replace_text", "insert_text", "create_file", "write_file")
@@ -62,6 +64,12 @@ object OwnTools {
     fun isRead(call: Call): Boolean = call.meta == MetaTools.RUN.name && call.argument == READ_FILE
 
     fun argsToon(args: JsonObject): String? = args.takeIf { it.isNotEmpty() }?.let { Toon.encode(it) }
+
+    fun command(call: Call, args: JsonObject): String? =
+        if (call.meta == MetaTools.RUN.name && call.argument == SHELL) text(args, COMMAND)?.takeIf { it.isNotBlank() } else null
+
+    fun detailsToon(call: Call, args: JsonObject): String? =
+        argsToon(if (command(call, args) == null) args else JsonObject(args - COMMAND))
 
     fun reviewAs(call: Call, args: JsonObject, projectRoot: String?): Review? {
         if (!isEdit(call)) return null

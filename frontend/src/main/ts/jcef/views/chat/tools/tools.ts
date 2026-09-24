@@ -96,8 +96,8 @@
     places.hidden = true;
     node.appendChild(head);
     node.appendChild(places);
-    node.appendChild(msg);
     node.appendChild(cmd);
+    node.appendChild(msg);
     node.appendChild(out);
     node.appendChild(children);
     if (entry && entry.message) {
