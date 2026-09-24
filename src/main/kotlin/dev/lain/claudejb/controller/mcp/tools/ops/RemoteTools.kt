@@ -9,6 +9,7 @@ import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.mcp.IdeActions
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.controller.mcp.TargetContext
+import dev.lain.claudejb.controller.mcp.tools.code.ProblemsViewApi
 import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
 import dev.lain.claudejb.model.mcp.ToolArgs
@@ -31,11 +32,11 @@ internal class RemoteTools(private val project: Project, private val actions: Id
         "remote",
         "The closed-source Tools menu entries the IDE may have: Deployment, SSH sessions, Qodana and the vulnerable " +
             "dependencies of the Problems view; each is reached through the actions the plugin registers on this IDE",
-        listOf(
+        listOfNotNull(
             Tool(DEPLOYMENT, ::deployment),
             Tool(SSH_SESSION, ::sshSession),
             Tool(QODANA, ::qodana),
-            Tool(VULNERABLE_DEPENDENCIES, ::vulnerable),
+            Tool(VULNERABLE_DEPENDENCIES, ::vulnerable).takeIf { ProblemsViewApi.available },
         ),
     )
 
@@ -45,7 +46,10 @@ internal class RemoteTools(private val project: Project, private val actions: Id
 
     private suspend fun qodana(args: ToolArgs): ToolResult {
         val action = args.optionalString("action") ?: "results"
-        if (action == "results") return problems(QODANA_GROUP, QODANA_TAB, args)
+        if (action == "results") {
+            if (!ProblemsViewApi.available) throw ToolException(ProblemsViewApi.MISSING)
+            return problems(QODANA_GROUP, QODANA_TAB, args)
+        }
         return fire(QODANA_PLUGIN, action, args)
     }
 

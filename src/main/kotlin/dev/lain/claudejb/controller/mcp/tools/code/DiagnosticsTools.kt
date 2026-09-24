@@ -31,10 +31,10 @@ internal class DiagnosticsTools(
     fun domain(): ToolDomain = ToolDomain(
         "diagnostics",
         "What the IDE's own analysis flags: the highlights of one file, the Problems view for the whole project, and its tabs",
-        listOf(
+        listOfNotNull(
             Tool(PROBLEMS) { ToolResult.toon(Batch.run(it, Batch.PATHS, ::problemsOne)) },
-            Tool(PROJECT_PROBLEMS, ::projectProblems),
-            Tool(PROBLEMS_VIEW, ::problemsView),
+            Tool(PROJECT_PROBLEMS, ::projectProblems).takeIf { ProblemsViewApi.available },
+            Tool(PROBLEMS_VIEW, ::problemsView).takeIf { ProblemsViewApi.available },
         ),
     )
 
