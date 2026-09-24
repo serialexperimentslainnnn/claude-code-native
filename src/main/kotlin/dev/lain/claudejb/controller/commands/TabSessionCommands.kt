@@ -45,6 +45,7 @@ internal class TabSessionCommands(
                 return@thenAcceptAsync
             }
             val ids = SessionHistory.getInstance(project).openSessions()
+                .distinct()
                 .filter { SessionStore.exists(it) }
                 .ifEmpty { listOfNotNull(SessionListing.list(project).firstOrNull()?.sessionId) }
             if (ids.isEmpty()) {
@@ -60,6 +61,7 @@ internal class TabSessionCommands(
     }
 
     private fun restore(manager: ChatSessionManager, id: String, title: String?, entries: List<EntryDTO>, select: Boolean) {
+        if (opened(id) != null) return
         val s = manager.create()
         s.title = title ?: s.title
         s.persistence.restore(id, entries)
@@ -115,28 +117,40 @@ internal class TabSessionCommands(
                     .createPopupChooserBuilder(refs)
                     .setTitle("Open Previous Session")
                     .setRenderer(SessionRefRenderer())
-                    .setItemChosenCallback { ref ->
-                        ApplicationManager.getApplication().executeOnPooledThread {
-                            val entries = SessionTranscriptReader.readEntries(
-                                ref.sessionId,
-                                SessionTranscriptReader.DEFAULT_RESTORE_CAP,
-                                project.basePath,
-                            )
-                            edt {
-                                val manager = ChatSessionManager.getInstance(project)
-                                val s = manager.create()
-                                s.title = ref.title
-                                s.persistence.restore(ref.sessionId, entries)
-                                openChat(s)
-                            }
-                        }
-                    }
+                    .setItemChosenCallback(::reopen)
                     .setRequestFocus(true)
                     .createPopup()
                     .showCenteredInCurrentWindow(project)
             }
         }
     }
+
+    fun reopen(ref: SessionRef) {
+        if (revealOpened(ref.sessionId)) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val entries = SessionTranscriptReader.readEntries(
+                ref.sessionId,
+                SessionTranscriptReader.DEFAULT_RESTORE_CAP,
+                project.basePath,
+            )
+            edt(project) {
+                if (revealOpened(ref.sessionId)) return@edt
+                val s = ChatSessionManager.getInstance(project).create()
+                s.title = ref.title
+                s.persistence.restore(ref.sessionId, entries)
+                openChat(s)
+            }
+        }
+    }
+
+    private fun revealOpened(sessionId: String): Boolean {
+        val tab = opened(sessionId) ?: return false
+        registry.reveal(tab)
+        return true
+    }
+
+    private fun opened(sessionId: String) =
+        registry.all().firstOrNull { it.session.sessionId == sessionId && !it.session.launch.fork }
 
     private class SessionRefRenderer : SimpleListCellRenderer<SessionRef>() {
         override fun customize(
