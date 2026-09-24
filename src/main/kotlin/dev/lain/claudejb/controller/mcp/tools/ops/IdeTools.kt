@@ -179,7 +179,9 @@ internal class IdeTools(private val project: Project, private val actions: IdeAc
             "plugins",
             "Lists the plugins loaded in this IDE, with id, name, version, vendor and whether each is enabled. Use it before " +
                 "relying on a plugin's tool window, action or file type; filter by a fragment of the id or the name. " +
-                "Refused on IDEs older than 2026.2, which have no public plugin listing.",
+                "Parts of the IDE that ship as modules rather than plugins are not listed, so an absent entry does not mean " +
+                "the feature is missing: language injection (org.intellij.intelliLang) is a module since 2026.2, and " +
+                "inject_at and injections work without it appearing here.",
             listOf(
                 Param("filter", "Only plugins whose id or name contains this text, case-insensitive", required = false),
                 Param.max("plugins", DEFAULT_MAX),
