@@ -24,7 +24,7 @@ class ChatDeckTest {
         assertTrue(deck.add(a, select = false))
 
         assertEquals(a, deck.selected)
-        assertEquals(listOf<ChatEvent>(ChatEvent.Opened(a, true)), events)
+        assertEquals(listOf(ChatEvent.Listed(emptyList(), null), ChatEvent.Opened(a, true)), events)
     }
 
     @Test
@@ -74,7 +74,7 @@ class ChatDeckTest {
     }
 
     @Test
-    fun `a new subscriber is told about every open chat and which one is shown`() {
+    fun `a new subscriber is told every open chat and which one is shown in one listing`() {
         val a = chat("a")
         val b = chat("b")
         deck.add(a, select = true)
@@ -82,13 +82,14 @@ class ChatDeckTest {
 
         deck.subscribe { events += it }
 
-        assertEquals(listOf<ChatEvent>(ChatEvent.Opened(a, true), ChatEvent.Opened(b, false)), events)
+        assertEquals(listOf<ChatEvent>(ChatEvent.Listed(listOf(a, b), a.id)), events)
     }
 
     @Test
     fun `an unsubscribed listener hears nothing more`() {
         val stop = deck.subscribe { events += it }
         stop()
+        events.clear()
 
         deck.add(chat("a"), select = true)
 

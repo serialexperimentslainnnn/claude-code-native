@@ -41,11 +41,14 @@ class ChatTabsPanelTest {
 
     private val built = LinkedHashMap<String, FakeCard>()
 
-    private val toldHost = mutableListOf<String>()
+    private var resyncs = 0
 
-    private val tabs = ChatTabsPanel({ toldHost += it.value }) { id -> FakeCard().also { built[id.value] = it } }
+    private val tabs = ChatTabsPanel({ resyncs++ }) { id -> FakeCard().also { built[id.value] = it } }
 
     private fun ref(id: String) = ChatRef(ChatId(id), id)
+
+    private fun listed(vararg ids: String, selected: String? = null) =
+        tabs.event(ChatEvent.Listed(ids.map(::ref), selected?.let(::ChatId)))
 
     private fun open() = tabs.chats().map { it.value }
 
@@ -53,31 +56,67 @@ class ChatTabsPanelTest {
     fun tearDown() = Disposer.dispose(tabs)
 
     @Test
-    fun `the first sync opens every chat and shows the last without taking the focus`() {
-        tabs.sync(listOf(ref("a"), ref("b")))
+    fun `a listing opens every chat and shows the one the host selected without taking the focus`() {
+        listed("a", "b", selected = "a")
 
         assertEquals(listOf("a", "b"), open())
-        assertEquals("b", tabs.selected?.value)
-        assertEquals(listOf("b"), toldHost)
-        assertEquals(0, built.getValue("b").focused)
+        assertEquals("a", tabs.selected?.value)
+        assertEquals(0, built.getValue("a").focused)
     }
 
     @Test
-    fun `closing the last chat shows its replacement even when the host does not ask to select it`() {
-        tabs.sync(listOf(ref("a")))
+    fun `a new listing drops the chats the host no longer has and never builds one twice`() {
+        listed("a", "b", selected = "a")
+
+        listed("b", "c", selected = "c")
+
+        assertEquals(listOf("b", "c"), open())
+        assertEquals(listOf("a", "b", "c"), built.keys.toList())
+        assertTrue(built.getValue("a").disposed)
+        assertEquals("c", tabs.selected?.value)
+    }
+
+    @Test
+    fun `closing the chat on screen follows the host's choice of survivor and closes nothing else`() {
+        listed("a", "b", "c", selected = "c")
+
+        tabs.event(ChatEvent.Selected(ChatId("a")))
+        tabs.event(ChatEvent.Closed(ChatId("c")))
+
+        assertEquals(listOf("a", "b"), open())
+        assertEquals("a", tabs.selected?.value)
+        assertTrue(built.getValue("a").component.isVisible)
+        assertFalse(built.getValue("b").disposed)
+    }
+
+    @Test
+    fun `closing a chat that is not on screen leaves the one on screen alone`() {
+        listed("a", "b", selected = "b")
 
         tabs.event(ChatEvent.Closed(ChatId("a")))
-        assertNull(tabs.selected)
-        tabs.event(ChatEvent.Opened(ref("b"), select = false))
 
         assertEquals(listOf("b"), open())
         assertEquals("b", tabs.selected?.value)
-        assertTrue(built.getValue("b").component.isVisible)
+        val closed = built.getValue("a")
+        assertTrue(closed.disposed)
+        assertNull(closed.component.parent)
+    }
+
+    @Test
+    fun `closing the last chat shows the replacement the host opens`() {
+        listed("a", selected = "a")
+
+        tabs.event(ChatEvent.Closed(ChatId("a")))
+        assertNull(tabs.selected)
+        tabs.event(ChatEvent.Opened(ref("b"), select = true))
+
+        assertEquals(listOf("b"), open())
+        assertEquals("b", tabs.selected?.value)
     }
 
     @Test
     fun `a chat opened beside the one on screen is shown only once its page can draw`() {
-        tabs.sync(listOf(ref("a")))
+        listed("a", selected = "a")
 
         tabs.event(ChatEvent.Opened(ref("b"), select = true))
         assertEquals("a", tabs.selected?.value)
@@ -88,58 +127,44 @@ class ChatTabsPanelTest {
     }
 
     @Test
-    fun `a closed chat is hidden, out of the deck and disposed`() {
-        tabs.sync(listOf(ref("a"), ref("b")))
+    fun `a chat still drawing does not take the screen once the host has selected another`() {
+        listed("a", "c", selected = "a")
 
-        tabs.event(ChatEvent.Closed(ChatId("a")))
+        tabs.event(ChatEvent.Opened(ref("b"), select = true))
+        tabs.event(ChatEvent.Selected(ChatId("c")))
+        built.getValue("b").pageReady()
 
-        val closed = built.getValue("a")
-        assertTrue(closed.disposed)
-        assertNull(closed.component.parent)
-        assertFalse(closed.component.isVisible)
+        assertEquals("c", tabs.selected?.value)
     }
 
     @Test
-    fun `closing the chat on screen shows a survivor and tells the host`() {
-        tabs.sync(listOf(ref("a"), ref("b")))
+    fun `a chat restored in the background does not take the screen`() {
+        listed("a", selected = "a")
 
-        tabs.event(ChatEvent.Closed(ChatId("b")))
-
-        assertEquals("a", tabs.selected?.value)
-        assertEquals(listOf("b", "a"), toldHost)
-        assertTrue(built.getValue("a").component.isVisible)
-    }
-
-    @Test
-    fun `a resync drops the chats the host no longer has and never builds one twice`() {
-        tabs.sync(listOf(ref("a"), ref("b")))
         tabs.event(ChatEvent.Opened(ref("b"), select = false))
 
-        tabs.sync(listOf(ref("b"), ref("c")))
-
-        assertEquals(listOf("b", "c"), open())
-        assertEquals(listOf("a", "b", "c"), built.keys.toList())
-        assertTrue(built.getValue("a").disposed)
-    }
-
-    @Test
-    fun `the host selecting a chat shows it and focuses its input`() {
-        tabs.sync(listOf(ref("a"), ref("b")))
-
-        tabs.event(ChatEvent.Selected(ChatId("a")))
-
         assertEquals("a", tabs.selected?.value)
-        assertEquals(1, built.getValue("a").focused)
     }
 
     @Test
-    fun `an event for a chat that is not open changes nothing`() {
-        tabs.sync(listOf(ref("a")))
+    fun `the host selecting a chat this window lacks asks for the full list again`() {
+        listed("a", selected = "a")
 
         tabs.event(ChatEvent.Selected(ChatId("ghost")))
-        tabs.event(ChatEvent.Closed(ChatId("ghost")))
 
-        assertEquals(listOf("a"), open())
+        assertEquals(1, resyncs)
         assertEquals("a", tabs.selected?.value)
+    }
+
+    @Test
+    fun `focus reaches only the chat on screen`() {
+        listed("a", "b", selected = "b")
+
+        tabs.focusIfSelected(ChatId("a"))
+        tabs.focusIfSelected(ChatId("b"))
+
+        assertEquals(0, built.getValue("a").focused)
+        assertEquals(1, built.getValue("b").focused)
+        assertEquals("b", tabs.selected?.value)
     }
 }

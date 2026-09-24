@@ -123,9 +123,7 @@ internal class ChatTranscriptView(
         val rows = JcefTranscriptPayload.agentRowsJson(entries, titles, running, expanded, ownerRunning)
         if (rows == lastRows) return
         if (rows.size < lastRows.size) {
-            lastRows = rows
-            exec("clear", NO_ARGS)
-            if (rows.isNotEmpty()) exec("batch", "[${rows.joinToString(",")}]")
+            resync()
             return
         }
         val changed = rows.filterIndexed { index, row -> index >= lastRows.size || lastRows[index] != row }
@@ -151,6 +149,7 @@ internal class ChatTranscriptView(
     }
 
     override fun onCleared() {
+        if (!showsChat) return resync()
         dirty.clear()
         appended.clear()
         structural = false

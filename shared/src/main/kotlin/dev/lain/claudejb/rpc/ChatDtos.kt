@@ -26,6 +26,9 @@ data class GearItem(
 @Serializable
 sealed interface ChatEvent {
     @Serializable
+    data class Listed(val chats: List<ChatRef>, val selected: ChatId?) : ChatEvent
+
+    @Serializable
     data class Opened(val chat: ChatRef, val select: Boolean) : ChatEvent
 
     @Serializable

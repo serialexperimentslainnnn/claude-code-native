@@ -54,7 +54,7 @@ internal class ChatDeck<T : Any>(
     }
 
     fun subscribe(listener: (ChatEvent) -> Unit): () -> Unit {
-        items.forEach { listener(ChatEvent.Opened(refOf(it), it === selected)) }
+        listener(ChatEvent.Listed(items.map(refOf), selected?.let(idOf)))
         listeners += listener
         return { listeners -= listener }
     }

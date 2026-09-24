@@ -24,12 +24,6 @@ interface ChatApi : RemoteApi<Unit> {
 
     suspend fun pushes(projectId: ProjectId, chatId: ChatId): Flow<PagePush>
 
-    suspend fun ready(projectId: ProjectId, chatId: ChatId)
-
-    suspend fun gear(projectId: ProjectId): List<GearItem>
-
-    suspend fun runGear(projectId: ProjectId, path: List<Int>)
-
     companion object {
         suspend fun getInstance(): ChatApi = RemoteApiProviderService.resolve(remoteApiDescriptor<ChatApi>())
     }

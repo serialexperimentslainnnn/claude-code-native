@@ -9,71 +9,57 @@ import dev.lain.claudejb.rpc.PagePush
 import fleet.rpc.client.durable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class ChatLink internal constructor(
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
     private val projectId: ProjectId,
     private val chatId: ChatId,
     private val onPush: (PagePush) -> Unit,
-    private val isWebReady: () -> Boolean,
 ) : Disposable {
 
-    private sealed interface Outgoing {
-        class Post(val json: String) : Outgoing
+    private val outgoing = Channel<String>(Channel.UNLIMITED)
 
-        data object Ready : Outgoing
-    }
+    private val sending = scope.launch { for (json in outgoing) deliver(json) }
 
-    private val outgoing = Channel<Outgoing>(Channel.UNLIMITED)
+    private val lock = Any()
 
-    private val job = scope.launch {
-        launch { send() }
-        launch { receive() }
-    }
+    private var disposed = false
+
+    private var receiving: Job = scope.launch { receive() }
 
     fun post(json: String) {
-        outgoing.trySend(Outgoing.Post(json))
+        outgoing.trySend(json)
     }
 
     fun ready() {
-        outgoing.trySend(Outgoing.Ready)
+        synchronized(lock) {
+            if (disposed) return
+            receiving.cancel()
+            receiving = scope.launch { receive() }
+        }
     }
 
     override fun dispose() {
-        outgoing.close()
-        job.cancel()
+        synchronized(lock) {
+            disposed = true
+            outgoing.close()
+            sending.cancel()
+            receiving.cancel()
+        }
     }
 
-    private suspend fun send() {
-        for (item in outgoing) deliver(item)
-    }
-
-    private suspend fun deliver(item: Outgoing) {
-        runCatching {
-            val api = ChatApi.getInstance()
-            when (item) {
-                is Outgoing.Post -> api.post(projectId, chatId, item.json)
-                Outgoing.Ready -> api.ready(projectId, chatId)
-            }
-        }.onFailure { cause ->
+    private suspend fun deliver(json: String) {
+        runCatching { ChatApi.getInstance().post(projectId, chatId, json) }.onFailure { cause ->
             if (cause !is Exception || cause is CancellationException) throw cause
             log.warn("Claude Code could not hand a chat page message to the host", cause)
         }
     }
 
     private suspend fun receive() {
-        durable {
-            val api = ChatApi.getInstance()
-            val pushes = api.pushes(projectId, chatId)
-            coroutineScope {
-                launch(start = CoroutineStart.UNDISPATCHED) { pushes.collect { onPush(it) } }
-                if (isWebReady()) api.ready(projectId, chatId)
-            }
-        }
+        durable { ChatApi.getInstance().pushes(projectId, chatId).collect { onPush(it) } }
     }
 
     private companion object {

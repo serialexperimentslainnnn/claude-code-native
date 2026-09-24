@@ -9,7 +9,6 @@ import com.intellij.openapi.components.serviceIfCreated
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.wm.ToolWindowManager
 import dev.lain.claudejb.controller.commands.TabSessionCommands
 import dev.lain.claudejb.controller.session.ChatSessionManager
 import dev.lain.claudejb.controller.session.ClaudeSession
@@ -42,6 +41,8 @@ internal class ChatRegistry(private val project: Project) : Disposable {
     val git = ChatGitRefresh(project, this) { repaint(Kind.SESSION) }
 
     val attention = ChatAttention(project, this)
+
+    val window = ChatWindowState()
 
     fun all(): List<ChatPresenter> = deck.all()
 
@@ -80,18 +81,18 @@ internal class ChatRegistry(private val project: Project) : Disposable {
 
     fun selectedOrNew(): ChatPresenter = selected() ?: newChat()
 
-    fun select(id: ChatId) {
+    fun select(id: ChatId, focus: Boolean = true) {
         val presenter = deck.select(id) ?: return LOG.warn(unknown("select", id))
-        onSelected(presenter)
+        onSelected(presenter, focus)
     }
 
-    private fun onSelected(presenter: ChatPresenter) {
+    private fun onSelected(presenter: ChatPresenter, focus: Boolean) {
         presenter.attention = false
         ChatSessionManager.getInstance(project).setActive(presenter.session)
         runCatching { presenter.transcript.showTranscript(null) }
             .onFailure { LOG.warn("Claude Code: showing '${presenter.session.title}' failed to reset its transcript", it) }
         repaint(Kind.TABS)
-        presenter.frontend.focusInput()
+        if (focus) presenter.frontend.focusInput()
     }
 
     fun reveal(presenter: ChatPresenter) {
@@ -99,19 +100,15 @@ internal class ChatRegistry(private val project: Project) : Disposable {
         showToolWindow()
     }
 
-    fun showToolWindow() {
-        toolWindow()?.activate(null)
-    }
+    fun showToolWindow() = window.reveal()
 
-    fun onScreen(presenter: ChatPresenter): Boolean = toolWindow()?.isVisible == true && deck.selected === presenter
-
-    private fun toolWindow() = ToolWindowManager.getInstance(project).getToolWindow(TOOL_WINDOW_ID)
+    fun onScreen(presenter: ChatPresenter): Boolean = window.visible && deck.selected === presenter
 
     fun close(id: ChatId) {
         val wasSelected = deck.selected?.id == id
         val presenter = deck.remove(id) ?: return LOG.warn(unknown("close", id))
         try {
-            if (wasSelected) deck.selected?.let(::onSelected)
+            if (wasSelected) deck.selected?.let { onSelected(it, focus = true) }
             repaint(Kind.TABS)
             ChatSessionManager.getInstance(project).remove(presenter.session)
         } finally {
@@ -159,8 +156,6 @@ internal class ChatRegistry(private val project: Project) : Disposable {
     }
 
     companion object {
-        const val TOOL_WINDOW_ID = "Claude Code"
-
         private const val TAB_TITLE_MAX = 22
 
         private val LOG = logger<ChatRegistry>()

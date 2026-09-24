@@ -2,6 +2,7 @@ package dev.lain.claudejb.view.window
 
 import dev.lain.claudejb.rpc.FrontendChannel
 import dev.lain.claudejb.rpc.PagePush
+import dev.lain.claudejb.util.logger
 
 internal interface PushSink {
     fun push(push: PagePush)
@@ -32,6 +33,8 @@ internal class PushStream(
         }
     }
 
+    fun hasSinks(): Boolean = synchronized(lock) { sinks.isNotEmpty() }
+
     fun attach(sink: PushSink): () -> Unit {
         val resync = synchronized(lock) {
             if (closed) {
@@ -45,15 +48,6 @@ internal class PushStream(
         }
         if (resync) onStale()
         return { synchronized(lock) { sinks -= sink } }
-    }
-
-    fun replay() {
-        val resync = synchronized(lock) {
-            if (closed) return
-            sinks.forEach { replayTo(it) }
-            stale
-        }
-        if (resync) onStale()
     }
 
     fun close() {
@@ -100,6 +94,10 @@ internal class PushStream(
     }
 
     private fun hold(push: PagePush) {
+        if (FrontendChannel.isFrontendPush(push.method) && push.method != FrontendChannel.FOCUS) {
+            LOG.warn("Claude Code dropped '${push.method}': no chat window is listening, and it must not run later")
+            return
+        }
         if (pending.size >= cap) pending.removeFirst()
         pending.addLast(push)
     }
@@ -109,12 +107,9 @@ internal class PushStream(
 
         const val DEFAULT_CAP = 4096
 
-        private val CLEAR = PagePush("clear", NO_ARGS)
+        private val LOG = logger<PushStream>()
 
-        val SNAPSHOT_METHODS: Set<String> = setOf(
-            "meta", "state", "session", "settingsMenu", "permissions", "tabs", "mcp", "guard", "log",
-            "authState", "attachments", "attachData", "gitChat", "vulnInventory", "theme", FrontendChannel.VIBE,
-        )
+        private val CLEAR = PagePush("clear", NO_ARGS)
 
         val TRANSCRIPT_METHODS: Set<String> = setOf(
             "clear",
@@ -127,7 +122,7 @@ internal class PushStream(
         )
 
         fun kindOf(method: String): Kind = when (method) {
-            in SNAPSHOT_METHODS -> Kind.SNAPSHOT
+            in FrontendChannel.SNAPSHOT_METHODS -> Kind.SNAPSHOT
             in TRANSCRIPT_METHODS -> Kind.TRANSCRIPT
             else -> Kind.TRANSIENT
         }

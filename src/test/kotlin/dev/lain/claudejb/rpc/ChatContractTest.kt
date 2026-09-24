@@ -39,6 +39,8 @@ class ChatContractTest {
     @Test
     fun `every chat event keeps its kind across the wire`() {
         val events = listOf(
+            ChatEvent.Listed(listOf(chat), chat.id),
+            ChatEvent.Listed(emptyList(), null),
             ChatEvent.Opened(chat, select = true),
             ChatEvent.Opened(chat, select = false),
             ChatEvent.Closed(chat.id),

@@ -10,6 +10,7 @@ internal class ChatTerminalHost(private val project: Project) : TerminalLauncher
 
     override fun open(workingDirectory: String?, tabName: String, command: String): Boolean {
         val chat = ChatRegistry.getInstance(project).selected() ?: return false
+        if (!chat.pushes.hasSinks()) return false
         val launch = TerminalLaunch(workingDirectory, tabName, command)
         chat.exec(FrontendChannel.TERMINAL, Json.encodeToString(TerminalLaunch.serializer(), launch))
         return true

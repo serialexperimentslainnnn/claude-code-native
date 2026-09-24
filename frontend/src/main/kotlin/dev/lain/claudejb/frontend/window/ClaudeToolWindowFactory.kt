@@ -17,9 +17,7 @@ class ClaudeToolWindowFactory : ToolWindowFactory, DumbAware {
         ApplicationManager.getApplication().executeOnPooledThread(Callable { PageAssembly.page })
         val client = project.service<ChatClient>()
         lateinit var tabs: ChatTabsPanel
-        tabs = ChatTabsPanel(client::select) { id ->
-            ChatView(id, client) { toolWindow.show { tabs.focus(id) } }
-        }
+        tabs = ChatTabsPanel(client::resync) { id -> ChatView(id, client) { tabs.focusIfSelected(id) } }
         val content = ContentFactory.getInstance().createContent(tabs, "", false)
         content.isCloseable = false
         content.setPreferredFocusedComponent { tabs.focusTarget() }

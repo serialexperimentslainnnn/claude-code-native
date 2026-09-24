@@ -1,6 +1,9 @@
 package dev.lain.claudejb.controller.commands
 
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -16,6 +19,7 @@ import dev.lain.claudejb.model.session.history.SessionTranscriptReader
 import dev.lain.claudejb.model.session.transcript.EntryDTO
 import dev.lain.claudejb.model.session.transcript.SessionRef
 import dev.lain.claudejb.model.settings.ClaudeSettings
+import dev.lain.claudejb.util.PluginIdentity
 import dev.lain.claudejb.util.edt
 import dev.lain.claudejb.view.window.ChatRegistry
 import javax.swing.JList
@@ -108,21 +112,23 @@ internal class TabSessionCommands(
     fun openPreviousSession() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val refs = SessionListing.list(project)
-            edt {
-                if (refs.isEmpty()) {
-                    Messages.showInfoMessage(project, "No previous sessions have been saved yet.", "Claude Code")
-                    return@edt
-                }
-                JBPopupFactory.getInstance()
-                    .createPopupChooserBuilder(refs)
-                    .setTitle("Open Previous Session")
-                    .setRenderer(SessionRefRenderer())
-                    .setItemChosenCallback(::reopen)
-                    .setRequestFocus(true)
-                    .createPopup()
-                    .showCenteredInCurrentWindow(project)
-            }
+            ApplicationManager.getApplication().invokeLater({ if (!project.isDisposed) choosePrevious(refs) }, ModalityState.nonModal())
         }
+    }
+
+    private fun choosePrevious(refs: List<SessionRef>) {
+        if (refs.isEmpty()) {
+            Messages.showInfoMessage(project, "No previous sessions have been saved yet.", "Claude Code")
+            return
+        }
+        JBPopupFactory.getInstance()
+            .createPopupChooserBuilder(refs)
+            .setTitle("Open Previous Session")
+            .setRenderer(SessionRefRenderer())
+            .setItemChosenCallback(::reopen)
+            .setRequestFocus(true)
+            .createPopup()
+            .showCenteredInCurrentWindow(project)
     }
 
     fun reopen(ref: SessionRef) {
@@ -145,9 +151,15 @@ internal class TabSessionCommands(
 
     private fun revealOpened(sessionId: String): Boolean {
         val tab = opened(sessionId) ?: return false
+        if (registry.selected() === tab) alreadyOpen(tab.session.title)
         registry.reveal(tab)
         return true
     }
+
+    private fun alreadyOpen(title: String) =
+        NotificationGroupManager.getInstance().getNotificationGroup(PluginIdentity.NOTIFICATION_GROUP)
+            .createNotification("\"$title\" is already open in the chat on screen.", NotificationType.INFORMATION)
+            .notify(project)
 
     private fun opened(sessionId: String) =
         registry.all().firstOrNull { it.session.sessionId == sessionId && !it.session.launch.fork }

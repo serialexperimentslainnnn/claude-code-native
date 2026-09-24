@@ -36,7 +36,7 @@ internal class ChatPresenter(
     val registry: ChatRegistry,
 ) : Disposable, SessionListener {
 
-    val pushes = PushStream { edt(project) { transcript.resync() } }
+    val pushes: PushStream = PushStream { edt(project) { transcript.resync() } }
 
     val router = ChatBridgeRouter(this)
 
@@ -96,7 +96,7 @@ internal class ChatPresenter(
 
     fun ref(): ChatRef = ChatRef(id, session.title)
 
-    fun emit(push: PagePush) = pushes.emit(push)
+    fun emit(push: PagePush): Unit = pushes.emit(push)
 
     fun exec(method: String, json: String) = emit(PagePush(method, json))
 
@@ -108,8 +108,6 @@ internal class ChatPresenter(
             exec(method, payload)
         }
     }
-
-    fun replay() = pushes.replay()
 
     fun refreshPage() {
         feed.requestMcp()

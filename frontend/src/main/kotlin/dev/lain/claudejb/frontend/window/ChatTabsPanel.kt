@@ -1,6 +1,7 @@
 package dev.lain.claudejb.frontend.window
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
@@ -15,7 +16,7 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 
 internal class ChatTabsPanel(
-    private val onSelect: (ChatId) -> Unit,
+    private val onDesync: () -> Unit,
     private val newCard: (ChatId) -> ChatCard,
 ) : JBPanel<ChatTabsPanel>(BorderLayout()), Disposable, ChatListener {
 
@@ -27,6 +28,8 @@ internal class ChatTabsPanel(
 
     var selected: ChatId? = null
         private set
+
+    private var awaited: ChatId? = null
 
     init {
         add(deck, BorderLayout.CENTER)
@@ -43,35 +46,39 @@ internal class ChatTabsPanel(
         repaint()
     }
 
-    override fun sync(chats: List<ChatRef>) {
-        val listed = chats.mapTo(HashSet()) { it.id }
-        open.keys.filterNot { it in listed }.forEach(::remove)
-        chats.forEach { add(it.id) }
-        if (selected == null) chats.lastOrNull()?.let { if (show(it.id, focus = false)) onSelect(it.id) }
-    }
-
     override fun event(event: ChatEvent) {
         when (event) {
+            is ChatEvent.Listed -> listed(event.chats, event.selected)
             is ChatEvent.Opened -> opened(event.chat.id, event.select)
             is ChatEvent.Closed -> remove(event.id)
-            is ChatEvent.Selected -> show(event.id, focus = true)
+            is ChatEvent.Selected -> selectedByHost(event.id)
             is ChatEvent.Renamed -> Unit
         }
     }
 
-    fun select(id: ChatId) {
-        if (show(id, focus = true)) onSelect(id)
+    fun focusIfSelected(id: ChatId) {
+        if (selected == id) open[id]?.focus()
     }
 
-    fun focus(id: ChatId) {
-        show(id, focus = true)
+    private fun selectedByHost(id: ChatId) {
+        awaited = null
+        if (!show(id, focus = true)) desync(id)
+    }
+
+    private fun listed(chats: List<ChatRef>, shown: ChatId?) {
+        awaited = null
+        val listed = chats.mapTo(HashSet()) { it.id }
+        open.keys.filterNot { it in listed }.forEach(::remove)
+        chats.forEach { add(it.id) }
+        (shown ?: chats.lastOrNull()?.id)?.let { show(it, focus = false) }
     }
 
     private fun opened(id: ChatId, select: Boolean) {
         add(id)
+        if (select) awaited = id
         when {
             selected == null -> show(id, focus = select)
-            select -> open[id]?.whenReady { if (open.keys.lastOrNull() == id) show(id, focus = true) }
+            select -> open[id]?.whenReady { if (awaited == id) show(id, focus = true) }
         }
     }
 
@@ -95,10 +102,7 @@ internal class ChatTabsPanel(
 
     private fun remove(id: ChatId) {
         val card = open.remove(id) ?: return
-        if (selected == id) {
-            selected = null
-            open.keys.lastOrNull()?.let(::select)
-        }
+        if (selected == id) selected = null
         card.component.isVisible = false
         deck.remove(card.component)
         Disposer.dispose(card)
@@ -106,9 +110,16 @@ internal class ChatTabsPanel(
         deck.repaint()
     }
 
+    private fun desync(id: ChatId) {
+        log.warn("Claude Code host selected chat '${id.value}', which this window does not have; asking for the full list again")
+        onDesync()
+    }
+
     override fun dispose() = Unit
 
     private companion object {
+        private val log = logger<ChatTabsPanel>()
+
         const val UNAVAILABLE =
             "<html>The Claude Code chat runs on the host IDE. Install and enable the Claude Code plugin there " +
                 "to use it from this client.</html>"

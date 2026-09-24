@@ -8,18 +8,21 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.wm.ToolWindowManager
+import com.intellij.openapi.wm.ex.ToolWindowManagerListener
 import com.intellij.platform.project.projectId
 import dev.lain.claudejb.rpc.ChatApi
+import dev.lain.claudejb.rpc.ChatEvent
 import dev.lain.claudejb.rpc.ChatId
 import dev.lain.claudejb.rpc.GearItem
+import dev.lain.claudejb.rpc.HostWindowApi
 import dev.lain.claudejb.rpc.PagePush
 import fleet.rpc.client.durable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -28,19 +31,29 @@ import kotlin.time.Duration.Companion.seconds
 @Service(Service.Level.PROJECT)
 class ChatClient(val project: Project, private val scope: CoroutineScope) {
 
+    private var listener: ChatListener? = null
+
+    private var following: Job? = null
+
     fun connect(parent: Disposable, listener: ChatListener) {
-        val job = scope.launch {
-            if (reachable()) follow(listener) else onEdt { listener.unavailable() }
+        this.listener = listener
+        following = scope.launch { if (reachable()) follow(listener) else onEdt { listener.unavailable() } }
+        Disposer.register(parent) {
+            following?.cancel()
+            this.listener = null
         }
-        Disposer.register(parent) { job.cancel() }
     }
 
-    fun select(chatId: ChatId) {
+    fun resync() {
+        val current = listener ?: return
+        following?.cancel()
+        following = scope.launch { follow(current) }
+    }
+
+    fun watchWindow() {
+        project.messageBus.connect(scope).subscribe(ToolWindowManagerListener.TOPIC, ChatWindowVisibility(::reportVisible))
         scope.launch {
-            runCatching { ChatApi.getInstance().select(project.projectId(), chatId) }.onFailure { cause ->
-                if (cause !is Exception || cause is CancellationException) throw cause
-                log.warn("Claude Code could not tell the host which chat is on screen", cause)
-            }
+            durable { HostWindowApi.getInstance().reveals(project.projectId()).collect { onEdt(::revealWindow) } }
         }
     }
 
@@ -51,28 +64,36 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
         }
     }
 
-    fun runGear(path: List<Int>) {
+    fun runGear(path: List<Int>) = tell("Claude Code could not run the host's menu entry") {
+        HostWindowApi.getInstance().runGear(project.projectId(), path)
+    }
+
+    fun link(chatId: ChatId, parent: Disposable, onPush: (PagePush) -> Unit): ChatLink =
+        ChatLink(scope, project.projectId(), chatId, onPush).also { Disposer.register(parent, it) }
+
+    private fun reportVisible(visible: Boolean) = tell("Claude Code could not tell the host whether its window is visible") {
+        HostWindowApi.getInstance().windowVisible(project.projectId(), visible)
+    }
+
+    private fun revealWindow() {
+        ToolWindowManager.getInstance(project).getToolWindow(ChatWindowVisibility.TOOL_WINDOW_ID)?.activate(null)
+    }
+
+    private fun tell(failure: String, call: suspend () -> Unit) {
         scope.launch {
-            runCatching { ChatApi.getInstance().runGear(project.projectId(), path) }.onFailure { cause ->
+            runCatching { call() }.onFailure { cause ->
                 if (cause !is Exception || cause is CancellationException) throw cause
-                log.warn("Claude Code could not run the host's menu entry", cause)
+                log.warn(failure, cause)
             }
         }
     }
 
-    fun link(
-        chatId: ChatId,
-        parent: Disposable,
-        onPush: (PagePush) -> Unit,
-        isWebReady: () -> Boolean,
-    ): ChatLink = ChatLink(scope, project.projectId(), chatId, onPush, isWebReady).also { Disposer.register(parent, it) }
-
     private suspend fun reachable(): Boolean =
-        runCatching { withTimeout(CONNECT_TIMEOUT_MS) { ChatApi.getInstance().chats(project.projectId()) } }
+        runCatching { withTimeout(CONNECT_TIMEOUT) { ChatApi.getInstance().chats(project.projectId()) } }
             .map { true }
             .getOrElse { cause ->
                 when (cause) {
-                    is TimeoutCancellationException -> log.warn("Claude Code chat host did not answer within ${CONNECT_TIMEOUT_MS}ms")
+                    is TimeoutCancellationException -> log.warn("Claude Code chat host did not answer within $CONNECT_TIMEOUT")
                     !is Exception, is CancellationException -> throw cause
                     else -> log.warn("Claude Code chat host is not reachable from this client", cause)
                 }
@@ -80,7 +101,7 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
             }
 
     private suspend fun fetchGear(): List<GearItem> =
-        runCatching { withTimeout(GEAR_TIMEOUT) { ChatApi.getInstance().gear(project.projectId()) } }
+        runCatching { withTimeout(GEAR_TIMEOUT) { HostWindowApi.getInstance().gear(project.projectId()) } }
             .getOrElse { cause ->
                 when (cause) {
                     is TimeoutCancellationException -> log.warn("Claude Code chat host did not list its menu within $GEAR_TIMEOUT")
@@ -93,15 +114,14 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
     private suspend fun follow(listener: ChatListener) {
         val projectId = project.projectId()
         durable {
-            val api = ChatApi.getInstance()
-            val events = api.events(projectId)
-            coroutineScope {
-                launch(start = CoroutineStart.UNDISPATCHED) {
-                    events.collect { event -> onEdt { listener.event(event) } }
-                }
-                val chats = api.chats(projectId).ifEmpty { listOf(api.newChat(projectId)) }
-                onEdt { listener.sync(chats) }
-            }
+            ChatApi.getInstance().events(projectId).collect { event -> onEdt { deliver(listener, event) } }
+        }
+    }
+
+    private fun deliver(listener: ChatListener, event: ChatEvent) {
+        runCatching { listener.event(event) }.onFailure { cause ->
+            if (cause !is Exception || cause is CancellationException) throw cause
+            log.error("Claude Code could not apply a chat event to this window: $event", cause)
         }
     }
 
@@ -111,7 +131,7 @@ class ChatClient(val project: Project, private val scope: CoroutineScope) {
     private companion object {
         private val log = logger<ChatClient>()
 
-        private const val CONNECT_TIMEOUT_MS = 30_000L
+        private val CONNECT_TIMEOUT = 30.seconds
 
         private val GEAR_TIMEOUT = 10.seconds
     }

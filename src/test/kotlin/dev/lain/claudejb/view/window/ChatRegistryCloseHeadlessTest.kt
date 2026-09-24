@@ -1,5 +1,6 @@
 package dev.lain.claudejb.view.window
 
+import com.intellij.testFramework.PlatformTestUtil
 import dev.lain.claudejb.integration.FakeClaudeTestBase
 import dev.lain.claudejb.model.session.transcript.SessionRef
 
@@ -15,6 +16,7 @@ class ChatRegistryCloseHeadlessTest : FakeClaudeTestBase() {
     override fun tearDown() {
         try {
             registry.all().map { it.id }.forEach(registry::close)
+            PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
         } finally {
             super.tearDown()
         }

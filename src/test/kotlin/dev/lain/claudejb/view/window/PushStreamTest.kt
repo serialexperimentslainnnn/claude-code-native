@@ -3,6 +3,7 @@ package dev.lain.claudejb.view.window
 import dev.lain.claudejb.rpc.FrontendChannel
 import dev.lain.claudejb.rpc.PagePush
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -71,29 +72,63 @@ class PushStreamTest {
     }
 
     @Test
-    fun `a one-shot command sent while a page listens is never replayed`() {
+    fun `a side effect sent while no window listens is dropped instead of running later`() {
         val stream = stream()
+        listOf(FrontendChannel.COPY, FrontendChannel.BROWSE, FrontendChannel.TERMINAL, FrontendChannel.ACTION).forEach {
+            stream.emit(PagePush(it, "\"x\""))
+        }
+        stream.emit(PagePush("openDashboard", PushStream.NO_ARGS))
+
         val sink = Recorder()
         stream.attach(sink)
-        stream.emit(PagePush(FrontendChannel.COPY, "\"text\""))
-        sink.pushes.clear()
 
-        stream.replay()
-
-        assertTrue(FrontendChannel.COPY !in sink.methods())
+        assertEquals(listOf("clear", "openDashboard"), sink.methods())
     }
 
     @Test
-    fun `ready replays to every collector already attached`() {
+    fun `a one-shot command sent while a page listens is never replayed to the page that attaches again`() {
         val stream = stream()
-        val sink = Recorder()
-        stream.attach(sink)
+        val detach = stream.attach(Recorder())
+        stream.emit(PagePush(FrontendChannel.COPY, "\"text\""))
         stream.emit(PagePush("session", "{}"))
-        sink.pushes.clear()
+        detach()
 
-        stream.replay()
+        val again = Recorder()
+        stream.attach(again)
 
-        assertEquals(listOf("session", "clear"), sink.methods())
+        assertEquals(listOf("session", "clear"), again.methods())
+    }
+
+    @Test
+    fun `a page that attaches again gets the replay and the others do not`() {
+        val stream = stream()
+        val other = Recorder()
+        stream.attach(other)
+        val detach = stream.attach(Recorder())
+        stream.emit(PagePush("session", "{}"))
+        other.pushes.clear()
+        detach()
+
+        stream.attach(Recorder())
+
+        assertTrue(other.pushes.isEmpty())
+    }
+
+    @Test
+    fun `the stream knows whether any window listens`() {
+        val stream = stream()
+        assertFalse(stream.hasSinks())
+
+        val detach = stream.attach(Recorder())
+        assertTrue(stream.hasSinks())
+
+        detach()
+        assertFalse(stream.hasSinks())
+    }
+
+    @Test
+    fun `the host keeps every method the client keys as a snapshot`() {
+        FrontendChannel.SNAPSHOT_METHODS.forEach { assertEquals(PushStream.Kind.SNAPSHOT, PushStream.kindOf(it), it) }
     }
 
     @Test

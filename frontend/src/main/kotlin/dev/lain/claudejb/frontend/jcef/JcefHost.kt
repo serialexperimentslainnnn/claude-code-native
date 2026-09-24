@@ -10,6 +10,7 @@ import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefBrowserBase
 import com.intellij.ui.jcef.JBCefJSQuery
 import com.intellij.util.Alarm
+import dev.lain.claudejb.rpc.FrontendChannel
 import javax.swing.JComponent
 import javax.swing.border.EmptyBorder
 
@@ -105,7 +106,7 @@ class JcefHost(
             log.warn("Claude Code chat page was asked to run a method that is not a name: $method")
             return
         }
-        exec("window.cc.$method && window.cc.$method($json)", method.takeIf { it in SNAPSHOT_METHODS })
+        exec("window.cc.$method && window.cc.$method($json)", method.takeIf { it in FrontendChannel.SNAPSHOT_METHODS })
     }
 
     fun exec(js: String, snapshotKey: String? = null) {
@@ -211,7 +212,5 @@ class JcefHost(
         private const val WEB_READY_TIMEOUT_MS = 5_000L
 
         private val METHOD_NAME = Regex("[A-Za-z_$][A-Za-z0-9_$]*")
-
-        private val SNAPSHOT_METHODS = setOf("session", "meta", "state", "settingsMenu", "theme", "permissions", "tabs")
     }
 }
