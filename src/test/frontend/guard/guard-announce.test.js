@@ -96,7 +96,9 @@ describe('a guard filter menu never outlives its card', () => {
   it('closes an open menu when the host repaints the view', async () => {
     const win = open();
     win.cc.guard(PAYLOAD());
-    win.document.querySelector('.guard-filter-trigger').dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
+    win.document
+      .querySelector('.guard-filter-trigger')
+      .dispatchEvent(new win.MouseEvent('click', { bubbles: true }));
     const first = openMenus(win)[0];
 
     win.cc.guard(PAYLOAD());

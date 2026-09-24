@@ -42,7 +42,12 @@
     }
     const input = el('input', {
       class: 'find-input',
-      attrs: { type: 'text', placeholder: 'Find…', spellcheck: 'false', 'aria-label': 'Find in conversation' },
+      attrs: {
+        type: 'text',
+        placeholder: 'Find…',
+        spellcheck: 'false',
+        'aria-label': 'Find in conversation',
+      },
     }) as HTMLInputElement;
     findInput = input;
     findCount = el('span', { class: 'find-count', attrs: { 'aria-live': 'polite' } });

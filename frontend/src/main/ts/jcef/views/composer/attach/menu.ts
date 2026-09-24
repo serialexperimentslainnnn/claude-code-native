@@ -182,7 +182,9 @@
     const menu = AT.menuEl();
     if (!menu || e.isComposing) return;
     const search = menu.querySelector<HTMLElement>('.attach-search');
-    const items = Array.prototype.slice.call(menu.querySelectorAll('.attach-list .menu-item')) as HTMLElement[];
+    const items = Array.prototype.slice.call(
+      menu.querySelectorAll('.attach-list .menu-item')
+    ) as HTMLElement[];
     const at = items.indexOf(document.activeElement as HTMLElement);
     let next: HTMLElement | null | undefined = null;
     if (e.key === 'ArrowDown') next = at < 0 ? items[0] : items[Math.min(at + 1, items.length - 1)];

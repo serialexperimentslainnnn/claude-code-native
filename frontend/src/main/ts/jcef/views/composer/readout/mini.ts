@@ -113,7 +113,15 @@
     if (!m) return;
     const s = sessionPayload() || {};
     const account = s.account || {};
-    const key = JSON.stringify([s.model, s.cwd, s.home, account.email, account.org, account.plan, account.provider]);
+    const key = JSON.stringify([
+      s.model,
+      s.cwd,
+      s.home,
+      account.email,
+      account.org,
+      account.plan,
+      account.provider,
+    ]);
     if (key === miniKey && m.grid.firstChild) return;
     miniKey = key;
     clearMini();

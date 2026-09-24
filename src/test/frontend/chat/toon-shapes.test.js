@@ -28,7 +28,9 @@ describe('the search_text shape: files with their matching lines', () => {
 
   it('a read opens where its range starts, and its line count is never taken for a line', () => {
     const out = draw({ items: [{ path: 'src/C.kt', lines: 40, from: 12, to: 51, text: 'a\nb' }] });
-    expect(out.querySelector('summary a.jb-link').getAttribute('href')).toBe('jb://open?file=src%2FC.kt&line=12');
+    expect(out.querySelector('summary a.jb-link').getAttribute('href')).toBe(
+      'jb://open?file=src%2FC.kt&line=12'
+    );
     const top = draw({ items: [{ path: 'src/D.kt', lines: 2, from: 1, to: 2, text: 'a\nb' }] });
     expect(top.querySelector('summary a.jb-link').getAttribute('href')).toBe('jb://open?file=src%2FD.kt');
   });

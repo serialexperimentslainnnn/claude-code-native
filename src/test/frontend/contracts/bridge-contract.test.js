@@ -8,7 +8,8 @@ const KOTLIN_ROOTS = [
   path.resolve(__dirname, '../../../../frontend/src/main/kotlin'),
 ];
 
-const BRIDGE_CALL = /window\.cc\.([A-Za-z_$][A-Za-z0-9_$]*)|\b(?:exec|PagePush)\(\s*"([A-Za-z_$][A-Za-z0-9_$]*)"\s*,/g;
+const BRIDGE_CALL =
+  /window\.cc\.([A-Za-z_$][A-Za-z0-9_$]*)|\b(?:exec|PagePush)\(\s*"([A-Za-z_$][A-Za-z0-9_$]*)"\s*,/g;
 
 const NO_OP = /^function\s*[A-Za-z0-9_$]*\s*\(\s*\)\s*\{\s*\}$/;
 
@@ -91,13 +92,17 @@ describe('Kotlin↔JS bridge — every host call reaches a real implementation',
   });
 
   it('skips a Kotlin string template, which names no method', () => {
-    const calls = scanCalls([{ file: 'Host.kt', text: 'exec("window.cc.$method && window.cc.$method($json)")' }]);
+    const calls = scanCalls([
+      { file: 'Host.kt', text: 'exec("window.cc.$method && window.cc.$method($json)")' },
+    ]);
 
     expect([...calls.keys()]).toEqual([]);
   });
 
   it('reads a push by method name with strict JSON as a call too', () => {
-    const calls = scanCalls([{ file: 'Push.kt', text: 'exec("append", json)\nemit(PagePush("setGitSubView", x))' }]);
+    const calls = scanCalls([
+      { file: 'Push.kt', text: 'exec("append", json)\nemit(PagePush("setGitSubView", x))' },
+    ]);
 
     expect([...calls.keys()]).toEqual(['append', 'setGitSubView']);
   });

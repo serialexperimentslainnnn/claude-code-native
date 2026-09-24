@@ -116,7 +116,10 @@
     const holder = document.createElement('div');
     holder.hidden = true;
     holder.innerHTML = CC.nyanSvg()
-      .replace('<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">', '<svg><symbol id="cc-nyan" viewBox="0 0 24 24" fill="none">')
+      .replace(
+        '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true">',
+        '<svg><symbol id="cc-nyan" viewBox="0 0 24 24" fill="none">'
+      )
       .replace(/<\/svg>$/, '</symbol></svg>');
     document.body.appendChild(holder);
   }

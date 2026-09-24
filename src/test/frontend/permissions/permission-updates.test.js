@@ -19,7 +19,9 @@ describe('a permission card updated in place', () => {
     win.cc.permissions([bash({ guard: { rule: 'CREDENTIALS', label: 'Block credential files' } })]);
 
     expect(region.querySelectorAll('[data-card-id="r1"]').length).toBe(1);
-    expect(region.querySelector('.perm-guard .perm-guard-rule').textContent).toContain('Block credential files');
+    expect(region.querySelector('.perm-guard .perm-guard-rule').textContent).toContain(
+      'Block credential files'
+    );
   });
 
   it('shows a blocked path and a decision reason that arrive later', () => {
@@ -92,7 +94,8 @@ describe('a permission card takes one resolution', () => {
     const sent = [];
     win.CC.send = (m) => sent.push(m);
     win.cc.permissions([bash()]);
-    const byText = (t) => [...win.CC.els.permissions.querySelectorAll('button')].find((b) => b.textContent === t);
+    const byText = (t) =>
+      [...win.CC.els.permissions.querySelectorAll('button')].find((b) => b.textContent === t);
 
     byText('Reject').click();
     byText('Always allow').click();

@@ -139,7 +139,10 @@
       );
     } else if (tool) {
       actions.push(
-        decision({ class: 'btn ghost perm-always', text: 'Always allow' }, { type: 'alwaysAllow', tool: tool, id: id })
+        decision(
+          { class: 'btn ghost perm-always', text: 'Always allow' },
+          { type: 'alwaysAllow', tool: tool, id: id }
+        )
       );
     }
 

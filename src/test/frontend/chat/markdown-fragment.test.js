@@ -81,6 +81,9 @@ describe('code highlighting', () => {
   it('splits highlighted markup into balanced lines', () => {
     const win = loadFrontend(['app-transcript.js']);
     const lines = win.CC.highlightLines('<span class="hljs-comment">/* a\nb */</span> x');
-    expect(lines).toEqual(['<span class="hljs-comment">/* a</span>', '<span class="hljs-comment">b */</span> x']);
+    expect(lines).toEqual([
+      '<span class="hljs-comment">/* a</span>',
+      '<span class="hljs-comment">b */</span> x',
+    ]);
   });
 });

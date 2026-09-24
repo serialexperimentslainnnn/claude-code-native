@@ -15,7 +15,9 @@ describe('a settings row the host has not confirmed yet', () => {
     );
     entry.click();
     const row = () =>
-      Array.from(win.document.querySelectorAll('.settings-item')).find((r) => r.textContent === 'Sandbox commands');
+      Array.from(win.document.querySelectorAll('.settings-item')).find(
+        (r) => r.textContent === 'Sandbox commands'
+      );
     row().click();
     expect(row().classList.contains('pending')).toBe(true);
     expect(row().getAttribute('aria-busy')).toBe('true');

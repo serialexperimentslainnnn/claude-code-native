@@ -58,11 +58,7 @@
         { class: 'q-block' },
         q && q.header ? h('div', { class: 'q-header', text: String(q.header) }) : null,
         h('div', { class: 'q-question', text: qText, attrs: { id: questionId } }),
-        h(
-          'div',
-          { class: 'q-options', attrs: { role: 'group', 'aria-labelledby': questionId } },
-          optionEls
-        )
+        h('div', { class: 'q-options', attrs: { role: 'group', 'aria-labelledby': questionId } }, optionEls)
       );
     });
 
