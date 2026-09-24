@@ -5,6 +5,8 @@ import com.intellij.analysis.problemsView.ProblemsCollector
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewTab
 import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.wm.ToolWindow
+import com.intellij.ui.content.Content
 
 internal class PluginProblemsView(private val project: Project) : ProblemsViewAccess {
 
@@ -21,7 +23,7 @@ internal class PluginProblemsView(private val project: Project) : ProblemsViewAc
     }
 
     override fun tabs(): List<ProblemsViewAccess.Tab>? {
-        val window = ProblemsViewToolWindowUtils.getToolWindow(project) ?: return null
+        val window = window() ?: return null
         return window.contentManager.contents.mapNotNull { content ->
             val tab = content.component as? ProblemsViewTab ?: return@mapNotNull null
             ProblemsViewAccess.Tab(tab.getTabId(), content.displayName ?: tab.getName(0))
@@ -29,4 +31,8 @@ internal class PluginProblemsView(private val project: Project) : ProblemsViewAc
     }
 
     override fun selectedTab(): String? = ProblemsViewToolWindowUtils.getSelectedTab(project)?.getTabId()
+
+    override fun window(): ToolWindow? = ProblemsViewToolWindowUtils.getToolWindow(project)
+
+    override fun content(tabId: String): Content? = ProblemsViewToolWindowUtils.getContentById(project, tabId)
 }

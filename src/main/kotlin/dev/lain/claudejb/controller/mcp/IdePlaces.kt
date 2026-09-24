@@ -1,6 +1,5 @@
 package dev.lain.claudejb.controller.mcp
 
-import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
 import com.intellij.build.BuildContentManager
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.ui.RunContentManager
@@ -12,6 +11,7 @@ import com.intellij.openapi.vcs.changes.actions.diff.ShowDiffAction
 import com.intellij.openapi.wm.ToolWindowId
 import com.intellij.openapi.wm.ToolWindowManager
 import dev.lain.claudejb.controller.git.GitLogNavigator
+import dev.lain.claudejb.controller.mcp.tools.code.ProblemsViewAccess
 import dev.lain.claudejb.model.diff.DiffPresenter
 import java.nio.file.Path
 
@@ -64,8 +64,10 @@ internal class IdePlaces(private val project: Project) {
     }
 
     private fun problems(tab: String): Boolean {
-        val window = ProblemsViewToolWindowUtils.getToolWindow(project) ?: return false
-        if (tab.isEmpty()) window.activate(null, true) else ProblemsViewToolWindowUtils.selectTab(project, tab)
+        val view = ProblemsViewAccess.of(project) ?: return false
+        val window = view.window() ?: return false
+        val content = if (tab.isEmpty()) null else view.content(tab) ?: return false
+        window.activate({ if (content != null) window.contentManager.setSelectedContent(content, true) }, true)
         return true
     }
 
