@@ -8,6 +8,7 @@ import dev.lain.claudejb.view.git.JcefGitData
 import dev.lain.claudejb.view.payload.JcefVulnData
 import dev.lain.claudejb.view.payload.composer.JcefModelLabels
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -29,6 +30,7 @@ object JcefSessionData {
         plan: dev.lain.claudejb.controller.session.control.PlanInfo? = null,
         git: JcefGitData.Snapshot? = null,
         vuln: VulnSnapshot? = null,
+        account: JsonObject? = null,
     ): String {
         val shown = JcefWorkloadData.visible(session, windowMinutes, nowMillis)
         val obj = buildJsonObject {
@@ -38,7 +40,7 @@ object JcefSessionData {
             put("vuln", JcefVulnData.vulnJson(vuln) ?: JsonNull)
             put("context", JcefCostData.contextJson(session) ?: JsonNull)
             put("cost", JcefCostData.costJson(session) ?: JsonNull)
-            put("account", JcefAccountData.accountJson(session) ?: JsonNull)
+            put("account", account ?: JsonNull)
             put("backgroundTasks", JcefWorkloadData.backgroundTasksJson(session, shown))
             put("agentTree", JcefWorkloadData.agentTreeJson(session, shown))
             put("workloads", JcefWorkloadData.workloadsJson(workloads, windowMinutes, nowMillis))
