@@ -22,6 +22,7 @@ object SensitiveGuard {
         val wslHost: Boolean = false,
         val caseInsensitivePaths: Boolean = false,
         val projectRoot: String? = null,
+        val scratchRoot: String? = null,
         val pathResolver: ((String) -> String?)? = null,
         val pathProbe: ((String) -> PathPresence?)? = null,
         val envValues: Map<String, String> = emptyMap(),
