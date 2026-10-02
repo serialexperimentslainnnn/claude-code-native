@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [6.5.0] — 2026-09-24
+## [6.5.0] — 2026-10-02
 
 **The chat works in Remote Development.** The plugin is split into a frontend, drawn where the UI runs, and a
 backend, beside the project, joined by the platform's RPC. **This release needs IntelliJ Platform 2026.2

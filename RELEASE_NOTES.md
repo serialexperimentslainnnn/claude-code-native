@@ -1,4 +1,4 @@
-## v6.5.0 — 2026-09-24
+## v6.5.0 — 2026-10-02
 
 **The chat works in Remote Development.** Until now, in a remote setup the plugin loaded only on the host, where
 the chat page cannot be drawn. The plugin is now split in two: the tool window and the embedded browser run
