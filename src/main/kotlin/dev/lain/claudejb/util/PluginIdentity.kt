@@ -10,7 +10,7 @@ object PluginIdentity {
 
     const val MARKETPLACE_ID = 31965
 
-    private const val PROJECT_URL = "https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains"
+    private const val PROJECT_URL = "https://github.com/serialexperimentslainnnn/claude-code-native"
 
     const val USER_AGENT = "ClaudeCodeNative/$PLUGIN_VERSION (+$PROJECT_URL)"
 }
