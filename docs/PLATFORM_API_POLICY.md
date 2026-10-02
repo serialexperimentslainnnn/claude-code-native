@@ -6,7 +6,9 @@ Two things enforce it. The compiler, because warnings are errors and a deprecate
 experimental one does not, so the rule needs no list. And a contract test, because an internal API produces
 no warning at all — the compiler cannot see the difference.
 
-Everything below was read from the platform source at `idea/253.29346.138`. The verification method matters:
+Everything below was read from the platform source of a build in the range it was written for:
+`idea/253.29346.138` for the original table, `idea/262.8665.258` and `pycharm/263.5153.49` for what the
+2026.2 floor added (the entries marked *since 261, 262 or 263*). The verification method matters:
 fetch the file contents through the forge API and decode them. **A summarising fetch is not acceptable for
 code**, because it loses signatures, and an approximate signature is indistinguishable from an invented one.
 
@@ -96,3 +98,13 @@ utilities all live in implementation modules even though they are not annotated.
 - Pattern matching is a predicate for extension points, not a way to find elements, and its own javadoc asks
   that it not be overused.
 - Language server integration is not in Community at all, so a domain built on it would not start.
+- **The Problems view moved out of the core in 263.** In 262 its collector and tool window utilities are in
+  the language implementation; in 263 they belong to the `intellij.problemView.plugin` plugin, whose content
+  modules a plugin must declare to see them. A plugin reaches both through one interface: the core
+  implementation where the classes load, an optional content module's otherwise.
+- **The problems collector stores what it is handed, not what is broadcast.** Producers call its
+  problem-appeared directly; the problems listener topic is where it notifies the view afterwards, so a
+  problem published only on the topic is stored by nobody.
+- **The scratch service's create-new-always numbers a name ignoring its extension**: a `.py` scratch becomes
+  `_1` because a `.kt` of the same stem exists. Create-if-missing keeps the exact name, except for names
+  starting with `buffer`, which it matches ignoring the extension and renames.

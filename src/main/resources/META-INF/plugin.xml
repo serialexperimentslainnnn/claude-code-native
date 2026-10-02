@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>dev.lain.claude-code-for-jetbrains</id>
     <name>Claude Code Native</name>
-    <vendor url="https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains">lain</vendor>
+    <vendor url="https://github.com/serialexperimentslainnnn/claude-code-native">lain</vendor>
 
     <description><![CDATA[
         <p>Claude Code in your IDE, with a real GUI — an AI coding agent for JetBrains, not a terminal
@@ -78,7 +78,8 @@
             <li>File paths, directories and symbols in Claude's replies become clickable links — but only
                 after the IDE confirms them, so a link is never dead</li>
             <li>Syntax highlighting for diffs and file output, in your IDE's own colours</li>
-            <li>Executed shell commands render as their own copyable code block</li>
+            <li>Executed shell commands render as their own copyable code block, apart from the call's other
+                arguments</li>
         </ul>
 
         <h3>Sessions, usage and MCP</h3>
@@ -90,9 +91,27 @@
                 each one its own transcript instead of interleaving them all into the chat</li>
             <li>Session dashboard: context breakdown, token usage and cost, your plan's usage limits with their
                 reset times, account, and a Workloads view of every agent and background task</li>
-            <li>Optional MCP support — let Claude query the IDE through JetBrains' MCP server, or register
-                your own MCP servers</li>
+            <li>Register your own MCP servers alongside the plugin's</li>
         </ul>
+
+        <h3>The IDE as Claude's toolbox</h3>
+        <ul>
+            <li>Four MCP servers of the plugin's own — <code>code</code>, <code>run</code>, <code>vcs</code>,
+                <code>ops</code> — hand Claude the IDE: the index, the refactorings, run configurations, tests and
+                the debugger, Git and GitHub through the IDE's account, the Services panel, any registered action</li>
+            <li>Everything Claude opens is shown in the IDE without taking your focus, and every call passes the
+                security layer first</li>
+            <li>One call carries a whole list and answers in compact tables, so a session spends fewer tokens
+                than with the native tools it replaces</li>
+        </ul>
+
+        <h2>Get the most out of it</h2>
+        <p>Install <a href="https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings">Claude
+        Code Native — Skills and Settings</a> into <code>~/.claude</code>. The plugin gives Claude the IDE's
+        tools; that configuration tells Claude how to use them and keeps it using them as a conversation grows:
+        a working method injected on every prompt, a skill that maps each job to its IDE tool, a catalogue of
+        engineering-standards skills, and orchestration workflows. Clone it and run <code>./install.sh</code>
+        (<code>install.ps1</code> on Windows).</p>
 
         <h3>Native diff review for file edits</h3>
         <ul>

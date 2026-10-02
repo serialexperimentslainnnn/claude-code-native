@@ -22,6 +22,9 @@ backend, beside the project, joined by the platform's RPC. **This release needs 
   retiring Code With Me, and 2026.1 was the last release with official support.
 - **Optional modules for the IDE plugins the tools reach** — Git, GitHub, Java, Terminal, IntelliLang,
   Database, line bookmarks and, on 2026.3, the Problems view. Each loads only when its plugin is present.
+- **The README and the plugin page recommend
+  [Claude Code Native — Skills and Settings](https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings)**,
+  the `~/.claude` configuration that tells Claude how to use the IDE's tools and keeps it using them.
 
 ### Changed
 - **The floor is 2026.2 (build 262.8665.258); the range runs to 263.\*.** 2025.3 and 2026.1 are no longer
@@ -40,6 +43,9 @@ backend, beside the project, joined by the platform's RPC. **This release needs 
   view.** On 2026.3, where the Problems view is its own plugin, they reach it through that plugin's modules.
 - **`plugins` says that parts of the IDE shipped as modules, such as IntelliLang, are not listed**, so an
   absent entry is not read as a missing feature.
+- **A `run ▸ shell` card shows its command as its own code block**, first and visible while the card is
+  collapsed, whose Copy copies the command alone; the call's other arguments are a block apart. A restored
+  session draws it the same way.
 - **Libraries.** DOMPurify 3.4.16, highlight.js 11.12.0, marked 18.0.14. Build: Kotlin 2.4, a JDK 25
   toolchain, Gradle 9.7.1, IntelliJ Platform Gradle Plugin 2.19.0, detekt 2.0.0-alpha.6, Spotless 8.10.2,
   JUnit 6.1.3. kotlinx-serialization is no longer bundled; the platform's copy is used. The npm toolchain

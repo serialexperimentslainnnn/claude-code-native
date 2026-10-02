@@ -7,7 +7,7 @@ Short answers to the questions we get most. For deeper diagnostics see
 
 Settings → Plugins → Marketplace → search **Claude Code Native** →
 Install → restart the IDE. Or install from disk using the zip from
-[GitHub Releases](https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains/releases).
+[GitHub Releases](https://github.com/serialexperimentslainnnn/claude-code-native/releases).
 
 After install, a "Claude Code" tool window appears on the right.
 
@@ -172,6 +172,16 @@ its copy from the Marketplace through plugin sync.
 **Code With Me: the host only.** The host's chat works as in a local IDE; guests
 get no chat. JetBrains is retiring Code With Me, and 2026.1 was the last release
 with official support.
+
+## How do I keep Claude on the IDE's tools in a long session?
+
+Install [Claude Code Native — Skills and
+Settings](https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings) into
+`~/.claude`. The rules God Mode puts in the system prompt say which tool replaces which; that configuration
+adds the working method on **every prompt** through a `UserPromptSubmit` hook, so it never sinks as the
+conversation grows, plus a skill that maps each job to its IDE tool and a catalogue of engineering-standards
+skills. Clone it and run `./install.sh` (`install.ps1` on Windows); both back up what they replace and can
+uninstall.
 
 ## Why does each agent get its own tab now?
 

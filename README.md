@@ -19,6 +19,7 @@ JetBrains. It needs your own `claude` CLI and your own Claude subscription or AP
 ## Contents
 
 - [Requirements](#requirements) · [Installation](#installation) · [First run](#first-run)
+- [Recommended: skills and settings](#recommended-skills-and-settings)
 - [What you can ask for](#what-you-can-ask-for) — the manual
   - [Open it, show me, take me there](#open-it-show-me-take-me-there)
   - [Ask about what is on screen](#ask-about-what-is-on-screen)
@@ -66,7 +67,7 @@ Kubernetes, SSH, Deployment, Qodana, Package Checker. Everything else needs noth
 
 1. **Settings ▸ Plugins ▸ Marketplace**, search **Claude Code Native**, install, restart.
 2. Or install a signed archive from the
-   [GitHub releases](https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains/releases) with
+   [GitHub releases](https://github.com/serialexperimentslainnnn/claude-code-native/releases) with
    **Settings ▸ Plugins ▸ ⚙ ▸ Install Plugin from Disk**.
 
 The **Claude Code** tool window appears on the right.
@@ -100,6 +101,29 @@ transcript. Settings live in the same safe, one document per IDE installation pe
 
 The IDE integration is **on by default** — the flame in the chat bar is lit: all four servers, every rule.
 There is nothing to configure before you start asking.
+
+## Recommended: skills and settings
+
+The plugin gives Claude the IDE's tools; **[Claude Code Native — Skills and
+Settings](https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings)** tells Claude
+how to use them, and keeps it using them as a conversation grows. It installs onto `~/.claude`:
+
+- a working method injected on **every prompt** by a `UserPromptSubmit` hook — the IDE's servers are the
+  tools, every call batched, everything written first and built and tested once, plain commands, every answer
+  read;
+- `ide-tools-standards`, the skill that names which IDE tool does each job and how the guard answers;
+- a catalogue of engineering-standards skills, loaded only when a task touches their domain, and
+  orchestration workflows installed as slash commands.
+
+```bash
+git clone https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings.git
+cd claude-code-native-skills-and-settings
+./install.sh --dry-run
+./install.sh
+```
+
+On Windows, `pwsh -File .\install.ps1 -WhatIf`, then `pwsh -File .\install.ps1`. Both installers back up
+what they replace and take `--uninstall` / `-Uninstall`.
 
 ## What you can ask for
 
@@ -235,7 +259,8 @@ shows the execution point as it goes; the gutter shows the breakpoints.
 A command runs in the IDE's Terminal window, in a tab named **Claude**, and comes back with its exit code
 and output; several commands go in one call. The tab is shown but never focused and never switched while
 you are in the Terminal, and the output stays there when the tab is reused, so *View in terminal* on the
-card lands on it. Claude's own `Bash` is retired while the IDE serves: a new process would cost a guard
+card lands on it. The card shows the command as its own code block, whose Copy copies the command alone, and
+the call's other arguments in a block apart. Claude's own `Bash` is retired while the IDE serves: a new process would cost a guard
 pass and a permission, and the IDE already has a shell.
 
 ### Git
@@ -455,7 +480,7 @@ token and run the same tools under the same guard. The bundled stdio bridge and 
 | The chat never loads, or the window is blank | Below 2026.2 this version does not run; otherwise JCEF is unavailable: check `ide.browser.jcef.enabled` in the Registry (in Remote Development, on the client) |
 | "Claude Code was not found" with the binary installed | It is somewhere the plugin does not look, or the IDE did not inherit your `PATH`; paste the path into the card |
 | A tool call is refused with no card to override | The guard blocked it; the message names the rule and the Settings path. Foreign-territory blocks are absolute by design |
-| Claude uses `Bash` or `grep` although the IDE tools exist | The flame is off, or a rule is: turn God Mode on, or the rule in Settings ▸ Claude Code ▸ Claude IDE Integration |
+| Claude uses `Bash` or `grep` although the IDE tools exist | The flame is off, or a rule is: turn God Mode on, or the rule in Settings ▸ Claude Code ▸ Claude IDE Integration. In long sessions, the [skills and settings](#recommended-skills-and-settings) hook repeats the method on every prompt |
 | A domain is missing from the servers | The IDE plugin behind it is not installed or disabled (Git, GitHub, Java, Database, Terminal…) |
 | A commit or Services action answers "not enabled here" | The view had not been shown yet; ask again, the view is now open, or open it yourself |
 | Signed out after a restart | The credential could not be renewed; sign in again, and check the IDE reaches your keychain |
@@ -490,7 +515,7 @@ comments, one gateway file per external plugin, the guard off limits — are in
 GPL-3.0 — see [`LICENSE`](LICENSE) and [`THIRD-PARTY-NOTICES.md`](THIRD-PARTY-NOTICES.md). *Claude* and
 *Claude Code* are trademarks of Anthropic, PBC; *JetBrains* and the IDE names are trademarks of JetBrains
 s.r.o. This project is not affiliated with, sponsored by, or endorsed by either. The upstream repository is
-[serialexperimentslainnnn/claude-code-for-jetbrains](https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains).
+[serialexperimentslainnnn/claude-code-native](https://github.com/serialexperimentslainnnn/claude-code-native).
 
 ## Disclaimer
 

@@ -22,7 +22,14 @@ reach the CLI off the UI thread.
 
 **Smaller answers from the IDE tools, so a session spends fewer tokens.** A batch of `read_file` calls shares
 one budget, search results and project problems come grouped by file, and every limit a tool takes has a
-ceiling.
+ceiling. A command Claude runs in the IDE terminal now shows on its card as its own code block, ready to
+copy, with the rest of the call's arguments apart.
+
+**Get the most out of the IDE tools.** Install
+[Claude Code Native — Skills and Settings](https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings)
+into `~/.claude`. The plugin gives Claude the IDE's tools; that configuration tells Claude how to use them and
+keeps it using them as a conversation grows: a working method repeated on every prompt, a skill that maps each
+job to its IDE tool, a catalogue of engineering-standards skills and a set of orchestration workflows.
 
 **A round of bugs, gone.** The trust dialog no longer comes back every three seconds after you press *Cancel*.
 A CLI that crashes on start is no longer restarted forever. Closed chat tabs no longer hold on to memory. The

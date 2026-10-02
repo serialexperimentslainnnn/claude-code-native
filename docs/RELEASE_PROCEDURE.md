@@ -123,7 +123,7 @@ but it means merging or closing those PRs is a release step, not an afterthought
 ### 2. Run the full local verification
 
 ```bash
-JAVA_HOME=~/.jdks/jbr-21.0.11 \
+JAVA_HOME=<a JDK 25> \
   ./gradlew test koverVerify detekt spotlessCheck verifyPlugin buildPlugin
 npm ci && npm test && npm run lint && npm run format:check
 npm audit --omit=dev --audit-level=low
