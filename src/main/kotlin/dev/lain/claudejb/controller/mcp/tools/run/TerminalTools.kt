@@ -95,9 +95,8 @@ internal class TerminalTools(private val project: Project, scope: CoroutineScope
         val directory = readAction {
             args.optionalString("cwd")?.let { ReadTools.resolveDirectory(project, it).path } ?: project.basePath
         } ?: throw ToolException("this project has no directory on disk; pass cwd")
-        val handler = handler(command, directory)
         val tail = OutputTail.toCard(project, args)
-        return jobs.start(tail) { run(handler, command, tail) }
+        return jobs.start(tail) { run(handler(command, directory), command, tail) }
     }
 
     private fun handler(command: String, directory: String): ColoredProcessHandler {
@@ -129,10 +128,14 @@ internal class TerminalTools(private val project: Project, scope: CoroutineScope
                 }
             },
         )
-        FocusKeeper.keep(project) { show(handler) }
-        handler.notifyTextAvailable("$ $command\n", ProcessOutputType.SYSTEM)
-        handler.startNotify()
-        return exited.await()
+        try {
+            FocusKeeper.keep(project) { show(handler) }
+            handler.notifyTextAvailable("$ $command\n", ProcessOutputType.SYSTEM)
+            handler.startNotify()
+            return exited.await()
+        } finally {
+            if (!handler.isProcessTerminated) handler.destroyProcess()
+        }
     }
 
     private class Tab(val console: ConsoleView, @Volatile var handler: ProcessHandler)

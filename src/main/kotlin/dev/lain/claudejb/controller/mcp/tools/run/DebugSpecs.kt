@@ -69,7 +69,7 @@ internal object DebugSpecs {
         listOf(
             Param("thread", "Thread index (default: the active thread)", type = "integer", required = false),
             Param("frame", "Frame index to select as current", type = "integer", required = false),
-            Param("max", "Maximum frames and threads to return (default $DEFAULT_MAX)", type = "integer", required = false),
+            Param.max("frames and threads", DEFAULT_MAX),
             SESSION_NAME,
         ),
     )
@@ -84,7 +84,7 @@ internal object DebugSpecs {
             Param("name", "Variable to set (set)", required = false),
             Param("value", "New value as an expression (set)", required = false),
             Param("frame", "Frame index (default: the current frame)", type = "integer", required = false),
-            Param("max", "Maximum variables to return (default $DEFAULT_MAX)", type = "integer", required = false),
+            Param.max("variables", DEFAULT_MAX),
         ),
         mutates = true,
     )

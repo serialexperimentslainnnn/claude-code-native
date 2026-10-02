@@ -1,0 +1,13 @@
+<idea-plugin>
+    <dependencies>
+        <plugin id="com.intellij.database"/>
+        <module name="intellij.database"/>
+        <module name="intellij.database.connectivity"/>
+        <module name="dev.lain.claudejb.backend"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="dev.lain.claudejb.controller.db.DbAccess"
+                        serviceImplementation="dev.lain.claudejb.controller.db.DbGateway"/>
+    </extensions>
+</idea-plugin>

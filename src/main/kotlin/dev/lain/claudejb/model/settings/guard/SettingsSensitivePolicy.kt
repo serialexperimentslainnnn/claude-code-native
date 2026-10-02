@@ -1,5 +1,7 @@
 package dev.lain.claudejb.model.settings.guard
 
+import com.intellij.ide.scratch.ScratchFileService
+import com.intellij.ide.scratch.ScratchRootType
 import com.intellij.openapi.util.SystemInfo
 import dev.lain.claudejb.model.permission.SensitiveGuard
 import dev.lain.claudejb.model.permission.paths.CredentialPaths
@@ -47,6 +49,7 @@ fun ClaudeSettings.sensitivePolicy(projectRoot: String?): SensitiveGuard.Policy 
         wslHost = snap.isWsl,
         caseInsensitivePaths = SystemInfo.isWindows || SystemInfo.isMac,
         projectRoot = projectRoot,
+        scratchRoot = scratchesRoot(),
         pathResolver = { raw -> runCatching { java.io.File(raw).canonicalPath }.getOrNull() },
         pathProbe = ::probePresence,
         envValues = launchEnvValues(env),
@@ -74,6 +77,9 @@ internal fun ClaudeSettings.extraBlockedDomains(): List<String> =
 
 internal fun ClaudeSettings.commandWhitelist(): List<String> =
     GuardWhitelists.commands(state.securityCommandWhitelist)
+
+private fun scratchesRoot(): String? =
+    runCatching { ScratchFileService.getInstance().getRootPath(ScratchRootType.getInstance()) }.getOrNull()
 
 private fun launchEnvValues(settingsEnv: Map<String, String>): Map<String, String> =
     System.getenv() + settingsEnv

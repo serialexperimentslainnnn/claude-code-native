@@ -1,6 +1,8 @@
 package dev.lain.claudejb.controller.github
 
 import dev.lain.claudejb.MainSources
+import dev.lain.claudejb.PluginModules
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -8,8 +10,7 @@ import java.io.File
 
 class GitHubGatewayContractTest {
 
-    private val sources: List<File> = MainSources.files()
-    private val descriptor = File("src/main/resources/META-INF/plugin.xml").readText()
+    private val sources: List<File> = SourceLayout.kotlinFiles()
 
     @Test
     fun `the gateway exists and is the only file naming a GitHub plugin type`() {
@@ -33,13 +34,18 @@ class GitHubGatewayContractTest {
     }
 
     @Test
-    fun `the GitHub plugin is an optional dependency with an existing config-file, and the build compiles against it`() {
-        val match = DEPENDS.find(descriptor)
-        assertTrue(match != null, "No <depends…>org.jetbrains.plugins.github</depends> in plugin.xml")
-        assertTrue("optional=\"true\"" in match!!.value, "the GitHub dependency must be optional: ${match.value}")
-        val configFile = Regex("""config-file="([^"]+)"""").find(match.value)?.groupValues?.get(1)
-        assertTrue(configFile != null && File("src/main/resources/META-INF/$configFile").isFile, "config-file $configFile is missing")
-        assertTrue(Regex("""bundledPlugin\(\s*"org\.jetbrains\.plugins\.github"\s*\)""").containsMatchIn(File("build.gradle.kts").readText()))
+    fun `the GitHub plugin is the dependency of an optional content module, and the build compiles against it`() {
+        val declaring = PluginModules.declaring(PLUGIN)
+        assertTrue(declaring.isNotEmpty(), "No descriptor declares <plugin id=\"$PLUGIN\"/> in its <dependencies>")
+        declaring.forEach { descriptor ->
+            val entry = PluginModules.content()[PluginModules.moduleName(descriptor)]
+            assertTrue(entry != null && PluginModules.isOptional(entry)) {
+                "the GitHub dependency must belong to an optional content module named in plugin.xml: ${descriptor.path} is $entry"
+            }
+        }
+        assertTrue(
+            SourceLayout.buildScripts().any { script -> BUNDLED.findAll(script.readText()).any { "\"$PLUGIN\"" in it.groupValues[1] } },
+        )
     }
 
     private companion object {
@@ -47,7 +53,9 @@ class GitHubGatewayContractTest {
         const val GUARD = "requireGitHub"
 
         val GITHUB_TYPE = Regex("""\borg\.jetbrains\.plugins\.github\.[A-Za-z]""")
-        val ENTRY = Regex("""^ {4}(suspend )?fun \w+\(.*""")
-        val DEPENDS = Regex("""<depends[^>]*>org\.jetbrains\.plugins\.github</depends>""")
+        val ENTRY = Regex("""^ {4}(override )?(suspend )?fun \w+\(.*""")
+        const val PLUGIN = "org.jetbrains.plugins.github"
+
+        val BUNDLED = Regex("""bundledPlugins?\(([^)]*)\)""")
     }
 }

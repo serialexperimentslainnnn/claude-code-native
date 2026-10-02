@@ -9,6 +9,7 @@ import com.intellij.util.concurrency.AppExecutorUtil
 import dev.lain.claudejb.model.settings.guard.AlwaysAllowTools
 import dev.lain.claudejb.model.settings.guard.GuardMode
 import dev.lain.claudejb.model.settings.legacy.LegacyProjectSettings
+import java.util.concurrent.CompletableFuture
 
 @Service(Service.Level.PROJECT)
 class ClaudeSettings(internal val project: Project? = null) {
@@ -202,9 +203,11 @@ class ClaudeSettings(internal val project: Project? = null) {
 
     fun isToolAlwaysAllowed(toolName: String): Boolean = toolName in alwaysAllow
 
-    fun warm() {
-        state
+    private val warmed: CompletableFuture<ClaudeSettings> by lazy {
+        CompletableFuture.supplyAsync({ also { state } }, AppExecutorUtil.getAppExecutorService())
     }
+
+    fun warm(): CompletableFuture<ClaudeSettings> = warmed
 
     companion object {
         const val DEFAULT_GUARD_LOG_RETENTION_DAYS = 30
@@ -212,6 +215,8 @@ class ClaudeSettings(internal val project: Project? = null) {
         private const val FAKE_CLAUDE_PROP = "claudejb.fakeClaude"
 
         private val writes = AppExecutorUtil.createBoundedApplicationPoolExecutor("Claude Code settings", 1)
+
+        fun persist(task: () -> Unit) = writes.execute(task)
 
         @org.jetbrains.annotations.TestOnly
         fun awaitWrites() {

@@ -2,7 +2,6 @@ package dev.lain.claudejb.controller.mcp.tools.vcs
 
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.github.GitHubAvailability
-import dev.lain.claudejb.controller.github.GitHubGateway
 import dev.lain.claudejb.controller.github.MarketplaceGateway
 import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
@@ -19,9 +18,9 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-internal class ReleaseTools(private val project: Project, gateway: () -> GitHubGateway = { GitHubGateway(project) }) {
+internal class ReleaseTools(private val project: Project, gateway: () -> GitHubAccess = { GitHubAccess.of(project) }) {
 
-    private val github: GitHubGateway by lazy { GitHubAvailability.require().let { gateway() } }
+    private val github: GitHubAccess by lazy { GitHubAvailability.require().let { gateway() } }
 
     fun domain(): ToolDomain = ToolDomain(
         "release",
@@ -31,7 +30,7 @@ internal class ReleaseTools(private val project: Project, gateway: () -> GitHubG
     )
 
     private suspend fun tags(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_PAGE)
         val rows = rows(github.getJson("/tags?per_page=$max"))
         return ToolResult.toon(
             buildJsonObject {
@@ -55,7 +54,7 @@ internal class ReleaseTools(private val project: Project, gateway: () -> GitHubG
 
     private suspend fun workflowRuns(args: ToolArgs): ToolResult {
         val branch = args.optionalString("branch")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_PAGE)
         val query = "/actions/runs?per_page=$max" + (branch?.let { "&branch=$it" } ?: "")
         val rows = rows(map(github.getJson(query), "workflow_runs"))
         return ToolResult.toon(
@@ -109,7 +108,7 @@ internal class ReleaseTools(private val project: Project, gateway: () -> GitHubG
     }
 
     private suspend fun marketplace(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MARKETPLACE)
+        val max = args.max(DEFAULT_MARKETPLACE, MAX_MARKETPLACE)
         val updates = withContext(Dispatchers.IO) { MarketplaceGateway.updates(PluginIdentity.MARKETPLACE_ID, max) }
         return ToolResult.toon(
             buildJsonObject {
@@ -146,12 +145,14 @@ internal class ReleaseTools(private val project: Project, gateway: () -> GitHubG
 
         private const val DEFAULT_MAX = 20
         private const val DEFAULT_MARKETPLACE = 5
+        private const val MAX_MARKETPLACE = 50
+        private const val MAX_PAGE = 100
         private const val SHORT_SHA = 12
 
         val TAGS = ToolSpec(
             "tags",
             "The repository's tags on GitHub, newest first, with the commit each points at.",
-            listOf(Param("max", "Maximum tags (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("tags", DEFAULT_MAX, MAX_PAGE)),
         )
 
         val WORKFLOW_RUNS = ToolSpec(
@@ -160,7 +161,7 @@ internal class ReleaseTools(private val project: Project, gateway: () -> GitHubG
                 "(queued, in_progress, completed), conclusion (success, failure, cancelled…) and url.",
             listOf(
                 Param("branch", "Only the runs of this branch (default: all)", required = false),
-                Param("max", "Maximum runs (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("runs", DEFAULT_MAX, MAX_PAGE),
             ),
         )
 
@@ -175,7 +176,7 @@ internal class ReleaseTools(private val project: Project, gateway: () -> GitHubG
             "marketplace",
             "The plugin's versions on the JetBrains Marketplace, newest first: version, channel, listed, approved, published " +
                 "date and the IDE range; read from the public Marketplace API, no account involved.",
-            listOf(Param("max", "Maximum versions (default $DEFAULT_MARKETPLACE)", type = "integer", required = false)),
+            listOf(Param.max("versions", DEFAULT_MARKETPLACE, MAX_MARKETPLACE)),
         )
     }
 }

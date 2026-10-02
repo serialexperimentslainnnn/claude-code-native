@@ -33,7 +33,7 @@ internal class ServiceTools(private val project: Project, private val scope: Cor
     )
 
     private suspend fun services(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, MAX_NODES)
         val filter = args.optionalString("filter").orEmpty()
         val walk = withContext(Dispatchers.Default) { tree.walk(if (filter.isEmpty()) max else FILTER_WALK_CEILING) }
         val matching = walk.nodes.filter { filter.isEmpty() || it.matches(filter) }
@@ -42,6 +42,7 @@ internal class ServiceTools(private val project: Project, private val scope: Cor
             buildJsonObject {
                 put("count", matching.size)
                 put("truncated", walk.truncated || matching.size > rows.size)
+                put("kinds", buildJsonObject { rows.distinctBy { it.rootPath }.forEach { put(it.rootPath, it.kind) } })
                 put("services", buildJsonArray { rows.forEach { add(row(it)) } })
             },
         )
@@ -49,14 +50,12 @@ internal class ServiceTools(private val project: Project, private val scope: Cor
 
     private fun row(node: ServiceNode): JsonObject = buildJsonObject {
         put("path", node.path)
-        put("name", node.name)
-        put("kind", node.kind)
         put("state", node.state)
     }
 
     private suspend fun serviceActions(args: ToolArgs): ToolResult {
         val path = args.string("path")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_ACTIONS, MAX_NODES)
         val node = withContext(Dispatchers.Default) { tree.find(path) }
         val (entries, fromTree) = withContext(Dispatchers.EDT) {
             ServiceActions(project, node).run {
@@ -124,17 +123,19 @@ internal class ServiceTools(private val project: Project, private val scope: Cor
 
     companion object {
 
-        private const val DEFAULT_MAX = 200
+        private const val DEFAULT_MAX = 50
+        private const val DEFAULT_ACTIONS = 200
+        private const val MAX_NODES = 1_000
         private const val FILTER_WALK_CEILING = 5_000
 
         val SERVICES = ToolSpec(
             "services",
-            "The Services tree as the user sees it, flattened in tree order: every node's path (Contributor/parent/child), " +
-                "name, kind (the contributing plugin's class) and state (the grey text beside it, e.g. running or exited). " +
-                "Use it before any other services tool: the path is how a node is named to them. " +
-                "filter keeps only nodes whose path, state or kind contains the text.",
+            "The Services tree as the user sees it, flattened in tree order: every node's path (Contributor/parent/child; " +
+                "its last segment is the name) and state (the grey text beside it, e.g. running or exited), with kinds " +
+                "naming the contributing plugin's class once per root. Use it before any other services tool: the path is " +
+                "how a node is named to them. filter keeps only nodes whose path, state or kind contains the text.",
             listOf(
-                Param("max", "Maximum nodes to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("nodes", DEFAULT_MAX, MAX_NODES),
                 Param("filter", "Case-insensitive text a node's path, state or kind must contain", required = false),
             ),
         )
@@ -146,7 +147,7 @@ internal class ServiceTools(private val project: Project, private val scope: Cor
                 "expanded. Use it to learn what service_action can do on a node.",
             listOf(
                 Param("path", "The node's path as services lists it"),
-                Param("max", "Maximum actions to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("actions", DEFAULT_ACTIONS, MAX_NODES),
             ),
         )
 

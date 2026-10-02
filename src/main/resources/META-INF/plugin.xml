@@ -1,10 +1,7 @@
 <idea-plugin>
     <id>dev.lain.claude-code-for-jetbrains</id>
     <name>Claude Code Native</name>
-    <!-- `email` is an optional attribute and is deliberately omitted: a plugin descriptor is a public
-         document, and an address published there is scraped, not contacted. Support and vulnerability
-         reports both route through the repository (issues / private security advisories). -->
-    <vendor url="https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains">lain</vendor>
+    <vendor url="https://github.com/serialexperimentslainnnn/claude-code-native">lain</vendor>
 
     <description><![CDATA[
         <p>Claude Code in your IDE, with a real GUI — an AI coding agent for JetBrains, not a terminal
@@ -13,8 +10,9 @@
         its stream-json protocol: no Node.js at runtime, no terminal window, no API key required if you
         already have a Claude subscription.</p>
 
-        <p>Works in any JetBrains IDE on the <b>2025.3 platform or newer</b> — IntelliJ IDEA, PyCharm,
-        WebStorm, PhpStorm, GoLand, RubyMine, CLion, Rider, DataGrip, DataSpell, Aqua and RustRover.</p>
+        <p>Works in any JetBrains IDE on the <b>2026.2 platform or newer</b> — IntelliJ IDEA, PyCharm,
+        WebStorm, PhpStorm, GoLand, RubyMine, CLion, Rider, DataGrip, DataSpell and RustRover — locally,
+        in Remote Development, and for the host of a Code With Me session.</p>
 
         <p><em>Unofficial, community-built, open-source plugin. Not affiliated with, sponsored by, or
         endorsed by Anthropic or JetBrains. It requires the user's own separately-installed
@@ -80,7 +78,8 @@
             <li>File paths, directories and symbols in Claude's replies become clickable links — but only
                 after the IDE confirms them, so a link is never dead</li>
             <li>Syntax highlighting for diffs and file output, in your IDE's own colours</li>
-            <li>Executed shell commands render as their own copyable code block</li>
+            <li>Executed shell commands render as their own copyable code block, apart from the call's other
+                arguments</li>
         </ul>
 
         <h3>Sessions, usage and MCP</h3>
@@ -92,9 +91,27 @@
                 each one its own transcript instead of interleaving them all into the chat</li>
             <li>Session dashboard: context breakdown, token usage and cost, your plan's usage limits with their
                 reset times, account, and a Workloads view of every agent and background task</li>
-            <li>Optional MCP support — let Claude query the IDE through JetBrains' MCP server, or register
-                your own MCP servers</li>
+            <li>Register your own MCP servers alongside the plugin's</li>
         </ul>
+
+        <h3>The IDE as Claude's toolbox</h3>
+        <ul>
+            <li>Four MCP servers of the plugin's own — <code>code</code>, <code>run</code>, <code>vcs</code>,
+                <code>ops</code> — hand Claude the IDE: the index, the refactorings, run configurations, tests and
+                the debugger, Git and GitHub through the IDE's account, the Services panel, any registered action</li>
+            <li>Everything Claude opens is shown in the IDE without taking your focus, and every call passes the
+                security layer first</li>
+            <li>One call carries a whole list and answers in compact tables, so a session spends fewer tokens
+                than with the native tools it replaces</li>
+        </ul>
+
+        <h2>Get the most out of it</h2>
+        <p>Install <a href="https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings">Claude
+        Code Native — Skills and Settings</a> into <code>~/.claude</code>. The plugin gives Claude the IDE's
+        tools; that configuration tells Claude how to use them and keeps it using them as a conversation grows:
+        a working method injected on every prompt, a skill that maps each job to its IDE tool, a catalogue of
+        engineering-standards skills, and orchestration workflows. Clone it and run <code>./install.sh</code>
+        (<code>install.ps1</code> on Windows).</p>
 
         <h3>Native diff review for file edits</h3>
         <ul>
@@ -121,10 +138,10 @@
 
         <h2>Requirements</h2>
         <ul>
-            <li>JetBrains IDE <b>2025.3 or newer</b> (build 253+). 2025.1 and 2025.2 are <b>not</b> supported:
-                the whole chat UI is an embedded browser (JCEF), and 2025.3 is the first release where the
-                platform exposes it as a declarable module — which is what keeps the plugin working on 2026.2,
-                where JCEF moved out of the IDE core into a bundled plugin of its own</li>
+            <li>JetBrains IDE <b>2026.2 or newer</b> (build 262.8665+). Earlier releases are <b>not</b>
+                supported: the plugin is split into a frontend and a backend so that it runs in Remote
+                Development, and 2026.2 is the platform that plugin model targets. In Code With Me the
+                chat is the host's; guests do not get it</li>
             <li><a href="https://claude.ai/code"><code>claude</code> CLI</a> installed and on PATH or
                 <code>~/.local/bin/</code> (<code>npm install -g @anthropic-ai/claude-code</code>)</li>
             <li>A Claude subscription (Pro / Max / Team / Enterprise) or an <code>ANTHROPIC_API_KEY</code></li>
@@ -136,108 +153,17 @@
         s.r.o. Used here for identification only; this project is not affiliated with either company.</p>
     ]]></description>
 
-    <!-- Works in any IntelliJ-Platform IDE (IDEA, PyCharm, …). -->
-    <depends>com.intellij.modules.platform</depends>
-    <!-- The embedded browser. NOT optional and NOT a nicety: the entire chat UI is a JCEF page since 4.0.0,
-         so without it this plugin has no interface at all.
-
-         REQUIRED since 262, where the platform moved JCEF OUT of the core and into a bundled plugin of its
-         own (`plugins/jcef-plugin`, id `com.intellij.modules.jcef`, "Web Browser (JCEF)"). A plugin that does
-         not declare it no longer gets those classes in its classloader, and every chat dies on
-         `NoClassDefFoundError: com/intellij/ui/jcef/JBCefApp` at `JcefHost.<init>` — reported against 5.1.1 on
-         IU-262.9437.185, and the same break hit AsciiDoc, Cline and others on the 2026.2 line.
-
-         Verified build by build, because this is exactly what decides the floor: on 251/252 the id does not
-         exist at all (JBCefApp ships inside `lib/app-client.jar`), on 253 and 261 the platform declares
-         `<module value="com.intellij.modules.jcef"/>` in `product-backend.jar`, and on 262 it is the bundled
-         plugin. So declaring it costs 2025.1 and 2025.2 — see `sinceBuild` in build.gradle.kts — and buys back
-         2026.2, where the plugin is currently unusable rather than degraded. -->
-    <depends>com.intellij.modules.jcef</depends>
-    <!-- Bundled IDE Terminal: grants runtime classloader access to TerminalToolWindowManager so we can open an
-         interactive `claude login` session (the OAuth flow needs a TTY the stream-json process doesn't have).
-         Optional + config-file so the plugin still loads on a (hypothetical) IDE without Terminal; TerminalLauncher
-         additionally guards with PluginManager.isPluginInstalled. -->
-    <depends optional="true" config-file="claude-terminal.xml">org.jetbrains.plugins.terminal</depends>
-    <!-- Bundled Git plugin: grants runtime classloader access to `git4idea.*` (GitRepositoryManager,
-         GitHistoryUtils) so the plugin can read the project's branch, recent commits and changed files.
-         OPTIONAL on purpose — the opposite call to the JCEF one above. There is no browser-less mode, but there
-         very much is a Git-less one: an IDE without the Git plugin, or a project that simply is not a working
-         copy, must still load this plugin and run every chat. `GitAvailability`/`GitHistoryService.isAvailable`
-         gate every entry point, and `GitGateway` is the ONLY file that names a git4idea type, so nothing can be
-         class-loaded when the dependency is unsatisfied. -->
-    <depends optional="true" config-file="claude-git.xml">Git4Idea</depends>
-    <!-- Bundled GitHub plugin: grants runtime classloader access to `org.jetbrains.plugins.github.*` so the
-         pull-request tools can ask the IDE's own accounts and API. Optional like Git: `GitHubGateway` is the
-         only file naming those types and checks the plugin first, so a missing GitHub plugin degrades to
-         "not available". -->
-    <depends optional="true" config-file="claude-github.xml">org.jetbrains.plugins.github</depends>
-    <!-- Bundled Java plugin: grants runtime classloader access to UAST (`org.jetbrains.uast.*`), which ships inside
-         it. Optional: PyCharm and the other IDEs without Java load this plugin without the uast domain;
-         `JavaAvailability` gates the only file that names those types. -->
-    <depends optional="true" config-file="claude-java.xml">com.intellij.modules.java</depends>
-    <depends optional="true" config-file="claude-intellilang.xml">org.intellij.intelliLang</depends>
-    <depends optional="true" config-file="claude-database.xml">com.intellij.database</depends>
-
-    <extensions defaultExtensionNs="com.intellij">
-        <!-- The banner Claude can show over a file's editor (presence ▸ banner_show); it reads BannerRegistry. -->
-        <editorNotificationProvider implementation="dev.lain.claudejb.controller.mcp.tools.code.BannerProvider"/>
-        <!-- Right-hand tool window, next to where the JetBrains AI Assistant lives. -->
-        <toolWindow id="Claude Code"
-                    anchor="right"
-                    icon="/icons/toolwindow.svg"
-                    canCloseContents="true"
-                    factoryClass="dev.lain.claudejb.view.window.ClaudeToolWindowFactory"/>
-
-        <notificationGroup id="Claude Code" displayType="BALLOON"/>
-
-        <!-- groupId="root" puts these at the top level of the settings tree. Without it the platform files a
-             configurable under "Other Settings", which is where a plugin nobody is looking for belongs; this
-             one is opened on purpose, and the security page is opened while something is being blocked. -->
-        <projectConfigurable
-                instance="dev.lain.claudejb.view.settings.ClaudeSettingsConfigurable"
-                id="dev.lain.claudejb.settings"
-                groupId="root"
-                displayName="Claude Code"
-                nonDefaultProject="false"/>
-
-        <!-- Its own root entry rather than a child of the page above: every control on it decides what may
-             reach the machine, and SensitiveGuard.SETTINGS_PATH sends the user straight here from a block. -->
-        <projectConfigurable
-                instance="dev.lain.claudejb.view.settings.ClaudeSecurityConfigurable"
-                id="dev.lain.claudejb.settings.security"
-                groupId="root"
-                displayName="Claude Code Security"
-                nonDefaultProject="false"/>
-    </extensions>
-
-    <applicationListeners>
-        <!-- Our diff tabs are mock:// in-memory previews the IDE can never restore; drop them before the
-             workspace state is written. ProjectCloseListener is an APPLICATION-bus topic. See DiffTabCleanup. -->
-        <listener class="dev.lain.claudejb.view.diff.DiffTabCleanup"
-                  topic="com.intellij.openapi.project.ProjectCloseListener"/>
-    </applicationListeners>
-
-    <actions>
-        <action id="dev.lain.claudejb.ExplainSelection"
-                class="dev.lain.claudejb.controller.actions.ExplainSelectionAction"
-                text="Explain with Claude"
-                icon="/icons/claude.svg"
-                description="Send the selected code to Claude and ask it to explain.">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-        </action>
-        <action id="dev.lain.claudejb.AddSelectionAsContext"
-                class="dev.lain.claudejb.controller.actions.AddSelectionAsContextAction"
-                text="Add Selection to Claude Context"
-                icon="/icons/claude.svg"
-                description="Attach the selected code to the active Claude chat as context.">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-        </action>
-        <action id="dev.lain.claudejb.AddFileAsContext"
-                class="dev.lain.claudejb.controller.actions.AddFileAsContextAction"
-                text="Add File to Claude Context"
-                icon="/icons/claude.svg"
-                description="Attach the current file to the active Claude chat as an @-mention.">
-            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
-        </action>
-    </actions>
+    <content>
+        <module name="dev.lain.claudejb.shared" loading="required"/>
+        <module name="dev.lain.claudejb.frontend" required-if-available="intellij.platform.frontend"/>
+        <module name="dev.lain.claudejb.backend" required-if-available="intellij.platform.backend"/>
+        <module name="dev.lain.claudejb.git" loading="optional"/>
+        <module name="dev.lain.claudejb.github" loading="optional"/>
+        <module name="dev.lain.claudejb.java" loading="optional"/>
+        <module name="dev.lain.claudejb.intellilang" loading="optional"/>
+        <module name="dev.lain.claudejb.terminal" loading="optional"/>
+        <module name="dev.lain.claudejb.bookmarks" loading="optional"/>
+        <module name="dev.lain.claudejb.database" loading="optional"/>
+        <module name="dev.lain.claudejb.problems" loading="optional"/>
+    </content>
 </idea-plugin>

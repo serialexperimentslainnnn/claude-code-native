@@ -67,7 +67,12 @@ internal object ToonText {
     }
 
     @OptIn(ExperimentalSerializationApi::class)
-    private fun number(token: String): JsonPrimitive = JsonUnquotedLiteral(canonical(BigDecimal(token)))
+    private fun number(token: String): JsonPrimitive {
+        if (token.length > MAX_NUMBER_LENGTH) toonError("a number longer than $MAX_NUMBER_LENGTH characters")
+        val value = token.toBigDecimalOrNull() ?: toonError("a number out of range: $token")
+        if (abs(value.precision().toLong() - value.scale()) > MAX_EXPONENT) toonError("a number out of range: $token")
+        return JsonUnquotedLiteral(canonical(value))
+    }
 
     private fun escape(token: String, at: Int, out: StringBuilder): Int {
         val c = token.getOrNull(at) ?: toonError("unterminated escape in $token")
@@ -124,6 +129,8 @@ internal object ToonText {
     }
 
     private const val HEX_DIGITS = 4
+    private const val MAX_NUMBER_LENGTH = 400
+    private const val MAX_EXPONENT = 400L
     private const val LEADING = " \t-#"
     private const val TRAILING = " \t"
     private const val STRUCTURAL = ":\"\\[]{}"

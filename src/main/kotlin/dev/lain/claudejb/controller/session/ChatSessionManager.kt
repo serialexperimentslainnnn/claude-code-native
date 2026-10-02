@@ -4,6 +4,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import dev.lain.claudejb.controller.session.history.SessionHistory
 import dev.lain.claudejb.model.session.launch.LaunchOptions
 import dev.lain.claudejb.model.settings.ClaudeSettings
@@ -67,21 +68,21 @@ class ChatSessionManager(private val project: Project) : Disposable {
 
     fun remove(session: ClaudeSession) {
         if (!sessions.remove(session)) return
-        session.dispose()
+        Disposer.dispose(session)
         if (active == session) active = sessions.lastOrNull()
         persistOpenTabs()
         fireChanged()
     }
 
     private fun persistOpenTabs() {
-        SessionHistory.getInstance(project)
-            .setOpenSessions(sessions.filterNot { it.gitIntegration }.mapNotNull { it.sessionId })
+        val ids = sessions.filterNot { it.gitIntegration }.mapNotNull { it.sessionId }
+        ClaudeSettings.persist { if (!project.isDisposed) SessionHistory.getInstance(project).setOpenSessions(ids) }
     }
 
     private fun fireChanged() = listeners.forEach { it() }
 
     override fun dispose() {
-        sessions.forEach { it.dispose() }
+        sessions.forEach { Disposer.dispose(it) }
         sessions.clear()
     }
 

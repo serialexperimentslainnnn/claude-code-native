@@ -1,6 +1,5 @@
 package dev.lain.claudejb.controller.context
 
-import com.intellij.ide.BrowserUtil
 import com.intellij.ide.actions.RevealFileAction
 import com.intellij.ide.highlighter.ArchiveFileType
 import com.intellij.ide.projectView.ProjectView
@@ -24,7 +23,6 @@ internal class LinkNavigator(private val project: Project) {
     fun open(url: String) {
         val u = url.trim()
         when {
-            u.lowercase().startsWith("https://") -> BrowserUtil.browse(u)
             u.startsWith(JB) -> openJbLink(u)
             LinkResolver.isFilePathHref(u) -> openPath(u.substringBefore('#').trim())
         }

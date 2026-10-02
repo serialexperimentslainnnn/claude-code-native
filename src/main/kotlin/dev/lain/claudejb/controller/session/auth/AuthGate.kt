@@ -37,6 +37,8 @@ class AuthGate(
 
     @Volatile private var ownLoginCheckedAt = 0L
 
+    private val ownLoginProbe = Any()
+
     fun absorbExistingLoginOnce() {
         if (startupHarvestDone) return
         startupHarvestDone = true
@@ -76,12 +78,15 @@ class AuthGate(
 
     private fun binaryHoldsOwnLogin(settings: ClaudeSettings): Boolean {
         cachedBinaryLogin()?.let { return it }
-        val now = System.currentTimeMillis()
-        val binary = ClaudeBinaryLocator.locate(settings.claudePath) ?: return false
-        val reply = AuthCli.status(binary, settings.resolveEnv())
-        binaryOwnLogin = reply?.loggedIn == true
-        ownLoginCheckedAt = now
-        return binaryOwnLogin
+        synchronized(ownLoginProbe) {
+            cachedBinaryLogin()?.let { return it }
+            val now = System.currentTimeMillis()
+            val binary = ClaudeBinaryLocator.locate(settings.claudePath) ?: return false
+            val reply = AuthCli.status(binary, settings.resolveEnv())
+            binaryOwnLogin = reply?.loggedIn == true
+            ownLoginCheckedAt = now
+            return binaryOwnLogin
+        }
     }
 
     private fun cachedBinaryLogin(): Boolean? =

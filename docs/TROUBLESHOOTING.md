@@ -165,15 +165,16 @@ closes the ones it opened when the session that opened them goes away.
 The whole chat UI is the IDE's embedded browser (JCEF), so without it there is nothing to
 show.
 
-- **Below build `253.29346.138` (IDEA 2025.3.1)**: this plugin does not run there at all, and
-  that includes the first 2025.3 (`253.28294.334`) as well as 2025.1 and 2025.2. The platform
-  serves the browser classes through a module id (`com.intellij.modules.jcef`) that a plugin
-  must declare a dependency on, and that id does not exist in any of those builds — so the
-  dependency is mandatory where it can be satisfied and unsatisfiable before it. Update the
-  IDE, or **stay on 5.1.1** on those versions. Your build number is in Help ▸ About.
-- **On `253.29346.138` or newer**: check that the IDE's embedded browser is available — Help ▸
-  Find Action ▸ *Registry*, key `ide.browser.jcef.enabled`. Some stripped or
-  remote-development setups ship without it.
+- **Below build `262.8665.258` (2026.2)**: this version does not run there at all. The chat is
+  split between the IDE's frontend and its backend, and the platform RPC that joins them is
+  internal before 2026.2. Update the IDE, or stay on **6.0.1** on 2025.3.1 and 2026.1, and on
+  **5.1.1** on 2025.1, 2025.2 and the first 2025.3 (`253.28294.334`). Your build number is in
+  Help ▸ About.
+- **On `262.8665.258` or newer**: check that the IDE's embedded browser is available — Help ▸
+  Find Action ▸ *Registry*, key `ide.browser.jcef.enabled`. Some stripped setups ship without
+  it. In Remote Development the browser runs in JetBrains Client, so that is where it has to be
+  available, and the plugin has to be installed on the client as well as on the host.
+- **In Code With Me as a guest**: there is no chat for guests; only the host has one.
 - The stack trace names `JcefHost.<init>`; anything else with the same symptom belongs in an
   issue, with the log.
 

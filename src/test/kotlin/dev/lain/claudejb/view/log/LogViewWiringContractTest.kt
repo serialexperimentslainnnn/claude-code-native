@@ -1,5 +1,6 @@
 package dev.lain.claudejb.view.log
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -10,11 +11,11 @@ class LogViewWiringContractTest {
     @Test
     fun `the page has exactly one emitter of the log payload`() {
         val emitters = kotlinFiles()
-            .filter { it.readText().contains("window.cc.log(") }
+            .filter { LOG_PUSH.containsMatchIn(it.readText()) }
             .map { it.name }
             .sorted()
 
-        assertEquals(listOf("LogFeed.kt"), emitters) { "window.cc.log is emitted from more than one place: $emitters" }
+        assertEquals(listOf("LogFeed.kt"), emitters) { "the page's log push is emitted from more than one place: $emitters" }
     }
 
     @Test
@@ -24,8 +25,11 @@ class LogViewWiringContractTest {
         assertTrue(feed.contains("executeOnPooledThread")) {
             "LogFeed reads the ring and builds the report on whatever thread asked; that is the EDT when the page asks."
         }
-        assertTrue(feed.contains("edt(panel.project)")) { "LogFeed does not come back to the EDT to draw." }
-        assertTrue(feed.contains("CopyPasteManager")) { "the Copy button reaches no clipboard" }
+        assertTrue(BACK_ON_EDT.containsMatchIn(feed)) { "LogFeed does not come back to the EDT to draw." }
+        assertTrue(feed.contains("copyToClient(")) { "the Copy button hands its report to no clipboard" }
+        assertTrue(source("ClientClipboard.kt").readText().contains("CopyPasteManager")) {
+            "the client's clipboard no longer reaches CopyPasteManager, so the Copy button reaches no clipboard"
+        }
     }
 
     @Test
@@ -43,8 +47,11 @@ class LogViewWiringContractTest {
 
     @Test
     fun `the page's own console reaches the log the view reads`() {
-        assertTrue(source("view/jcef/JcefHost.kt").readText().contains("onConsoleMessage")) {
-            "a CSP rejection or a script error in the page never reaches the ring, so the Log view cannot show it"
+        val relays = kotlinFiles().filter { it.readText().contains("override fun onConsoleMessage(") }
+        val host = source("view/jcef/JcefHost.kt").readText()
+        assertTrue(relays.any { it.nameWithoutExtension == "JcefHost" || host.contains("${it.nameWithoutExtension}(") }) {
+            "a CSP rejection or a script error in the page never reaches the log, so the Log view cannot show it: " +
+                "JcefHost installs none of the console handlers $relays"
         }
     }
 
@@ -63,20 +70,16 @@ class LogViewWiringContractTest {
         }
     }
 
-    private fun kotlinFiles(): List<File> =
-        File(mainRoot(), "dev/lain/claudejb").walkTopDown().filter { it.isFile && it.extension == "kt" }.toList()
+    private fun kotlinFiles(): List<File> = SourceLayout.kotlinFiles()
 
-    private fun source(relative: String) = File(mainRoot(), "dev/lain/claudejb/$relative").also {
-        assertTrue(it.isFile) { "missing source file: $it" }
+    private fun source(relative: String): File = SourceLayout.source(relative)
+
+    private fun jcefRoot(): File = SourceLayout.mainDir("resources/jcef")
+
+    private fun tsRoot(): File = SourceLayout.mainDir("ts/jcef")
+
+    private companion object {
+        val LOG_PUSH = Regex("""window\.cc\.log\(|\b(?:exec|execBuilt|PagePush)\(\s*"log"""")
+        val BACK_ON_EDT = Regex("""\bedt\(\w+\.project\)""")
     }
-
-    private fun mainRoot(): File = resolve("src/main/kotlin")
-
-    private fun jcefRoot(): File = resolve("src/main/resources/jcef")
-
-    private fun tsRoot(): File = resolve("src/main/ts/jcef")
-
-    private fun resolve(path: String): File =
-        sequenceOf(File(path), File("../$path")).firstOrNull { it.isDirectory }
-            ?: error("could not locate $path from ${File("").absolutePath}")
 }

@@ -1,6 +1,10 @@
 package dev.lain.claudejb.model.mcp
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -31,6 +35,10 @@ class McpServerTest {
                         ToolResult.toon(buildJsonObject { put("path", args.string("path")) })
                     },
                     Tool(ToolSpec("fail", "Always fails")) { throw ToolException("boom") },
+                    Tool(ToolSpec("interrupted", "Throws a cancellation while nothing was cancelled")) {
+                        throw CancellationException("read action interrupted")
+                    },
+                    Tool(ToolSpec("crash", "Throws what no tool should")) { throw IllegalStateException("no document") },
                 ),
             ),
             ToolDomain("search", "Text and files", emptyList()),
@@ -130,6 +138,29 @@ class McpServerTest {
         val result = callTool("run", """{"tool":"fail"}""")
         assertTrue(result["isError"]!!.jsonPrimitive.boolean)
         assertEquals("error: boom", text(result))
+    }
+
+    @Test
+    fun `a cancellation thrown while the call is still active is a tool error, not a request left without an answer`() {
+        val result = callTool("run", """{"tool":"interrupted"}""")
+        assertTrue(result["isError"]!!.jsonPrimitive.boolean)
+        assertTrue("interrupted" in text(result)) { text(result) }
+        val crash = callTool("run", """{"tool":"crash"}""")
+        assertTrue(crash["isError"]!!.jsonPrimitive.boolean)
+        assertTrue("IllegalStateException: no document" in text(crash)) { text(crash) }
+    }
+
+    @Test
+    fun `a cancellation of the call itself still propagates`() {
+        val tool = Tool(ToolSpec("hang", "Waits forever")) { awaitCancellation() }
+        val meta = MetaTools(ToolCatalog(listOf(ToolDomain("d", "", listOf(tool)))), { _, _ -> null }, OutputBudget())
+        runBlocking {
+            val call = async { meta.call("run", buildJsonObject { put("tool", "hang") }) }
+            yield()
+            call.cancel()
+            val outcome = runCatching { call.await() }
+            assertTrue(outcome.exceptionOrNull() is CancellationException) { outcome.toString() }
+        }
     }
 
     @Test

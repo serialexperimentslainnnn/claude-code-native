@@ -52,7 +52,7 @@ internal class HttpTools(private val project: Project, scope: CoroutineScope, pr
     }
 
     private suspend fun files(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val paths = smartReadAction(project) {
             val scope = GlobalSearchScope.projectScope(project)
             EXTENSIONS.flatMap { FilenameIndex.getAllFilesByExt(project, it, scope) }.map { Locations.relative(project, it) }.sorted()
@@ -113,7 +113,7 @@ internal class HttpTools(private val project: Project, scope: CoroutineScope, pr
         val HTTP_FILES = ToolSpec(
             "http_files",
             "Lists the project's HTTP Client request files (.http and .rest) as the IDE indexes them, relative to the project root.",
-            listOf(Param("max", "Maximum paths to return (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("paths", DEFAULT_MAX)),
         )
 
         val HTTP_RUN = ToolSpec(

@@ -28,7 +28,10 @@ class PluginAgentIndexMigrationTest {
         SecretStore.storeOverride = null
     }
 
-    private fun index() = PluginAgentIndex(scope, basePath = null)
+    private val existing = mutableSetOf("s1")
+
+    private fun index(scope: SettingsScope = this.scope) =
+        PluginAgentIndex(scope, basePath = null, later = { it.run() }, sessionExists = { it in existing })
 
     private fun seed(json: String) {
         safe[scope.agentIndexName] = json
@@ -55,8 +58,9 @@ class PluginAgentIndexMigrationTest {
         seed("""{"s1":[{"agentId":"agent-abc","open":true,"closedByUser":false}]}""")
         index().admittedAgents("s1")
         val body = stored()
-        assertTrue(body.contains("\"version\": ${PluginAgentIndex.FORMAT_VERSION}"), body)
-        assertTrue(body.contains("\"id\": \"abc\""), body)
+        assertTrue(body.contains("\"version\":${PluginAgentIndex.FORMAT_VERSION}"), body)
+        assertTrue(body.contains("\"id\":\"abc\""), body)
+        assertFalse(body.contains("\n"), "the index is stored compact: $body")
         assertFalse(body.contains("agent-abc"), "the legacy id shape must not survive the rewrite: $body")
     }
 
@@ -127,9 +131,46 @@ class PluginAgentIndexMigrationTest {
     }
 
     @Test
+    fun `sessions whose transcript is gone are pruned when the index loads`() {
+        index().apply {
+            admit("s1", node("a1"))
+            admit("gone", node("a2"))
+        }
+
+        val reloaded = index()
+
+        assertEquals(listOf("a1"), reloaded.admittedAgents("s1"))
+        assertFalse(stored().contains("gone"), stored())
+    }
+
+    @Test
+    fun `writes wait for the quiet period and land together`() {
+        val queued = mutableListOf<Runnable>()
+        val index = PluginAgentIndex(scope, basePath = null, later = { queued += it }, sessionExists = { true })
+        index.admit("s1", node("a1"))
+        index.admit("s1", node("a2"))
+        assertFalse(safe.containsKey(scope.agentIndexName))
+        assertEquals(1, queued.size)
+
+        queued.single().run()
+
+        assertTrue(stored().contains("a2"))
+    }
+
+    @Test
+    fun `closing the project writes what is still pending`() {
+        val index = PluginAgentIndex(scope, basePath = null, later = { }, sessionExists = { true })
+        index.admit("s1", node("a1"))
+
+        index.dispose()
+
+        assertTrue(stored().contains("a1"))
+    }
+
+    @Test
     fun `one project's index is not another's`() {
         index().admit("s1", node("a1"))
-        val other = PluginAgentIndex(SettingsScope("a-different-project"), basePath = null)
+        val other = index(SettingsScope("a-different-project"))
 
         assertTrue(other.admittedAgents("s1").isEmpty())
         assertEquals(listOf("a1"), index().admittedAgents("s1"))

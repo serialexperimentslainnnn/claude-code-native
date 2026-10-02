@@ -7,7 +7,7 @@ Short answers to the questions we get most. For deeper diagnostics see
 
 Settings → Plugins → Marketplace → search **Claude Code Native** →
 Install → restart the IDE. Or install from disk using the zip from
-[GitHub Releases](https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains/releases).
+[GitHub Releases](https://github.com/serialexperimentslainnnn/claude-code-native/releases).
 
 After install, a "Claude Code" tool window appears on the right.
 
@@ -153,14 +153,35 @@ the IDE's Local Changes does that job and gives you a way back.
 
 ## Which IDE versions does it run in?
 
-**Build `253.29346.138` — IDEA 2025.3.1 — and newer.** The floor is a build, not a
-version line: the chat UI is the IDE's embedded browser, and the platform serves
-its classes through a module id the plugin must declare a dependency on. That id
-is missing from 2025.1, from 2025.2 and from the first 2025.3 (`253.28294.334`)
-alike, and it arrives in 2025.3.1 — so declaring it, which is what makes the
-plugin work on 2026.2 at all, costs all three. On those, stay on **5.1.1**. There
-is no browser-less mode to fall back to. Help ▸ About prints the build number you
-have.
+**Build `262.8665.258` — 2026.2 — and newer, through the 2026.3 branch.** The
+floor is a build, not a version line: the chat is split between the IDE's frontend
+and its backend so that it works in Remote Development, and the platform RPC that
+joins the two is internal before 2026.2. The plugin uses no internal API, so
+2025.3 and 2026.1 are not supported. On 2025.3.1 or 2026.1 stay on **6.0.1**; on
+2025.1, 2025.2 or the first 2025.3 (`253.28294.334`), on **5.1.1**. There is no
+browser-less mode to fall back to. Help ▸ About prints the build number you have.
+
+## Does it work in Remote Development or Code With Me?
+
+**Remote Development: yes.** The chat is drawn in JetBrains Client and the
+sessions, the IDE servers, the guard and the `claude` process run on the host,
+beside the project; the two talk over the platform's RPC, with no port to
+forward. The plugin is installed on the host and on the client: the client gets
+its copy from the Marketplace through plugin sync.
+
+**Code With Me: the host only.** The host's chat works as in a local IDE; guests
+get no chat. JetBrains is retiring Code With Me, and 2026.1 was the last release
+with official support.
+
+## How do I keep Claude on the IDE's tools in a long session?
+
+Install [Claude Code Native — Skills and
+Settings](https://github.com/serialexperimentslainnnn/claude-code-native-skills-and-settings) into
+`~/.claude`. The rules God Mode puts in the system prompt say which tool replaces which; that configuration
+adds the working method on **every prompt** through a `UserPromptSubmit` hook, so it never sinks as the
+conversation grows, plus a skill that maps each job to its IDE tool and a catalogue of engineering-standards
+skills. Clone it and run `./install.sh` (`install.ps1` on Windows); both back up what they replace and can
+uninstall.
 
 ## Why does each agent get its own tab now?
 

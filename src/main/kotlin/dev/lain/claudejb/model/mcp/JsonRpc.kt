@@ -5,7 +5,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 object JsonRpc {
@@ -34,7 +33,7 @@ object JsonRpc {
         val method = (obj["method"] as? JsonPrimitive)?.takeIf { it.isString }?.content
         val params = obj["params"]?.let { it as? JsonObject ?: return Malformed(id, "params must be an object") }
         return when {
-            obj["jsonrpc"]?.jsonPrimitive?.content != VERSION -> Malformed(id, "jsonrpc must be \"$VERSION\"")
+            (obj["jsonrpc"] as? JsonPrimitive)?.content != VERSION -> Malformed(id, "jsonrpc must be \"$VERSION\"")
             method == null && id != null -> Reply(id)
             method == null -> Malformed(null, "a message carries a method or an id")
             id == null -> Notification(method, params ?: EMPTY)

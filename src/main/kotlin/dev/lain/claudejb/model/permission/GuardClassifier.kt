@@ -138,14 +138,20 @@ internal object GuardClassifier {
             }
         }
 
-        if (projRoot == null) return null
+        return projRoot?.let { outsideProjectHit(input, it, policy) }
+    }
+
+    private fun outsideProjectHit(input: JsonObject, projRoot: String, policy: Policy): Hit? {
+        val scratches = policy.scratchRoot?.let { GuardPaths.fold(GuardPaths.normalize(it, policy.home)) }
         val certain = policy.pathProbe == null || commitsToDisk(input)
         val mounted = mountHosts(input, projRoot, policy)
         return ToolInputScanner.locationCandidates(input, policy.home, policy.envValues)
             .mapNotNull { GuardPaths.absoluteForm(it, projRoot) }
             .filterNot { ScriptExecution.inSystemBinDir(it) || SystemDevices.isDeviceNode(it) }
             .firstOrNull {
-                !GuardPaths.under(it, projRoot, policy.caseInsensitivePaths) && (certain || it in mounted || present(it, policy))
+                !GuardPaths.under(it, projRoot, policy.caseInsensitivePaths) &&
+                    (scratches == null || !GuardPaths.under(it, scratches, policy.caseInsensitivePaths)) &&
+                    (certain || it in mounted || present(it, policy))
             }
             ?.let { Hit(SecurityRule.OUTSIDE_PROJECT, "reaches outside the project: $it") }
     }

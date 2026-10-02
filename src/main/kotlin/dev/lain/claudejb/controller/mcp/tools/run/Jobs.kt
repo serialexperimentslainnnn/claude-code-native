@@ -4,11 +4,15 @@ import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.ToolArgs
 import dev.lain.claudejb.model.mcp.ToolException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration.Companion.minutes
 
 internal class Job<T>(val id: String, val tail: OutputTail, val deferred: Deferred<T>)
 
@@ -32,9 +36,16 @@ internal class Jobs<T>(private val scope: CoroutineScope, private val prefix: St
 
     fun start(tail: OutputTail, block: suspend () -> T): Job<T> {
         val id = prefix + "-" + counter.incrementAndGet()
-        val job = Job(id, tail, scope.async { block() })
+        val job = Job(id, tail, scope.async(start = CoroutineStart.LAZY) { block() })
         running[id] = job
+        job.deferred.invokeOnCompletion { scope.launch { evict(job) } }
+        job.deferred.start()
         return job
+    }
+
+    private suspend fun evict(job: Job<T>) {
+        delay(RETAIN)
+        running.remove(job.id, job)
     }
 
     fun find(id: String): Job<T> =
@@ -51,6 +62,7 @@ internal class Jobs<T>(private val scope: CoroutineScope, private val prefix: St
         const val DEFAULT_WAIT_SECONDS = 45
         const val MAX_WAIT_SECONDS = 110
         private const val MILLIS = 1000L
+        private val RETAIN = 10.minutes
 
         val WAIT = Param(
             "wait",

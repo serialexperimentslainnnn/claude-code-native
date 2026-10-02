@@ -27,11 +27,32 @@ object SessionTranscriptReader {
 
     private const val TOON = "toon"
 
-    fun readEntries(sessionId: String, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> =
-        SessionStore.readLines(sessionId)?.let { parseEntries(it, maxEntries, projectRoot) } ?: emptyList()
+    fun readEntries(sessionId: String, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> {
+        val cap = maxEntries?.takeIf { it > 0 }
+            ?: return SessionStore.readLines(sessionId)?.let { parseEntries(it, null, projectRoot) }.orEmpty()
+        return SessionStore.useLinesFromEnd(sessionId) { tailEntries(it, cap, projectRoot) }.orEmpty()
+    }
 
-    fun parseEntries(lines: List<String>, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> =
-        entriesOf(parseRecords(lines), maxEntries, projectRoot)
+    fun parseEntries(lines: List<String>, maxEntries: Int? = null, projectRoot: String? = null): List<EntryDTO> {
+        val cap = maxEntries?.takeIf { it > 0 } ?: return entriesOf(parseRecords(lines), null, projectRoot)
+        return tailEntries(lines.asReversed().asSequence(), cap, projectRoot)
+    }
+
+    private fun tailEntries(newestFirst: Sequence<String>, maxEntries: Int, projectRoot: String?): List<EntryDTO> {
+        val chunks = ArrayList<List<EntryDTO>>()
+        var count = 0
+        var truncated = false
+        for (line in newestFirst) {
+            if (count >= maxEntries) {
+                truncated = true
+                break
+            }
+            val entries = parseRecord(line)?.let { entriesOf(it, projectRoot) }.orEmpty()
+            chunks += entries
+            count += entries.size
+        }
+        return settle(chunks.asReversed().flatten(), maxEntries, truncated)
+    }
 
     fun parseRecord(line: String): JsonObject? =
         if (line.isBlank()) null else runCatching { JSON.parseToJsonElement(line).jsonObject }.getOrNull()
@@ -44,17 +65,25 @@ object SessionTranscriptReader {
         projectRoot: String? = null,
     ): List<EntryDTO> {
         val out = ArrayList<EntryDTO>()
-        for (obj in records) {
-            runCatching {
-                when (obj["type"]?.jsonPrimitive?.contentOrNull) {
-                    "user" -> parseUser(obj, out)
-                    "assistant" -> parseAssistant(obj, out, projectRoot)
-                    else -> Unit
-                }
+        for (obj in records) collect(obj, out, projectRoot)
+        return settle(out, maxEntries)
+    }
+
+    private fun entriesOf(record: JsonObject, projectRoot: String?): List<EntryDTO> =
+        ArrayList<EntryDTO>().also { collect(record, it, projectRoot) }
+
+    private fun collect(obj: JsonObject, out: MutableList<EntryDTO>, projectRoot: String?) {
+        runCatching {
+            when (obj["type"]?.jsonPrimitive?.contentOrNull) {
+                "user" -> parseUser(obj, out)
+                "assistant" -> parseAssistant(obj, out, projectRoot)
+                else -> Unit
             }
         }
-        return capTail(markInFlight(decodeOwnOutputs(tagCommandOutputs(out))), maxEntries)
     }
+
+    private fun settle(entries: List<EntryDTO>, maxEntries: Int?, truncated: Boolean = false): List<EntryDTO> =
+        decodeOwnOutputs(capTail(markInFlight(tagCommandOutputs(entries)), maxEntries, truncated))
 
     private fun decodeOwnOutputs(entries: List<EntryDTO>): List<EntryDTO> {
         val ownCalls = entries.asSequence()
@@ -99,9 +128,10 @@ object SessionTranscriptReader {
         }
     }
 
-    private fun capTail(entries: List<EntryDTO>, maxEntries: Int?): List<EntryDTO> {
-        if (maxEntries == null || maxEntries <= 0 || entries.size <= maxEntries) return entries
-        val window = entries.subList(entries.size - maxEntries, entries.size)
+    private fun capTail(entries: List<EntryDTO>, maxEntries: Int?, truncated: Boolean): List<EntryDTO> {
+        if (maxEntries == null || maxEntries <= 0) return entries
+        if (!truncated && entries.size <= maxEntries) return entries
+        val window = entries.takeLast(maxEntries)
         val seenToolIds = HashSet<String?>()
         for (e in window) if (e.speaker == "TOOL") seenToolIds += e.toolUseId
         return window.filterNot { e ->
@@ -216,8 +246,8 @@ object SessionTranscriptReader {
             parentToolUseId = origin.parent,
             atMillis = origin.atMillis,
             filePath = if (own != null) OwnTools.path(args) else ToolNaming.toolFilePath(name, input, projectRoot),
-            commandText = ToolInputScanner.commandText(input),
-            messageText = if (own != null) OwnTools.argsToon(args) else ToolInputScanner.messageText(input),
+            commandText = if (own != null) OwnTools.command(own, args) else ToolInputScanner.commandText(input),
+            messageText = if (own != null) OwnTools.detailsToon(own, args) else ToolInputScanner.messageText(input),
         )
     }
 

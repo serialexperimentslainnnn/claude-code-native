@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.bridge
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -74,27 +75,31 @@ class PageStateRecoveryContractTest {
         val lines = source("controller/bridge/BridgeLifecycle.kt").readLines()
         val start = lines.indexOfFirst { it.contains("Msg.Ready ->") }
         assertTrue(start >= 0) { "BridgeLifecycle no longer handles Msg.Ready" }
-        val length = lines.drop(start + 1).indexOfFirst { it == "            }" }
-        assertTrue(length >= 0) { "could not find the end of the Msg.Ready branch" }
-        val branch = lines.subList(start, start + 1 + length)
+        val branch = if (lines[start].trimEnd().endsWith("{")) {
+            val length = lines.drop(start + 1).indexOfFirst { it == "            }" }
+            assertTrue(length >= 0) { "could not find the end of the Msg.Ready branch" }
+            lines.subList(start, start + 1 + length)
+        } else {
+            listOf(lines[start])
+        }
+        val delegate = DELEGATE.find(branch.joinToString("\n"))?.groupValues?.get(1)
+        val reached = branch + delegate?.let { bodyOf(source("view/window/ChatPresenter.kt").readLines(), "fun $it(") }.orEmpty()
 
-        assertTrue(branch.any { it.contains("agentTabs.render()") }) {
+        assertTrue(reached.any { it.contains("agentTabs.render()") }) {
             "the Ready branch re-pushes everything the page needs EXCEPT the tab bar. A page that reloaded, " +
                 "or that came up on a later rung of the delivery ladder, is then drawn with an empty chat " +
                 "list — and the page hides #tabsbar entirely, dashboard view buttons included.\n" +
-                branch.joinToString("\n")
+                reached.joinToString("\n")
         }
     }
 
     @Test
     fun `the tab bar has exactly one emitter, and it is the one Ready calls`() {
-        val emitters = File(mainRoot(), "dev/lain/claudejb").walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
-            .filter { it.readText().contains("window.cc.tabs(") }
+        val emitters = SourceLayout.kotlinFiles()
+            .filter { TABS_PUSH.containsMatchIn(it.readText()) }
             .map { it.name }
-            .toList()
         assertEquals(listOf("ChatAgentTabs.kt"), emitters) {
-            "window.cc.tabs is emitted from more than one place: $emitters"
+            "the page's tabs push is emitted from more than one place: $emitters"
         }
     }
 
@@ -107,16 +112,11 @@ class PageStateRecoveryContractTest {
         return lines.subList(from, from + 2 + length)
     }
 
-    private fun source(relative: String) = File(mainRoot(), "dev/lain/claudejb/$relative").also {
-        assertTrue(it.isFile) { "missing source file: $it" }
-    }
-
-    private fun mainRoot(): File =
-        sequenceOf(File("src/main/kotlin"), File("../src/main/kotlin"))
-            .firstOrNull { it.isDirectory }
-            ?: error("could not locate src/main/kotlin from ${File("").absolutePath}")
+    private fun source(relative: String): File = SourceLayout.source(relative)
 
     private companion object {
         val ARMS = Regex("""\barm\(""")
+        val DELEGATE = Regex("""\bpresenter\.(\w+)\(\)""")
+        val TABS_PUSH = Regex("""window\.cc\.tabs\(|\b(?:exec|execBuilt|PagePush)\(\s*"tabs"""")
     }
 }

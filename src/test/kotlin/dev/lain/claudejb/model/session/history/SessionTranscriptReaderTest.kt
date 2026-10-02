@@ -68,6 +68,18 @@ class SessionTranscriptReaderTest {
     }
 
     @Test
+    fun `a restored own shell call carries its command as the command block and only the rest as args`() {
+        val lines = listOf(
+            """{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_sh",""" +
+                """"name":"mcp__run__run","input":{"tool":"shell","args":{"command":"git status","tail":15}}}]}}""",
+        )
+        val call = SessionTranscriptReader.parseEntries(lines).single()
+        assertEquals("run ▸ shell", call.text)
+        assertEquals("git status", call.commandText)
+        assertEquals("tail: 15", call.messageText)
+    }
+
+    @Test
     fun `a restored file tool keeps the project-relative path and its jump-to-code link`() {
         val root = "/home/u/proj"
         val lines = listOf(

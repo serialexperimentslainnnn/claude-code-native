@@ -1,0 +1,13 @@
+<idea-plugin>
+    <dependencies>
+        <plugin id="org.jetbrains.plugins.terminal"/>
+        <module name="intellij.terminal.frontend"/>
+        <module name="dev.lain.claudejb.frontend"/>
+        <module name="dev.lain.claudejb.shared"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="dev.lain.claudejb.frontend.window.TerminalOpener"
+                        serviceImplementation="dev.lain.claudejb.frontend.terminal.ClientTerminal"/>
+    </extensions>
+</idea-plugin>

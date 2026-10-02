@@ -2,6 +2,7 @@ package dev.lain.claudejb.controller.mcp
 
 import dev.lain.claudejb.mcp.Frames
 import dev.lain.claudejb.mcp.StdioBridge
+import dev.lain.claudejb.model.mcp.JsonRpc
 import dev.lain.claudejb.model.mcp.McpServer
 import dev.lain.claudejb.model.mcp.MetaTools
 import dev.lain.claudejb.model.mcp.OutputBudget
@@ -57,7 +58,8 @@ class ServerEndpointTest {
             ToolResult("slow: done")
         }
         val fast = Tool(ToolSpec("fast", "answers at once")) { ToolResult("fast: done") }
-        val catalog = ToolCatalog(listOf(ToolDomain("d", "", listOf(slow, fast))))
+        val lone = Tool(ToolSpec("lone", "answers half a surrogate pair")) { ToolResult("half \uD800 a pair") }
+        val catalog = ToolCatalog(listOf(ToolDomain("d", "", listOf(slow, fast, lone))))
         val mcp = McpServer("code", "test", MetaTools(catalog, { _, _ -> null }, OutputBudget()))
         endpoint = ServerEndpoint(IdeServer.CODE, dir.resolve("code.sock"), mcp, tokens, scope, { admitted })
         endpoint.start()
@@ -125,6 +127,34 @@ class ServerEndpointTest {
     }
 
     @Test
+    fun `malformed frames get an error and the server keeps answering`() = connect { input, output ->
+        send(output, """{"jsonrpc":{},"id":5,"method":"ping"}""")
+        assertEquals("5", receive(input)["id"]?.jsonPrimitive?.content)
+        Frames.write(output, "jsonrpc: \"2.0\"\nid: 1e99999999999\nmethod: ping")
+        assertEquals(JsonRpc.PARSE_ERROR, code(receive(input)))
+        Frames.write(output, (0 until 200).joinToString("\n") { "  ".repeat(it) + "k$it:" })
+        assertEquals(JsonRpc.PARSE_ERROR, code(receive(input)))
+        send(output, request(6, "ping", "{}"))
+        assertEquals("6", receive(input)["id"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a reply that cannot be encoded is answered with an error, never left pending`() = connect { input, output ->
+        send(output, request(7, "tools/call", """{"name":"run","arguments":{"tool":"lone"}}"""))
+        val reply = receive(input)
+        assertEquals("7", reply["id"]?.jsonPrimitive?.content)
+        assertEquals(ServerEndpoint.UNENCODABLE, reply["error"]!!.jsonObject["message"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `closing the endpoint closes the connections it accepted`() = connect { input, output ->
+        send(output, request(1, "ping", "{}"))
+        receive(input)
+        endpoint.close()
+        assertNull(Frames.read(input))
+    }
+
+    @Test
     fun `a connection the project does not admit is closed`() {
         admitted = false
         connect { input, _ -> assertNull(Frames.read(input)) }
@@ -149,6 +179,8 @@ class ServerEndpointTest {
     private fun send(output: OutputStream, json: String) = Frames.write(output, Toon.encode(Json.parseToJsonElement(json)))
 
     private fun receive(input: InputStream): JsonObject = Toon.decode(Frames.read(input)!!).jsonObject
+
+    private fun code(reply: JsonObject): Int = reply["error"]!!.jsonObject["code"]!!.jsonPrimitive.content.toInt()
 
     private fun text(reply: JsonObject): String =
         reply["result"]!!.jsonObject["content"]!!.jsonArray.single().jsonObject["text"]!!.jsonPrimitive.content

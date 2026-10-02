@@ -102,9 +102,9 @@ class PermissionBrokerTest {
 
         assertNotNull(captured)
         assertTrue(captured!!.isPlan)
-        assertEquals("1. do this\n2. then that", captured?.planText)
-        assertFalse(captured!!.reviewable)
-        assertEquals("tu_plan", captured?.toolUseId)
+        assertEquals("1. do this\n2. then that", captured.planText)
+        assertFalse(captured.reviewable)
+        assertEquals("tu_plan", captured.toolUseId)
     }
 
     @Test
@@ -115,7 +115,7 @@ class PermissionBrokerTest {
         broker(mode = "default", present = { captured = it }).handle("req-plan2", request)
 
         assertTrue(captured!!.isPlan)
-        assertNull(captured?.planText)
+        assertNull(captured.planText)
     }
 
     @Test

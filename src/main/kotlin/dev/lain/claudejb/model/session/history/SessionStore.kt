@@ -1,5 +1,8 @@
 package dev.lain.claudejb.model.session.history
 
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.nio.charset.CodingErrorAction
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -32,8 +35,20 @@ internal object SessionStore {
 
     fun exists(sessionId: String): Boolean = locate(sessionId) != null
 
-    fun readLines(sessionId: String): List<String>? =
-        locate(sessionId)?.let { runCatching { Files.readAllLines(it) }.getOrNull() }
+    fun readLines(sessionId: String): List<String>? = useLines(sessionId) { it.toList() }
+
+    fun <T> useLines(sessionId: String, block: (Sequence<String>) -> T): T? =
+        locate(sessionId)?.let { path -> runCatching { lenientReader(path).useLines(block) }.getOrNull() }
+
+    fun <T> useLinesFromEnd(sessionId: String, block: (Sequence<String>) -> T): T? =
+        locate(sessionId)?.let { path -> runCatching { ReverseLines.read(path, block) }.getOrNull() }
+
+    fun lenientReader(path: Path): BufferedReader {
+        val decoder = Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPLACE)
+            .onUnmappableCharacter(CodingErrorAction.REPLACE)
+        return BufferedReader(InputStreamReader(Files.newInputStream(path), decoder))
+    }
 
     fun sessionDir(sessionId: String): Path? {
         val transcript = locate(sessionId) ?: return null

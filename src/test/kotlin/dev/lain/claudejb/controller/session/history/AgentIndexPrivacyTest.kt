@@ -36,8 +36,8 @@ class AgentIndexPrivacyTest {
                 ),
             ),
         )
-        assertTrue(encoded.contains("\"type\": \"subagent\""), encoded)
-        assertTrue(encoded.contains("\"type\": \"backgroundtask\""), encoded)
+        assertTrue(encoded.contains("\"type\":\"subagent\""), encoded)
+        assertTrue(encoded.contains("\"type\":\"backgroundtask\""), encoded)
         assertTrue(encoded.contains("\"parent\""))
         assertTrue(encoded.contains("\"childs\""))
         setOf("description", "prompt", "transcript", "summary", "stdout")

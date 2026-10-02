@@ -5,13 +5,14 @@ import dev.lain.claudejb.controller.session.control.PlanInfo
 import dev.lain.claudejb.model.protocol.models.UsageReport
 import dev.lain.claudejb.model.protocol.parse.afterResets
 import dev.lain.claudejb.model.protocol.parse.mergedOver
+import dev.lain.claudejb.rpc.PagePush
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import javax.swing.Timer
 
 internal class SessionFeed(
     private val session: ClaudeSession,
-    private val exec: (String) -> Unit,
+    private val emit: (PagePush) -> Unit,
     private val onRefreshed: () -> Unit,
 ) {
 
@@ -56,7 +57,7 @@ internal class SessionFeed(
 
     fun requestMcp() {
         session.queries.requestMcpStatus { json ->
-            if (json != null) exec("window.cc.mcp && window.cc.mcp($json)")
+            if (json != null) emit(PagePush("mcp", json.toString()))
         }
     }
 

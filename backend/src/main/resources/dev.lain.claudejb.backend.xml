@@ -1,0 +1,61 @@
+<idea-plugin>
+    <dependencies>
+        <module name="intellij.platform.backend"/>
+        <module name="intellij.platform.kernel.backend"/>
+        <module name="intellij.platform.rpc.backend"/>
+        <module name="intellij.platform.vcs.impl"/>
+        <module name="intellij.platform.vcs.log"/>
+        <module name="intellij.platform.vcs.log.impl"/>
+        <module name="intellij.platform.smRunner"/>
+        <module name="dev.lain.claudejb.shared"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <platform.rpc.backend.remoteApiProvider implementation="dev.lain.claudejb.rpc.backend.ChatApiProvider"/>
+        <editorNotificationProvider implementation="dev.lain.claudejb.controller.mcp.tools.code.BannerProvider"/>
+        <notificationGroup id="Claude Code" displayType="BALLOON"/>
+        <projectService serviceInterface="dev.lain.claudejb.controller.process.TerminalLauncher$Host"
+                        serviceImplementation="dev.lain.claudejb.view.window.ChatTerminalHost"/>
+        <projectConfigurable
+                instance="dev.lain.claudejb.view.settings.ClaudeSettingsConfigurable"
+                id="dev.lain.claudejb.settings"
+                groupId="root"
+                displayName="Claude Code"
+                nonDefaultProject="false"/>
+        <projectConfigurable
+                instance="dev.lain.claudejb.view.settings.ClaudeSecurityConfigurable"
+                id="dev.lain.claudejb.settings.security"
+                groupId="root"
+                displayName="Claude Code Security"
+                nonDefaultProject="false"/>
+    </extensions>
+
+    <applicationListeners>
+        <listener class="dev.lain.claudejb.view.diff.DiffTabCleanup"
+                  topic="com.intellij.openapi.project.ProjectCloseListener"/>
+    </applicationListeners>
+
+    <actions>
+        <action id="dev.lain.claudejb.ExplainSelection"
+                class="dev.lain.claudejb.controller.actions.ExplainSelectionAction"
+                text="Explain with Claude"
+                icon="/icons/claude.svg"
+                description="Send the selected code to Claude and ask it to explain.">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="dev.lain.claudejb.AddSelectionAsContext"
+                class="dev.lain.claudejb.controller.actions.AddSelectionAsContextAction"
+                text="Add Selection to Claude Context"
+                icon="/icons/claude.svg"
+                description="Attach the selected code to the active Claude chat as context.">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+        <action id="dev.lain.claudejb.AddFileAsContext"
+                class="dev.lain.claudejb.controller.actions.AddFileAsContextAction"
+                text="Add File to Claude Context"
+                icon="/icons/claude.svg"
+                description="Attach the current file to the active Claude chat as an @-mention.">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

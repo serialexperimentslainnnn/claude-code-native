@@ -1,0 +1,11 @@
+<idea-plugin>
+    <dependencies>
+        <module name="intellij.platform.langInjection"/>
+        <module name="dev.lain.claudejb.backend"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="dev.lain.claudejb.controller.mcp.tools.code.LanguageInjection"
+                        serviceImplementation="dev.lain.claudejb.controller.mcp.tools.code.IntelliLangGateway"/>
+    </extensions>
+</idea-plugin>

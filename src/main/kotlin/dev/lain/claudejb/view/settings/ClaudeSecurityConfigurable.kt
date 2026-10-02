@@ -4,11 +4,12 @@ import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.project.Project
 import com.intellij.ui.dsl.builder.panel
 import dev.lain.claudejb.controller.commands.CleanSettings
-import dev.lain.claudejb.controller.commands.LivePanels
 import dev.lain.claudejb.model.settings.ClaudeSettings
 import dev.lain.claudejb.view.settings.sections.SettingsGuardLogSection
 import dev.lain.claudejb.view.settings.sections.SettingsGuardMasterSection
 import dev.lain.claudejb.view.settings.sections.SettingsSecuritySection
+import dev.lain.claudejb.view.window.ChatRegistry
+import dev.lain.claudejb.view.window.ChatSnapshots.Kind
 import javax.swing.JButton
 import javax.swing.JComponent
 
@@ -50,8 +51,7 @@ class ClaudeSecurityConfigurable(private val project: Project) : Configurable {
         sections.forEach { it.apply(s) }
         settings.save()
         shown = s
-        LivePanels.pushState()
-        LivePanels.pushSettingsMenu()
+        ChatRegistry.repaintEverywhere(Kind.META, Kind.STATE, Kind.MENU)
     }
 
     override fun reset() {

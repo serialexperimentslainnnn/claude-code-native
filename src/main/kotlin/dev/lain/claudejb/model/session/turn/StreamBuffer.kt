@@ -20,8 +20,12 @@ class StreamBuffer {
             is ClaudeEvent.LiveUsage -> synchronized(lock) {
                 usage = intArrayOf(event.inputTokens, event.cacheCreationTokens, event.cacheReadTokens, event.outputTokens)
             }
+
+            ClaudeEvent.BlockStop -> Unit
         }
     }
+
+    fun hasPending(): Boolean = synchronized(lock) { runs.isNotEmpty() || usage != null }
 
     private fun append(isThinking: Boolean, text: String) = synchronized(lock) {
         val last = runs.lastOrNull()

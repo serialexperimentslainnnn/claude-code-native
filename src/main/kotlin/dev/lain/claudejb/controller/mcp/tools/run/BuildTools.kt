@@ -57,7 +57,7 @@ internal class BuildTools(private val project: Project, scope: CoroutineScope) {
     private suspend fun build(args: ToolArgs): ToolResult {
         val kind = args.optionalString("kind") ?: "build"
         if (kind !in KINDS) throw ToolException("kind must be one of ${KINDS.joinToString()}")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val tailLines = OutputTail.lines(args)
         val scope = scope(kind, args)
         val job = args.optionalString("job")?.let { jobs.find(it) }
@@ -197,7 +197,7 @@ internal class BuildTools(private val project: Project, scope: CoroutineScope) {
                 Param("path", "The file to recompile, relative to the project root (kind=file)", required = false),
                 Jobs.WAIT,
                 OutputTail.TAIL,
-                Param("max", "Maximum errors to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("errors", DEFAULT_MAX),
                 Jobs.JOB,
             ),
             mutates = true,

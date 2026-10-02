@@ -12,6 +12,7 @@ data class ToolSpec(
     val params: List<Param> = emptyList(),
     val mutates: Boolean = false,
     val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
+    val parallel: Boolean = !mutates,
 ) {
     val inputSchema: JsonObject
         get() = buildJsonObject {
@@ -54,7 +55,14 @@ data class Param(
     val type: String = "string",
     val required: Boolean = true,
     val items: Items? = null,
-)
+) {
+    companion object {
+        const val MAX_CEILING = 500
+
+        fun max(what: String, default: Int, ceiling: Int = MAX_CEILING): Param =
+            Param("max", "Maximum $what to return (default $default, at most $ceiling)", type = "integer", required = false)
+    }
+}
 
 class Tool(val spec: ToolSpec, val run: suspend (ToolArgs) -> ToolResult)
 

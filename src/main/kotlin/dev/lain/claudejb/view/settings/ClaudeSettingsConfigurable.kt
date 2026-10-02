@@ -15,6 +15,8 @@ import dev.lain.claudejb.view.settings.sections.SettingsModelSection
 import dev.lain.claudejb.view.settings.sections.SettingsProviderSection
 import dev.lain.claudejb.view.settings.sections.SettingsToolsSection
 import dev.lain.claudejb.view.settings.sections.SettingsTransferSection
+import dev.lain.claudejb.view.window.ChatRegistry
+import dev.lain.claudejb.view.window.ChatSnapshots.Kind
 import javax.swing.JComponent
 
 class ClaudeSettingsConfigurable(private val project: Project) : Configurable {
@@ -70,6 +72,7 @@ class ClaudeSettingsConfigurable(private val project: Project) : Configurable {
         sections.forEach { it.apply(s) }
         settings.save()
         ChatSessionManager.getInstance(project).adoptSettings()
+        ChatRegistry.repaintEverywhere(Kind.META, Kind.STATE, Kind.MENU)
         shown = s
     }
 

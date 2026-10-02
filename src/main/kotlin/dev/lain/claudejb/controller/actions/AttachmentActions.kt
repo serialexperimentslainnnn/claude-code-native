@@ -1,25 +1,14 @@
 package dev.lain.claudejb.controller.actions
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.wm.ToolWindowManager
-import dev.lain.claudejb.controller.session.ChatSessionManager
 import dev.lain.claudejb.model.context.Attachment
-import dev.lain.claudejb.view.window.ClaudeToolWindowFactory
+import dev.lain.claudejb.view.window.ChatRegistry
 
 object AttachmentActions {
 
     fun pin(project: Project, attachment: Attachment) {
-        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(ClaudeToolWindowFactory.TOOL_WINDOW_ID)
-        if (toolWindow == null) {
-            send(project, attachment)
-            return
-        }
-        toolWindow.activate {
-            val panel = ClaudeToolWindowFactory.activePanel(project)
-            if (panel != null) panel.addAttachment(attachment) else send(project, attachment)
-        }
+        val registry = ChatRegistry.getInstance(project)
+        registry.selectedOrNew().addAttachment(attachment)
+        registry.showToolWindow()
     }
-
-    private fun send(project: Project, attachment: Attachment) =
-        ChatSessionManager.getInstance(project).activeOrCreate().send(attachment.toPromptText())
 }

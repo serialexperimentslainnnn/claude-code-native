@@ -1,5 +1,6 @@
 package dev.lain.claudejb.mcp;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +21,8 @@ public final class StdioBridge {
 
     public static final String TOKEN_KEY = "dev.lain.claudejb/token";
     public static final String TOKEN_FILE = "token";
+    private static final int PARSE_ERROR = -32700;
+    private static final int INTERNAL_ERROR = -32603;
 
     private final Path socket;
     private final Path tokenFile;
@@ -44,8 +47,8 @@ public final class StdioBridge {
         try (SocketChannel channel = SocketChannel.open(StandardProtocolFamily.UNIX)) {
             channel.connect(UnixDomainSocketAddress.of(socket));
             OutputStream toPlugin = Channels.newOutputStream(channel);
-            InputStream fromPlugin = Channels.newInputStream(channel);
-            Thread replies = new Thread(() -> relayReplies(fromPlugin), "mcp-replies");
+            InputStream fromPlugin = new BufferedInputStream(Channels.newInputStream(channel));
+            Thread replies = new Thread(() -> relayReplies(fromPlugin, channel), "mcp-replies");
             replies.setDaemon(true);
             replies.start();
             relayRequests(stdin, toPlugin);
@@ -63,7 +66,7 @@ public final class StdioBridge {
             try {
                 message = Json.parse(line);
             } catch (IllegalArgumentException e) {
-                emit(Json.write(parseError()));
+                emit(Json.write(error(PARSE_ERROR, "Parse error")));
                 continue;
             }
             synchronized (toPlugin) {
@@ -72,13 +75,34 @@ public final class StdioBridge {
         }
     }
 
-    private void relayReplies(InputStream fromPlugin) {
+    void relayReplies(InputStream fromPlugin, SocketChannel channel) {
         try {
             String frame;
             while ((frame = Frames.read(fromPlugin)) != null) {
-                emit(Json.write(Toon.decode(frame)));
+                relayReply(frame);
             }
-        } catch (IOException | ToonException e) {
+        } catch (IOException e) {
+            System.err.println("StdioBridge: " + e.getMessage());
+            closeQuietly(channel);
+        }
+    }
+
+    private void relayReply(String frame) {
+        String line;
+        try {
+            line = Json.write(Toon.decode(frame));
+        } catch (RuntimeException e) {
+            System.err.println("StdioBridge: unreadable reply: " + e.getMessage());
+            line = Json.write(error(INTERNAL_ERROR, "unreadable reply from the IDE"));
+        }
+        emit(line);
+    }
+
+    private static void closeQuietly(SocketChannel channel) {
+        if (channel == null) return;
+        try {
+            channel.close();
+        } catch (IOException e) {
             System.err.println("StdioBridge: " + e.getMessage());
         }
     }
@@ -115,10 +139,10 @@ public final class StdioBridge {
         }
     }
 
-    private static Map<String, Object> parseError() {
+    private static Map<String, Object> error(int code, String message) {
         Map<String, Object> error = new LinkedHashMap<>();
-        error.put("code", -32700);
-        error.put("message", "Parse error");
+        error.put("code", code);
+        error.put("message", message);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("jsonrpc", "2.0");
         response.put("id", null);

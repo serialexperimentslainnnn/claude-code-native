@@ -1,8 +1,8 @@
 package dev.lain.claudejb.view.window
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.io.File
 
 class InitOrderContractTest {
 
@@ -12,8 +12,9 @@ class InitOrderContractTest {
     @Test
     fun `no class-body property is declared after the init block that could use it`() {
         val offenders = mutableListOf<String>()
+        assertTrue(SourceLayout.kotlinFiles().size >= MIN_SOURCES) { "the scan sees no source tree; it would pass vacuously" }
 
-        sourceRoot().walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+        SourceLayout.kotlinFiles().forEach { file ->
             val lines = file.readLines()
             val initAt = lines.indexOfFirst { classBodyInit.containsMatchIn(it) }
             if (initAt < 0) return@forEach
@@ -30,8 +31,7 @@ class InitOrderContractTest {
         }
     }
 
-    private fun sourceRoot(): File =
-        sequenceOf(File("src/main/kotlin"), File("../src/main/kotlin"))
-            .firstOrNull { it.isDirectory }
-            ?: error("could not locate src/main/kotlin from ${File("").absolutePath}")
+    private companion object {
+        const val MIN_SOURCES = 100
+    }
 }

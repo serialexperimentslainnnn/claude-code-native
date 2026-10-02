@@ -1,21 +1,23 @@
 package dev.lain.claudejb.view.feed
 
 import dev.lain.claudejb.controller.vuln.VulnService
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
+import dev.lain.claudejb.view.window.ChatSnapshots.Kind
+import dev.lain.claudejb.view.window.PushStream
 
-internal class SecurityViews(private val panel: JcefChatPanel) {
+internal class SecurityViews(private val presenter: ChatPresenter) {
 
-    fun pushGuard() = panel.guard.push()
+    fun pushGuard() = presenter.guard.push()
 
-    fun pushVuln() = VulnService.getInstance(panel.project).refresh(panel::pushSession)
+    fun pushVuln() = VulnService.getInstance(presenter.project).refresh { presenter.snapshots.mark(Kind.SESSION) }
 
     fun openGuardView() {
         pushGuard()
-        panel.host.exec("window.cc.openGuardView && window.cc.openGuardView()")
+        presenter.exec("openGuardView", PushStream.NO_ARGS)
     }
 
     fun showVulnView() {
         pushVuln()
-        panel.host.exec("window.cc.showVulnView && window.cc.showVulnView()")
+        presenter.exec("showVulnView", PushStream.NO_ARGS)
     }
 }

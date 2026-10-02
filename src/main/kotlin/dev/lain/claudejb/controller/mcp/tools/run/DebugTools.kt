@@ -16,6 +16,7 @@ import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.DEFAULT_MAX
 import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.DEFAULT_STEP_WAIT
 import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.DEFAULT_VARIABLES
 import dev.lain.claudejb.controller.mcp.tools.run.DebugSpecs.STEP_FRAMES
+import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
 import dev.lain.claudejb.model.mcp.ToolArgs
 import dev.lain.claudejb.model.mcp.ToolDomain
@@ -113,7 +114,7 @@ internal class DebugTools(private val project: Project) {
 
     private suspend fun frames(args: ToolArgs): ToolResult {
         val session = sessions.resolve(args.optionalString("name"))
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val context = session.suspendContext?.takeIf { session.isSuspended } ?: throw ToolException(DebugSpecs.RUNNING)
         val stacks = context.executionStacks
         val active = stacks.indexOfFirst { it === context.activeExecutionStack }.coerceAtLeast(0)
@@ -149,7 +150,7 @@ internal class DebugTools(private val project: Project) {
 
     private suspend fun values(args: ToolArgs): ToolResult {
         val session = sessions.resolve(null)
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val frame = frameOf(session, args.int("frame", -1))
         return when (val action = args.string("action")) {
             "list" -> listValues(frame, max)

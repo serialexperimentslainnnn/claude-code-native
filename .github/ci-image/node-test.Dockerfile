@@ -19,8 +19,8 @@
 # BUILDING — from the repository ROOT, so /.dockerignore applies:
 #
 #   docker build -f .github/ci-image/node-test.Dockerfile \
-#     -t ghcr.io/OWNER/node-test:v1.0.0 .
-#   docker push ghcr.io/OWNER/node-test:v1.0.0
+#     -t ghcr.io/OWNER/node-test:v1.1.0 .
+#   docker push ghcr.io/OWNER/node-test:v1.1.0
 #
 # The tag is `vMAJOR.MINOR.PATCH`, never `latest`: a floating tag makes "which image was that job green on?"
 # unanswerable, and this repository's standard is to pin. Bumping it is a commit — change the tag here and
@@ -49,7 +49,7 @@ RUN echo "max_parallel_downloads=20" >> /etc/dnf/dnf.conf \
 # not, and bumping the tag is the deliberate act that moves it.
 RUN dnf -y upgrade --refresh \
     && dnf -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs install \
-        nodejs npm \
+        nodejs24 nodejs24-bin nodejs24-npm nodejs24-npm-bin \
         git-core unzip tar which findutils procps-ng ca-certificates \
     && dnf clean all \
     && rm -rf /var/cache/dnf \

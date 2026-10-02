@@ -19,7 +19,7 @@ class ReachabilityContractTest {
                 "The declaration pattern has stopped matching this codebase's style."
         }
         assertTrue(entryPoints().isNotEmpty()) {
-            "No dev.lain.claudejb class is named in ${DESCRIPTORS.joinToString()}. Either the descriptors moved " +
+            "No dev.lain.claudejb class is named in ${entryDescriptors().joinToString()}. Either the descriptors moved " +
                 "or they stopped declaring the plugin's entry points — both make every finding below suspect."
         }
     }
@@ -102,18 +102,15 @@ class ReachabilityContractTest {
     }
 
     private fun entryPoints(): Set<String> =
-        DESCRIPTORS
-            .map { resourceRoot().resolve(it) }
-            .filter { it.isFile }
+        entryDescriptors()
             .flatMap { file -> PLUGIN_CLASS.findAll(file.readText()).map { it.groupValues[1] }.toList() }
             .toSet()
 
+    private fun entryDescriptors(): List<File> =
+        listOf(SourceLayout.pluginDescriptor()) + PluginModules.content().keys.mapNotNull { PluginModules.descriptorOf(it) }
+
     private fun mainSources(): List<Source> =
-        sourceRoot().walkTopDown()
-            .filter { it.isFile && it.extension == "kt" }
-            .map { Source(it, codeOf(it)) }
-            .toList()
-            .sortedBy { it.file.path }
+        SourceLayout.kotlinFiles().map { Source(it, codeOf(it)) }
 
     private fun codeOf(file: File): List<String> {
         var inBlockComment = false
@@ -136,14 +133,6 @@ class ReachabilityContractTest {
         }
 
     private fun withoutLineComment(line: String): String = line.substringBefore("//")
-
-    private fun sourceRoot(): File = resolveFromEitherRoot("src/main/kotlin")
-
-    private fun resourceRoot(): File = resolveFromEitherRoot("src/main/resources/META-INF")
-
-    private fun resolveFromEitherRoot(path: String): File =
-        sequenceOf(File(path), File("../$path")).firstOrNull { it.isDirectory }
-            ?: error("could not locate $path from ${File("").absolutePath}")
 
     private fun memberName(line: String): String? {
         if (SKIPPED_MODIFIER.containsMatchIn(line)) return null
@@ -182,8 +171,6 @@ class ReachabilityContractTest {
     private data class Block(val name: String, val kind: String, val from: Int, val to: Int)
 
     private companion object {
-
-        val DESCRIPTORS = listOf("plugin.xml", "claude-git.xml", "claude-terminal.xml")
 
         const val MIN_SOURCES = 100
         const val MIN_DECLARATIONS = 100

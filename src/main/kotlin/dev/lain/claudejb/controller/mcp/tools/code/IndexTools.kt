@@ -29,14 +29,12 @@ internal class IndexTools(private val project: Project) {
         listOf(Tool(INDEX_KEYS, ::keys), Tool(INDEX_QUERY, ::query), Tool(STUB_QUERY, ::stubQuery)),
     )
 
-    private fun index(name: String): ID<Any, Any> {
-        @Suppress("UNCHECKED_CAST")
-        return ID.findByName<Any, Any>(name) as ID<Any, Any>? ?: throw ToolException("no file-based index named $name")
-    }
+    private fun index(name: String): ID<Any, Any> =
+        ID.findByName<Any, Any>(name) ?: throw ToolException("no file-based index named $name")
 
     private suspend fun keys(args: ToolArgs): ToolResult {
         val name = args.string("index")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val keys = smartReadAction(project) { FileBasedIndex.getInstance().getAllKeys(index(name), project).map { it.toString() }.sorted() }
         return ToolResult.toon(
             buildJsonObject {
@@ -51,7 +49,7 @@ internal class IndexTools(private val project: Project) {
     private suspend fun query(args: ToolArgs): ToolResult {
         val name = args.string("index")
         val key = args.string("key")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val files = smartReadAction(project) {
             val id = index(name)
             val scope = GlobalSearchScope.projectScope(project)
@@ -73,7 +71,7 @@ internal class IndexTools(private val project: Project) {
     private suspend fun stubQuery(args: ToolArgs): ToolResult {
         val name = args.string("index")
         val key = args.optionalString("key")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val indexKey = stubIndex(name)
         val rows = smartReadAction(project) {
             val stubs = StubIndex.getInstance()
@@ -121,7 +119,7 @@ internal class IndexTools(private val project: Project) {
                 "plugin's), as the IDE holds them for this project.",
             listOf(
                 Param("index", "The index id as registered by its ID.create name"),
-                Param("max", "Maximum keys (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("keys", DEFAULT_MAX),
             ),
         )
 
@@ -131,7 +129,7 @@ internal class IndexTools(private val project: Project) {
             listOf(
                 Param("index", "The index id"),
                 Param("key", "The key, as index_keys prints it"),
-                Param("max", "Maximum files (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("files", DEFAULT_MAX),
             ),
         )
 
@@ -142,7 +140,7 @@ internal class IndexTools(private val project: Project) {
             listOf(
                 Param("index", "The stub index key name"),
                 Param("key", "The key to look up (default: list the keys)", required = false),
-                Param("max", "Maximum rows (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("rows", DEFAULT_MAX),
             ),
         )
     }

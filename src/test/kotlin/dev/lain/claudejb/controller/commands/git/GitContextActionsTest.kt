@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.commands.git
 
+import dev.lain.claudejb.SourceLayout
 import dev.lain.claudejb.model.git.GitCommitInfo
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -91,16 +92,16 @@ class GitContextActionsTest {
 
     @Test
     fun `the gear menu wires the git entries`() {
-        val factory = File("src/main/kotlin/dev/lain/claudejb/view/window/ClaudeToolWindowFactory.kt").readText()
+        val gear = SourceLayout.source("view/window/ChatGearGroup.kt").readText()
         assertTrue(
-            factory.contains("GitContextActions.gearEntries(project)"),
+            gear.contains("GitContextActions.gearEntries(project)"),
             "The tool window's gear menu no longer adds the Git entries; the git/ package is unreachable again.",
         )
     }
 
     @Test
     fun `the ui git entries reach nothing but the read-only service and navigator`() {
-        val code = File("src/main/kotlin/dev/lain/claudejb/controller/commands/git/GitContextActions.kt").readLines()
+        val code = SourceLayout.source("controller/commands/git/GitContextActions.kt").readLines()
             .filterNot { line ->
                 val trimmed = line.trimStart()
                 trimmed.startsWith("*") || trimmed.startsWith("//") || trimmed.startsWith("/*")

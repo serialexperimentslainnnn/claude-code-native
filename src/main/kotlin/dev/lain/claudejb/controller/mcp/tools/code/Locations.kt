@@ -20,9 +20,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.nio.file.Path
 
-internal class Located(val psiFile: PsiFile, val document: Document, val offset: Int)
+class Located(val psiFile: PsiFile, val document: Document, val offset: Int)
 
-internal object Locations {
+object Locations {
 
     val POSITION = listOf(
         Param("path", "File path, absolute or relative to the project root"),

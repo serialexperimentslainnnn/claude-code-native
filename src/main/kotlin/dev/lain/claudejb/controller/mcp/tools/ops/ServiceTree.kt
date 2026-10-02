@@ -13,6 +13,7 @@ internal class ServiceNode(
     val value: Any,
     val root: ServiceViewContributor<*>,
     val descriptor: ServiceViewDescriptor,
+    val rootPath: String,
 ) {
     val kind: String get() = root.javaClass.simpleName
 
@@ -24,13 +25,20 @@ internal class ServiceWalk(val nodes: List<ServiceNode>, val truncated: Boolean)
 
 internal class ServiceTree(private val project: Project) {
 
+    private class Recent(val nodes: List<ServiceNode>, val at: Long)
+
+    @Volatile
+    private var recent: Recent? = null
+
     fun walk(max: Int): ServiceWalk {
         val walker = Walker(max, wanted = null)
         walker.roots()
+        recent = Recent(walker.nodes, System.nanoTime())
         return ServiceWalk(walker.nodes.take(max), walker.nodes.size > max)
     }
 
     fun find(path: String): ServiceNode {
+        recent?.takeIf { System.nanoTime() - it.at < FRESH_NANOS }?.nodes?.firstOrNull { it.path == path }?.let { return it }
         val walker = Walker(LOOKUP_CEILING, wanted = path)
         walker.roots()
         return walker.nodes.firstOrNull { it.path == path }
@@ -41,6 +49,7 @@ internal class ServiceTree(private val project: Project) {
 
         val nodes = ArrayList<ServiceNode>()
         private val taken = HashSet<String>()
+        private var rootPath = ""
 
         private fun done(): Boolean = nodes.size > max || (wanted != null && nodes.lastOrNull()?.path == wanted)
 
@@ -51,6 +60,7 @@ internal class ServiceTree(private val project: Project) {
                 if (services.isEmpty()) continue
                 val descriptor = runCatching { root.getViewDescriptor(project) }.getOrNull() ?: continue
                 val node = add("", descriptor, root, root)
+                rootPath = node.path
                 descend(root, root, services, node.path, 1)
             }
         }
@@ -80,7 +90,8 @@ internal class ServiceTree(private val project: Project) {
             val name = presentation.presentableText.orEmpty()
             val path = uniquePath(parentPath, name, taken)
             taken += path
-            val node = ServiceNode(path, name, presentation.locationString.orEmpty(), value, root, descriptor)
+            val top = if (parentPath.isEmpty()) path else rootPath
+            val node = ServiceNode(path, name, presentation.locationString.orEmpty(), value, root, descriptor, top)
             nodes += node
             return node
         }
@@ -94,6 +105,7 @@ internal class ServiceTree(private val project: Project) {
 
         private const val MAX_DEPTH = 12
         private const val LOOKUP_CEILING = 5_000
+        private const val FRESH_NANOS = 5_000_000_000L
         const val UNNAMED = "unnamed"
 
         fun uniquePath(parentPath: String, name: String, taken: Set<String>): String {

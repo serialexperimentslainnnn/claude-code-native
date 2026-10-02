@@ -1,5 +1,6 @@
 package dev.lain.claudejb.model.session.transcript
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.fail
@@ -25,11 +26,9 @@ class TranscriptCapContractTest {
         }
     }
 
-    private fun trimModule(): File =
-        sequenceOf(File(TRIM_MODULE), File("../$TRIM_MODULE")).firstOrNull { it.isFile }
-            ?: error("could not locate $TRIM_MODULE from ${File("").absolutePath}")
+    private fun trimModule(): File = SourceLayout.mainFile(TRIM_MODULE)
 
     private companion object {
-        const val TRIM_MODULE = "src/main/ts/jcef/controllers/chat/trim.ts"
+        const val TRIM_MODULE = "ts/jcef/controllers/chat/trim.ts"
     }
 }

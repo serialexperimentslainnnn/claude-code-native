@@ -7,13 +7,13 @@ import dev.lain.claudejb.model.context.ImageAttachments
 import dev.lain.claudejb.util.edt
 import dev.lain.claudejb.util.thisLogger
 import dev.lain.claudejb.view.payload.chat.JcefTreeData
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
 
-internal class BridgeAttachments(private val panel: JcefChatPanel) {
+internal class BridgeAttachments(private val presenter: ChatPresenter) {
 
     private val log = thisLogger()
 
-    private val tray get() = panel.tray
+    private val tray get() = presenter.tray
 
     fun handle(m: Msg.Attachments) {
         when (m) {
@@ -25,14 +25,24 @@ internal class BridgeAttachments(private val panel: JcefChatPanel) {
             is Msg.TreeChildren -> treeChildren(m)
             is Msg.TreeExpand -> treeExpand(m)
             is Msg.AttachPaths -> attachPaths(m.paths)
-            Msg.PasteClipboard -> tray.pasteFromClipboard()
-            is Msg.PasteClipboardImage -> tray.pasteImageFromClipboard(m.notify)
-            is Msg.Attach -> attachImage(m)
+            is Msg.Attach -> attachImage(m.name, m.mediaType, m.base64)
+            is Msg.AttachImageData -> attachImage(PASTED_NAME + m.mime.substringAfter('/'), m.mime, m.base64)
+            is Msg.ClipboardEmpty -> tray.notify(clipboardNotice(m))
         }
     }
 
-    private fun attachImage(m: Msg.Attach) {
-        val image = ImageAttachments.fromWebPayload(m.name, m.mediaType, m.base64)
+    private fun clipboardNotice(m: Msg.ClipboardEmpty): String {
+        val help = m.help.ifBlank { null }
+        return when {
+            m.image && help != null -> "Couldn't read an image from the clipboard — $help"
+            m.image -> "No image found in the clipboard."
+            help != null -> "Couldn't read the clipboard — $help"
+            else -> "Clipboard is empty or unreadable."
+        }
+    }
+
+    private fun attachImage(name: String, mediaType: String, base64: String) {
+        val image = ImageAttachments.fromWebPayload(name, mediaType, base64)
         if (image == null) {
             tray.notify(
                 "That attachment was not added: only PNG, JPEG, GIF and WebP images are accepted, " +
@@ -51,21 +61,21 @@ internal class BridgeAttachments(private val panel: JcefChatPanel) {
 
     private fun treeChildren(m: Msg.TreeChildren) {
         val mode = treeMode(m.mode) ?: return unknownTreeMode(m.mode)
-        panel.host.execBuilt("window.cc.treeChildren") {
-            JcefTreeData.childrenJson(m.path, m.mode, ProjectTree.children(panel.project, m.path, mode)).toString()
+        presenter.execBuilt("treeChildren") {
+            JcefTreeData.childrenJson(m.path, m.mode, ProjectTree.children(presenter.project, m.path, mode)).toString()
         }
     }
 
     private fun treeExpand(m: Msg.TreeExpand) {
         val mode = treeMode(m.mode) ?: return unknownTreeMode(m.mode)
-        panel.host.execBuilt("window.cc.treeExpansion") {
-            JcefTreeData.expansionJson(m.path, m.mode, ProjectTree.expand(panel.project, m.path, mode)).toString()
+        presenter.execBuilt("treeExpansion") {
+            JcefTreeData.expansionJson(m.path, m.mode, ProjectTree.expand(presenter.project, m.path, mode)).toString()
         }
     }
 
     private fun attachPaths(paths: List<String>) {
         if (paths.isEmpty()) return
-        val root = panel.project.basePath
+        val root = presenter.project.basePath
         ApplicationManager.getApplication().executeOnPooledThread {
             val wanted = paths.take(ProjectTree.MAX_ENTRIES)
             val files = wanted.mapNotNull { ProjectTree.resolve(root, it)?.path }
@@ -82,5 +92,7 @@ internal class BridgeAttachments(private val panel: JcefChatPanel) {
 
     private companion object {
         const val BYTES_PER_MB = 1024 * 1024
+
+        const val PASTED_NAME = "clipboard."
     }
 }

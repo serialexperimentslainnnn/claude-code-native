@@ -27,6 +27,8 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import kotlin.coroutines.resume
 
 internal class GitReadTools(
@@ -43,13 +45,13 @@ internal class GitReadTools(
         listOf(
             Tool(GIT_STATUS, ::status),
             Tool(GIT_LOG) { ToolResult.toon(Batch.run(it, Batch.HASHES, ::logOne)) },
-            Tool(GIT_DIFF) { ToolResult.toon(Batch.run(it, Batch.PATHS, ::diffOne)) },
+            Tool(GIT_DIFF, ::diff),
             Tool(GIT_BRANCHES, ::branches),
         ),
     )
 
     private suspend fun status(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_STATUS_MAX)
+        val max = args.max(DEFAULT_STATUS_MAX, MAX_ROWS)
         val root = root()
         awaitChangeLists()
         val manager = ChangeListManager.getInstance(project)
@@ -76,7 +78,7 @@ internal class GitReadTools(
     }
 
     private suspend fun logOne(args: ToolArgs): JsonObject {
-        val max = args.int("max", DEFAULT_LOG_MAX)
+        val max = args.max(DEFAULT_LOG_MAX, MAX_COMMITS)
         val hash = args.optionalString("hash")
         val scope = if (args.boolean("all_branches", false)) GitLogScope.EVERY_LINE_OF_DEVELOPMENT else GitLogScope.CURRENT_BRANCH
         root()
@@ -99,24 +101,27 @@ internal class GitReadTools(
         }
     }
 
-    private suspend fun diffOne(args: ToolArgs): JsonObject {
-        val path = args.optionalString("path")
-        val maxLines = args.int("max_lines", DEFAULT_DIFF_LINES)
+    private suspend fun diff(args: ToolArgs): ToolResult {
         root()
         awaitChangeLists()
-        val patch = withContext(io) { WorkingTreePatch.unified(project, path) }
-        val lines = patch.text.lines()
+        return ToolResult.toon(Batch.run(args, Batch.PATHS, ::diffOne))
+    }
+
+    private suspend fun diffOne(args: ToolArgs): JsonObject {
+        val path = args.optionalString("path")
+        val maxLines = args.int("max_lines", DEFAULT_DIFF_LINES).coerceIn(1, MAX_DIFF_LINES)
+        val patch = withContext(io) { WorkingTreePatch.unified(project, path, maxLines) }
         return buildJsonObject {
             put("path", path ?: "")
             put("files", patch.files)
-            put("lines", lines.size)
-            put("truncated", lines.size > maxLines)
-            put("diff", lines.take(maxLines).joinToString("\n"))
+            put("lines", patch.lines.size)
+            put("truncated", patch.truncated)
+            put("diff", patch.lines.joinToString("\n"))
         }
     }
 
     private suspend fun branches(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_BRANCHES_MAX)
+        val max = args.max(DEFAULT_BRANCHES_MAX, MAX_ROWS)
         root()
         val refs = withContext(io) { history.refs() }
         return ToolResult.toon(
@@ -157,17 +162,22 @@ internal class GitReadTools(
     companion object {
 
         fun commitRowOf(commit: GitCommitInfo): JsonObject = buildJsonObject {
-            put("hash", commit.hash)
+            put("hash", commit.hash.take(SHORT_HASH_LENGTH))
             put("subject", commit.subject)
             put("author", commit.authorName)
-            put("date", Instant.ofEpochMilli(commit.authoredAtMillis).toString())
+            put("date", MINUTE.format(Instant.ofEpochMilli(commit.authoredAtMillis)))
             put("files", commit.changedPaths.size)
         }
 
+        private const val SHORT_HASH_LENGTH = 10
+        private val MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm'Z'").withZone(ZoneOffset.UTC)
         private const val DEFAULT_STATUS_MAX = 200
         private const val DEFAULT_LOG_MAX = 20
         private const val DEFAULT_DIFF_LINES = 400
         private const val DEFAULT_BRANCHES_MAX = 100
+        private const val MAX_ROWS = 1_000
+        private const val MAX_COMMITS = 200
+        private const val MAX_DIFF_LINES = 2_000
         private const val UNVERSIONED = "UNVERSIONED"
         private const val MIN_HASH_LENGTH = 4
         private const val MAX_HASH_LENGTH = 64
@@ -178,18 +188,19 @@ internal class GitReadTools(
             "The working tree as the IDE's Changes view sees it: branch, HEAD, upstream with ahead/behind, conflicts, and every " +
                 "changed or unversioned path with its type (MODIFICATION, NEW, DELETED, MOVED, UNVERSIONED). Use it before " +
                 "staging or committing.",
-            listOf(Param("max", "Maximum changes to return (default $DEFAULT_STATUS_MAX)", type = "integer", required = false)),
+            listOf(Param.max("changes", DEFAULT_STATUS_MAX, MAX_ROWS)),
         )
 
         val GIT_LOG = ToolSpec(
             "git_log",
-            "Recent commits of the current branch, newest first, with hash, subject, author, ISO-8601 date and the number of " +
-                "files each touched; with hash or hashes, those commits with the paths each changed. Pass a hash to " +
+            "Recent commits of the current branch, newest first, with the hash abbreviated to $SHORT_HASH_LENGTH characters, " +
+                "subject, author, UTC date to the minute and the number of files each touched; with hash or hashes, those " +
+                "commits with the paths each changed. Every tool that takes a hash accepts the abbreviated one. Pass a hash to " +
                 "vcs_open(view=log) to show one in the IDE's Git log.",
             listOf(
                 Param("hash", "One commit to describe, 4 to 64 hex characters (default: the recent commits)", required = false),
                 Batch.param(Batch.HASHES, "Several commits at once, one result per hash"),
-                Param("max", "Maximum commits to return (default $DEFAULT_LOG_MAX)", type = "integer", required = false),
+                Param.max("commits", DEFAULT_LOG_MAX, MAX_COMMITS),
                 Param("all_branches", "true to include every branch, remote and tag (default false)", type = "boolean", required = false),
             ),
         )
@@ -197,11 +208,17 @@ internal class GitReadTools(
         val GIT_DIFF = ToolSpec(
             "git_diff",
             "The unified diff of the uncommitted changes, as the IDE's Create Patch produces it: the whole tree, or one file " +
-                "or directory. Use it to review before committing; for a commit's diff use vcs_open(view=log, hash).",
+                "or directory, built file by file up to max_lines, each line at most ${WorkingTreePatch.MAX_LINE} characters. " +
+                "Use it to review before committing; for a commit's diff use vcs_open(view=log, hash).",
             listOf(
                 Param("path", "File or directory, absolute or relative to the project root (default: whole tree)", required = false),
                 Batch.paths("one diff each"),
-                Param("max_lines", "Maximum diff lines to return (default $DEFAULT_DIFF_LINES)", type = "integer", required = false),
+                Param(
+                    "max_lines",
+                    "Maximum diff lines to return (default $DEFAULT_DIFF_LINES, at most $MAX_DIFF_LINES)",
+                    type = "integer",
+                    required = false,
+                ),
             ),
         )
 
@@ -209,7 +226,7 @@ internal class GitReadTools(
             "git_branches",
             "Every local and remote branch with the commit it points at, the current one first; a detached HEAD is listed as " +
                 "kind head.",
-            listOf(Param("max", "Maximum branches to return (default $DEFAULT_BRANCHES_MAX)", type = "integer", required = false)),
+            listOf(Param.max("branches", DEFAULT_BRANCHES_MAX, MAX_ROWS)),
         )
     }
 }

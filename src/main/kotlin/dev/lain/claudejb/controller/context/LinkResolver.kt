@@ -109,9 +109,9 @@ object LinkResolver {
     }
 
     private fun lookUpName(project: Project, name: String, line: Int?, root: String?): NameLookup {
-        val hits = runCatching {
+        val hits = unlessCancelled {
             FilenameIndex.getVirtualFilesByName(name, GlobalSearchScope.projectScope(project))
-        }.getOrNull().orEmpty()
+        }.orEmpty()
         if (hits.size > 1) return NameLookup.NoLink
         val vf = hits.firstOrNull() ?: return NameLookup.NotIndexed
         if (vf.isDirectory || !isOpenable(vf.path, root)) return NameLookup.NoLink
@@ -174,6 +174,16 @@ object LinkResolver {
     }
 
     @Suppress("TooGenericExceptionCaught")
+    private fun <T> unlessCancelled(block: () -> T): T? = try {
+        block()
+    } catch (e: ProcessCanceledException) {
+        throw e
+    } catch (e: Exception) {
+        log.debug { "an index lookup for a link failed: $e" }
+        null
+    }
+
+    @Suppress("TooGenericExceptionCaught")
     private fun resolveSymbolOrNull(project: Project, name: String, root: String): Resolved? = try {
         resolveOneSymbol(project, name, root)
     } catch (e: ProcessCanceledException) {
@@ -196,9 +206,9 @@ object LinkResolver {
     private fun itemsFor(project: Project, name: String): List<NavigationItem> {
         val hits = LinkedHashSet<NavigationItem>()
         for (contributor in ChooseByNameContributor.SYMBOL_EP_NAME.extensionList) {
-            val items = runCatching {
+            val items = unlessCancelled {
                 contributor.getItemsByName(name, name, project, false)
-            }.getOrNull() ?: continue
+            } ?: continue
             items.filterNotNullTo(hits)
             if (hits.size > 1) return hits.toList()
         }

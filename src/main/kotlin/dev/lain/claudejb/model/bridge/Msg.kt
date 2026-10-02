@@ -84,9 +84,9 @@ sealed interface Msg {
     data class AttachPath(val path: String) : Attachments
     object AttachSelection : Attachments
     object AttachCurrentFile : Attachments
-    data class PasteClipboardImage(val notify: Boolean) : Attachments
-    object PasteClipboard : Attachments
     data class Attach(val name: String, val mediaType: String, val base64: String) : Attachments
+    data class AttachImageData(val mime: String, val base64: String) : Attachments
+    data class ClipboardEmpty(val image: Boolean, val help: String) : Attachments
 
     object McpRefresh : SessionControl
     data class McpReconnect(val name: String) : SessionControl

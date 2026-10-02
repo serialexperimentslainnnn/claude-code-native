@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 45
     container:
       # `jvm-test`: the manual build is `./gradlew classes`, which resolves the whole IntelliJ Platform.
-      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.1.0
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -58,11 +58,11 @@ jobs:
         with:
           persist-credentials: false
 
-      # No `setup-java` step: the image already carries the Temurin 21 the rest of the pipeline builds
+      # No `setup-java` step: the image already carries the Temurin 25 the rest of the pipeline builds
       # with. Provisioning a second JDK here meant CodeQL analysed a build that used a different one.
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@18420e3271f74589575af831a523c833acda327f # codeql-bundle-v2.26.2
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           languages: java-kotlin
           build-mode: manual
@@ -160,7 +160,7 @@ jobs:
         run: ./gradlew --no-daemon --stacktrace classes
 
       - name: Analyze
-        uses: github/codeql-action/analyze@18420e3271f74589575af831a523c833acda327f # codeql-bundle-v2.26.2
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: /language:java-kotlin
 
@@ -177,13 +177,13 @@ jobs:
           persist-credentials: false
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@18420e3271f74589575af831a523c833acda327f # codeql-bundle-v2.26.2
+        uses: github/codeql-action/init@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           languages: javascript-typescript
           build-mode: none
           queries: security-extended
 
       - name: Analyze
-        uses: github/codeql-action/analyze@18420e3271f74589575af831a523c833acda327f # codeql-bundle-v2.26.2
+        uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
         with:
           category: /language:javascript-typescript

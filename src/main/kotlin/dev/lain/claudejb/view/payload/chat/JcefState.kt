@@ -125,7 +125,6 @@ object JcefState {
                     }
                 },
             )
-            put("hostClipboard", hostClipboardPreferred)
             put("gitIntegration", session.gitIntegration)
             put(
                 "installMethods",
@@ -142,10 +141,5 @@ object JcefState {
             )
         }
         return obj.toString()
-    }
-
-    private val hostClipboardPreferred: Boolean by lazy {
-        runCatching { java.awt.Toolkit.getDefaultToolkit().javaClass.name == "sun.awt.wl.WLToolkit" }
-            .getOrDefault(false)
     }
 }

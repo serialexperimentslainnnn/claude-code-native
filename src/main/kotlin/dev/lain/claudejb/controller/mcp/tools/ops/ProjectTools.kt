@@ -66,7 +66,7 @@ internal class ProjectTools(private val project: Project) {
     }
 
     private suspend fun modules(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (rows, total) = readAction {
             val all = ModuleManager.getInstance(project).modules
             all.take(max).map(::moduleRow) to all.size
@@ -84,7 +84,7 @@ internal class ProjectTools(private val project: Project) {
 
     private suspend fun dependencies(args: ToolArgs): ToolResult {
         val name = args.string("module")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (rows, total) = readAction {
             val entries = ModuleRootManager.getInstance(module(name)).orderEntries
             entries.take(max).map(::dependencyRow) to entries.size
@@ -169,7 +169,7 @@ internal class ProjectTools(private val project: Project) {
             "modules",
             "Lists the project's modules as Project Structure shows them: name, module type id, number of content roots and " +
                 "the module SDK (empty when inherited from the project).",
-            listOf(Param("max", "Maximum modules to return (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("modules", DEFAULT_MAX)),
         )
 
         val DEPENDENCIES = ToolSpec(
@@ -178,7 +178,7 @@ internal class ProjectTools(private val project: Project) {
                 "own sources, each with its scope (compile, test, runtime, provided) and whether it is exported.",
             listOf(
                 Param("module", "Module name as modules lists it"),
-                Param("max", "Maximum entries to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("entries", DEFAULT_MAX),
             ),
         )
 

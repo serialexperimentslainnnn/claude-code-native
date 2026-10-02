@@ -39,8 +39,13 @@ internal class ProcessRun(private val project: Project) {
         val pending = Pending()
         val connection = project.messageBus.connect()
         try {
-            connection.subscribe(ExecutionManager.EXECUTION_TOPIC, listener(settings, tail, onHandler, pending))
-            withContext(Dispatchers.EDT) { launch(settings, executorId) }
+            withContext(Dispatchers.EDT) {
+                val environment = environment(settings, executorId)
+                val id = environment.executionId
+                val identity = RunIdentity<ExecutionEnvironment, ProcessHandler> { it === environment || it.executionId == id }
+                connection.subscribe(ExecutionManager.EXECUTION_TOPIC, listener(settings.name, identity, tail, onHandler, pending))
+                ExecutionManager.getInstance(project).restartRunProfile(environment)
+            }
             withTimeoutOrNull(START_TIMEOUT_MILLIS) { pending.started.await() }
                 ?: throw ToolException(
                     "${settings.name} did not start within ${START_TIMEOUT_MILLIS / MILLIS} s: a before-launch task may have " +
@@ -53,26 +58,26 @@ internal class ProcessRun(private val project: Project) {
         }
     }
 
-    private fun launch(settings: RunnerAndConfigurationSettings, executorId: String) {
+    private fun environment(settings: RunnerAndConfigurationSettings, executorId: String): ExecutionEnvironment {
         val executor = ExecutorRegistry.getInstance().getExecutorById(executorId)
             ?: throw ToolException("this IDE has no executor $executorId; is its plugin (Coverage, Profiler) installed?")
-        val environment = try {
-            ExecutionEnvironmentBuilder.create(executor, settings).activeTarget().build()
+        return try {
+            ExecutionEnvironmentBuilder.create(executor, settings).activeTarget().build().also { it.assignNewExecutionId() }
         } catch (e: ExecutionException) {
             throw ToolException("${settings.name} cannot run: ${e.message}", e)
         }
-        ExecutionManager.getInstance(project).restartRunProfile(environment)
     }
 
     private fun listener(
-        settings: RunnerAndConfigurationSettings,
+        name: String,
+        identity: RunIdentity<ExecutionEnvironment, ProcessHandler>,
         tail: OutputTail,
         onHandler: (ProcessHandler) -> Unit,
         pending: Pending,
     ): ExecutionListener = object : ExecutionListener {
 
         override fun processStarting(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler) {
-            if (env.runnerAndConfigurationSettings !== settings) return
+            if (!identity.started(env, handler)) return
             pending.external.set(ExternalTaskOutput.attach(handler, tail))
             if (pending.external.get() == null) handler.addProcessListener(textListener(tail))
             onHandler(handler)
@@ -80,13 +85,13 @@ internal class ProcessRun(private val project: Project) {
         }
 
         override fun processTerminated(executorId: String, env: ExecutionEnvironment, handler: ProcessHandler, exitCode: Int) {
-            if (env.runnerAndConfigurationSettings === settings) pending.exited.complete(exitCode)
+            if (identity.terminated(handler)) pending.exited.complete(exitCode)
         }
 
         override fun processNotStarted(executorId: String, env: ExecutionEnvironment, cause: Throwable?) {
-            if (env.runnerAndConfigurationSettings !== settings) return
+            if (!identity.ours(env)) return
             val reason = cause?.message?.let { ": $it" } ?: ""
-            pending.started.completeExceptionally(ToolException("${settings.name} did not start$reason", cause))
+            pending.started.completeExceptionally(ToolException("$name did not start$reason", cause))
         }
     }
 

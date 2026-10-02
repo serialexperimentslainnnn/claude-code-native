@@ -88,14 +88,14 @@ jobs:
     # EVERY job in this file runs in this image, and the image is the ONLY caching mechanism.
     #
     # `gradle/actions/setup-gradle` used to sit in the heavy jobs and was quietly useless here: the warm
-    # GRADLE_USER_HOME measures 31 GB (23 GB of extracted IDE transforms under caches/9.5.1, 7.7 GB of the
+    # GRADLE_USER_HOME measures 31 GB (23 GB of extracted IDE transforms under caches/9.7.1, 7.7 GB of the
     # downloaded IDE artifacts under modules-2), and a GitHub Actions cache entry is capped at 10 GB per
     # repository. It could never have stored what it appeared to be storing — it was saving a partial
     # cache, evicting it, and re-downloading the rest on the next run. The image has no such ceiling, and
     # the trade is explicit: refreshing what CI has cached now means rebuilding and pushing the image,
     # which is a deliberate act rather than something that drifts between runs.
     container:
-      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.1.0
       # The package stays PRIVATE and is pulled with the run's own GITHUB_TOKEN — no new secret, nothing to
       # rotate, and access dies with the job. This requires the package to have been granted Read access to
       # THIS repository (package settings -> Manage Actions access): `packages: read` widens what the token
@@ -158,7 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     container:
-      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.1.0
       # The package stays PRIVATE and is pulled with the run's own GITHUB_TOKEN — no new secret, nothing to
       # rotate, and access dies with the job. `packages: read` is granted per job below; without it the pull
       # fails with a 401 that reads like a wrong image name rather than a permission problem.
@@ -229,7 +229,7 @@ jobs:
             build/reports/kover/
           retention-days: 14
 
-  # The JCEF web app (src/main/resources/jcef/*.js) under vitest + jsdom. Nothing here ships in the
+  # The JCEF web app (frontend/src/main/resources/jcef/*.js) under vitest + jsdom. Nothing here ships in the
   # plugin — vitest and jsdom are devDependencies — but the code under test absolutely does.
   frontend-test:
     name: Frontend tests
@@ -239,7 +239,7 @@ jobs:
       # `node-test`, not `jvm-test`: this job is `npm ci` and then vitest. On the single combined image it
       # pulled a JDK, a Gradle distribution and 3.4 GB of extracted IntelliJ Platform it never opened —
       # 1m05s of container init for 8 seconds of work.
-      image: ghcr.io/serialexperimentslainnnn/node-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/node-test:v1.1.0
       # The package stays PRIVATE and is pulled with the run's own GITHUB_TOKEN — no new secret, nothing to
       # rotate, and access dies with the job. `packages: read` is granted per job below; without it the pull
       # fails with a 401 that reads like a wrong image name rather than a permission problem.
@@ -283,7 +283,7 @@ jobs:
     timeout-minutes: 10
     container:
       # `node-test`: this job is `npm ci` and two `npm audit` invocations. Nothing here touches the JVM.
-      image: ghcr.io/serialexperimentslainnnn/node-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/node-test:v1.1.0
       # The package stays PRIVATE and is pulled with the run's own GITHUB_TOKEN — no new secret, nothing to
       # rotate, and access dies with the job. `packages: read` is granted per job below; without it the pull
       # fails with a 401 that reads like a wrong image name rather than a permission problem.
@@ -389,7 +389,7 @@ jobs:
       # Same image as every other job, and it does NOT carry the IDEs this job downloads — see the note at
       # the top of .github/ci-image/jvm-test.Dockerfile. Baking them made the image 38.1 GB, which every job paid for
       # on its own runner, to save ten minutes on the one job that runs least often.
-      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.1.0
       # The package stays PRIVATE and is pulled with the run's own GITHUB_TOKEN — no new secret, nothing to
       # rotate, and access dies with the job. `packages: read` is granted per job below; without it the pull
       # fails with a 401 that reads like a wrong image name rather than a permission problem.
@@ -522,13 +522,22 @@ jobs:
         run: |
           zip=$(ls build/distributions/*.zip)
           unzip -o -q "$zip" -d /tmp/artifact
-          jar=$(ls /tmp/artifact/*/lib/claude-code-native-*.jar | grep -v searchableOptions)
-          # -1 lists entry names alone; directory entries end in `/` and carry nothing.
-          unzip -Z -1 "$jar" | grep -v '/$' \
-            | grep -vE '^dev/lain/claudejb/.*\.class$' \
-            | grep -vE '^META-INF/' \
-            | grep -vE '^icons/[^/]+\.svg$' \
-            | grep -vE '^jcef/(.+\.(js|html)|css/.+\.css)$' > /tmp/unexpected.txt || true
+          ls /tmp/artifact/*/lib/dev.lain.claudejb-*.jar /tmp/artifact/*/lib/modules/dev.lain.claudejb.*.jar 2>/dev/null \
+            | grep -v searchableOptions > /tmp/jars.txt || true
+          if [ "$(wc -l < /tmp/jars.txt)" -lt 4 ]; then
+            echo "::error::expected the plugin jar and the shared, frontend and backend module jars"
+            find /tmp/artifact -name '*.jar'
+            exit 1
+          fi
+          : > /tmp/unexpected.txt
+          while IFS= read -r jar; do
+            unzip -Z -1 "$jar" | grep -v '/$' \
+              | grep -vE '^dev/lain/claudejb/.*\.class$' \
+              | grep -vE '^META-INF/' \
+              | grep -vE '^dev\.lain\.claudejb\.(shared|frontend|backend|git|github|java|intellilang|terminal|bookmarks|database|problems)\.xml$' \
+              | grep -vE '^icons/[^/]+\.svg$' \
+              | grep -vE '^jcef/(.+\.(js|html)|css/.+\.css)$' >> /tmp/unexpected.txt || true
+          done < /tmp/jars.txt
           if [ -s /tmp/unexpected.txt ]; then
             echo "::error::unexpected entries in the plugin jar — either they must not ship, or add their family to this allowlist"
             cat /tmp/unexpected.txt
@@ -556,7 +565,7 @@ jobs:
 
           zip=$(ls build/distributions/*.zip)
           unzip -o -q "$zip" -d /tmp/dist
-          jar=$(ls /tmp/dist/*/lib/claude-code-native-*.jar | grep -v searchableOptions | head -1)
+          jar=$(ls /tmp/dist/*/lib/dev.lain.claudejb-*.jar | grep -v searchableOptions | head -1)
 
           # ONE listing, read by every assertion below. `-Z1` prints one entry name per line, so names are
           # matched WHOLE (`grep -qxF`) instead of as substrings of `unzip -l`'s formatted table — where
@@ -627,7 +636,7 @@ jobs:
     # dead IDE into a fast, explained failure instead of letting it eat the whole budget.
     timeout-minutes: 45
     container:
-      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.0.0
+      image: ghcr.io/serialexperimentslainnnn/jvm-test:v1.1.0
       # The package stays PRIVATE and is pulled with the run's own GITHUB_TOKEN — no new secret, nothing to
       # rotate, and access dies with the job. `packages: read` is granted per job below; without it the pull
       # fails with a 401 that reads like a wrong image name rather than a permission problem.
@@ -651,32 +660,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      # The image running this job carries no X11 whatsoever: it was built for headless Gradle and npm, and
-      # nothing in it has ever had to draw. This is the one job that does — a real IDE, with a real Chromium
-      # inside it.
-      #
-      # .github/ci-image/jvm-test.Dockerfile ALREADY bakes this exact package set, which is where it belongs:
-      # the image is this pipeline's only caching mechanism, so a `dnf install` per run is a network
-      # transaction whose failure mode is this job's worst one. This step survives because every workflow
-      # pins `jvm-test:v1.0.0`, and that tag names an image built BEFORE the Dockerfile gained the stack. A
-      # Dockerfile edit changes nothing on its own; the image has to be rebuilt and a new tag cut.
-      #
-      # DELETE THIS STEP in the same change that bumps the tag — in every workflow that names it, not just
-      # this one (ci.yml ×4, release.yml, codeql.yml, drift.yml). Leaving it behind costs one redundant
-      # install per nightly run; deleting it BEFORE the tag moves costs an IDE that never opens its port.
-      #
-      # A missing library here does not announce itself — the IDE simply never opens :8082 — which is exactly
-      # the silence the bounded wait below turns back into a message.
-      - name: Install the virtual display and the libraries the IDE draws through
-        run: |
-          set -euo pipefail
-          dnf -y --setopt=install_weak_deps=False --setopt=tsflags=nodocs install \
-            xorg-x11-server-Xvfb \
-            gtk3 nss alsa-lib mesa-libgbm libxkbcommon-x11 \
-            libXtst libXi libXrender libXext libXrandr libXcursor \
-            liberation-fonts
-          dnf clean all
 
       # Step one of the two-process dance that build.gradle.kts and docs/UI_TESTING.md both document: the IDE
       # comes up under Xvfb and STAYS UP, and the suite is a second Gradle invocation that talks to it over

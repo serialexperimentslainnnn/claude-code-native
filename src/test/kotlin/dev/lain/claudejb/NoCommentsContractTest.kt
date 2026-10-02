@@ -8,16 +8,15 @@ class NoCommentsContractTest {
 
     @Test
     fun `the scan sees the whole tree`() {
-        assertTrue(MainSources.files().size >= MIN_SOURCES) { "only ${MainSources.files().size} sources found" }
+        assertTrue(SourceLayout.kotlinFiles().size >= MIN_SOURCES) { "only ${SourceLayout.kotlinFiles().size} sources found" }
     }
 
     @Test
     fun `no main source carries a comment`() {
-        val root = MainSources.root(SOURCE_ROOT)
-        val offenders = MainSources.files().flatMap { file ->
+        val offenders = SourceLayout.kotlinFiles().flatMap { file ->
             file.readLines().withIndex()
                 .filter { (_, raw) -> isComment(raw) }
-                .map { (index, raw) -> "${file.relativeTo(root).invariantSeparatorsPath}:${index + 1}: ${raw.trim()}" }
+                .map { (index, raw) -> "${file.invariantSeparatorsPath}:${index + 1}: ${raw.trim()}" }
         }
         assertEquals(emptyList<String>(), offenders) {
             "The reasoning goes into a name, a test or the commit message, never into a comment. " +
@@ -34,7 +33,6 @@ class NoCommentsContractTest {
     }
 
     private companion object {
-        const val SOURCE_ROOT = "src/main/kotlin"
         const val MIN_SOURCES = 100
         val PRAGMAS = listOf("noinspection", "MAP:GENERATED")
         val COMMENT_OPENERS = listOf("//", "/*", "* ")

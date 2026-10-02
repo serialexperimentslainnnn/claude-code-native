@@ -31,13 +31,13 @@ What actually happened. Include error messages verbatim.
 
 ## Environment
 
-> From **5.5.0** the minimum supported IDE is **2025.3 (build 253)**. The whole chat UI is the IDE's
-> embedded browser, and the module that provides it does not exist before 253. On 2025.1 or 2025.2 the
-> last supported version is **5.1.1** — a bug report against 5.5.0 on those builds is expected behaviour,
-> not a defect.
+> From **6.5.0** the minimum supported IDE is **2026.2 (build 262.8665.258)**. On 2025.3 or 2026.1 the
+> last supported version is **6.0.1**; on 2025.1 or 2025.2 it is **5.1.1**. A bug report against 6.5.0 on
+> an older build is expected behaviour, not a defect. In Remote Development, say whether the plugin is
+> installed on the host, the client, or both.
 
 - **OS:** (e.g. Ubuntu 24.04, macOS 14.5, Windows 11 23H2)
-- **IDE:** (Help → About → product + build, e.g. `IntelliJ IDEA 2025.3 IC-253.28294.334`)
+- **IDE:** (Help → About → product + build, e.g. `IntelliJ IDEA 2026.2.3 IU-262.10968.63`)
 - **Plugin version:** (Settings → Plugins → Claude Code Native)
 - **`claude` binary version:** output of `claude --version`
 - **Binary location:** `which claude` (Linux/macOS) or `where claude` (Windows)

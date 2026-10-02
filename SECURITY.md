@@ -8,8 +8,8 @@ seriously and follow responsible disclosure.
 
 | Version | Supported    |
 |---------|--------------|
-| 5.x     | Yes (active) |
-| < 5.0   | No           |
+| 6.x     | Yes (active) |
+| < 6.0   | No           |
 
 Only the latest release of the current major receives security fixes. There is
 no backporting to earlier majors: the plugin ships through the JetBrains
@@ -22,7 +22,7 @@ Please **do not** open a public GitHub issue, discussion, or Marketplace review
 for security problems.
 
 **Use GitHub's private vulnerability reporting:**
-[Report a vulnerability](https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains/security/advisories/new)
+[Report a vulnerability](https://github.com/serialexperimentslainnnn/claude-code-native/security/advisories/new)
 (repository → **Security** → **Report a vulnerability**).
 
 This replaces the email address that used to be published here, and it is the

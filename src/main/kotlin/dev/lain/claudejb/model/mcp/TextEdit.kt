@@ -8,11 +8,15 @@ object TextEdit {
         val starts = chosen(text, occurrences(text, old, new), all)
         val out = StringBuilder(text.length + (new.length - old.length) * starts.size)
         val lines = ArrayList<Int>(starts.size)
+        val added = newlines(new)
         var from = 0
+        var line = 1
         for (start in starts) {
+            line += newlines(text, from, start)
             out.append(text, from, start)
-            lines += newlines(out) + 1
+            lines += line
             out.append(new)
+            line += added
             from = start + old.length
         }
         out.append(text, from, text.length)
@@ -70,5 +74,11 @@ object TextEdit {
         return offset
     }
 
-    private fun newlines(text: CharSequence): Int = text.count { it == '\n' }
+    private fun newlines(text: CharSequence): Int = newlines(text, 0, text.length)
+
+    private fun newlines(text: CharSequence, from: Int, to: Int): Int {
+        var count = 0
+        for (i in from until to) if (text[i] == '\n') count++
+        return count
+    }
 }

@@ -7,6 +7,8 @@ import dev.lain.claudejb.model.settings.ClaudeSettings
 import dev.lain.claudejb.model.settings.SecretStore
 import dev.lain.claudejb.model.settings.guard.GuardAlertLog
 import dev.lain.claudejb.model.settings.guard.SecuritySuspensions
+import dev.lain.claudejb.view.window.ChatRegistry
+import dev.lain.claudejb.view.window.ChatSnapshots
 
 internal object CleanSettings {
 
@@ -57,8 +59,7 @@ internal object CleanSettings {
     }
 
     private fun repaint() {
-        LivePanels.pushState()
-        LivePanels.pushSettingsMenu()
+        ChatRegistry.repaintEverywhere(ChatSnapshots.Kind.META, ChatSnapshots.Kind.STATE, ChatSnapshots.Kind.MENU)
     }
 
     private fun confirm(project: Project, title: String, body: String) = MessageDialogBuilder

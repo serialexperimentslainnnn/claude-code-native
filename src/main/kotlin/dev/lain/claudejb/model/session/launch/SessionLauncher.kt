@@ -4,6 +4,7 @@ import com.intellij.ide.plugins.cl.PluginAwareClassLoader
 import com.intellij.openapi.util.SystemInfo
 import dev.lain.claudejb.util.thisLogger
 import java.io.File
+import java.net.URI
 
 object SessionLauncher {
 
@@ -83,7 +84,14 @@ object SessionLauncher {
         val loader = McpConfigBuilder::class.java.classLoader as? PluginAwareClassLoader
         val lib = loader?.pluginDescriptor?.pluginPath?.resolve("lib")?.toFile()
         if (lib == null || !lib.isDirectory) return null
-        return McpConfigBuilder.HelperParams(javaBin(), lib)
+        return McpConfigBuilder.HelperParams(javaBin(), helperJar ?: File(lib, "*"))
+    }
+
+    private val helperJar: File? by lazy { McpConfigBuilder::class.java.classLoader?.let(::jarHolding) }
+
+    internal fun jarHolding(loader: ClassLoader): File? {
+        val url = loader.getResource(McpConfigBuilder.HELPER_CLASS_FILE)?.takeIf { it.protocol == "jar" } ?: return null
+        return runCatching { File(URI(url.path.substringBefore("!/"))) }.getOrNull()?.takeIf { it.isFile }
     }
 
     private fun javaBin(): File =

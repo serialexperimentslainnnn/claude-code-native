@@ -10,7 +10,7 @@ import java.io.File
 
 object McpConfigBuilder {
 
-    data class HelperParams(val javaBin: File, val lib: File)
+    data class HelperParams(val javaBin: File, val classpath: File)
 
     fun mcpConfigJson(
         customMcpServers: String,
@@ -30,14 +30,19 @@ object McpConfigBuilder {
         put("type", "stdio")
         put("command", helper.javaBin.absolutePath)
         putJsonArray("args") {
+            HELPER_JVM_FLAGS.forEach { add(it) }
             add("-cp")
-            add(helper.lib.absolutePath + File.separator + "*")
+            add(helper.classpath.absolutePath)
             add(HELPER_MAIN)
             add(socket)
         }
     }
 
     const val HELPER_MAIN = "dev.lain.claudejb.mcp.StdioBridge"
+
+    const val HELPER_CLASS_FILE = "dev/lain/claudejb/mcp/StdioBridge.class"
+
+    val HELPER_JVM_FLAGS = listOf("-Xshare:auto", "-XX:TieredStopAtLevel=1", "-XX:+UseSerialGC", "-Xmx32m", "-Xss512k")
 
     fun customMcpServersObject(customMcpServers: String, onParseError: (Throwable) -> Unit = {}): JsonObject? {
         val text = customMcpServers.trim().ifBlank { null } ?: return null

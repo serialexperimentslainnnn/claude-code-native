@@ -1,0 +1,12 @@
+<idea-plugin>
+    <dependencies>
+        <module name="intellij.platform.problemView.shared"/>
+        <module name="intellij.platform.problemView.ui"/>
+        <module name="dev.lain.claudejb.backend"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <projectService serviceInterface="dev.lain.claudejb.controller.mcp.tools.code.ProblemsViewAccess"
+                        serviceImplementation="dev.lain.claudejb.controller.mcp.tools.code.PluginProblemsView"/>
+    </extensions>
+</idea-plugin>

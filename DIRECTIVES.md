@@ -35,6 +35,14 @@ that, and the plugin serves them.
   `@ApiStatus.Internal` is not: it does not even promise to stabilise. The forbidden symbols, each with its
   replacement, are in [`docs/PLATFORM_API_POLICY.md`](docs/PLATFORM_API_POLICY.md).
 
+## Modules
+
+**Three content modules, one code path.** `dev.lain.claudejb.shared` holds the RPC chat contract (`ChatApi`);
+`dev.lain.claudejb.frontend` holds the tool window, the embedded browser, the page and its theme, and runs where
+the UI runs; `dev.lain.claudejb.backend` holds the sessions, the MCP servers, the guard, the settings, Git and
+the diffs, and runs beside the project. **The frontend depends only on the platform and the shared contract.**
+A local IDE, Remote Development and the Code With Me host take the same path; nothing asks which mode it is in.
+
 ## Token cost
 
 What gets added has to **do more while spending less**. It is an acceptance criterion, not an
@@ -60,8 +68,10 @@ The order of work and what is done lives in [`docs/MCP_ROADMAP.md`](docs/MCP_ROA
 6. **Agent-agnostic**: any MCP client can connect.
 7. **Nothing blocks waiting**: a queue per server, immediate acknowledgement, out-of-order replies
    correlated by `id`, a timeout and cancellation on every tool, and a bounded queue depth.
-8. **Coroutines only in the new MCP code** (`model/mcp/`, `controller/mcp/`). The rest of the plugin
-   keeps `AppExecutorUtil`, `ReadAction.compute`, `WriteCommandAction` and the single `edt {}`.
+8. **Coroutines only in the MCP code** (`model/mcp/`, `controller/mcp/`) **and in the RPC packages**
+   (`dev.lain.claudejb.rpc`, `dev.lain.claudejb.rpc.backend`, `dev.lain.claudejb.frontend.rpc`), because the
+   platform RPC is `suspend` and `Flow`. The rest of the plugin keeps `AppExecutorUtil`, `ReadAction.compute`,
+   `WriteCommandAction` and the single `edt {}`.
 
 ### Server authentication
 

@@ -37,7 +37,7 @@ internal class InspectTools(private val project: Project) {
 
     private suspend fun inspections(args: ToolArgs): ToolResult {
         val query = args.optionalString("query").orEmpty()
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = readAction {
             val profile = InspectionProfileManager.getInstance(project).currentProfile
             profile.getInspectionTools(null)
@@ -65,7 +65,7 @@ internal class InspectTools(private val project: Project) {
         val path = args.string("path")
         val only = args.optionalString("inspection")
         val minimum = Severities.minimum(args)
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val psiFile = readAction { Locations.psiFile(project, path) }
         val tools = readAction { applicable(psiFile, only, minimum) }
         if (tools.isEmpty()) throw ToolException(missing(only, path))
@@ -133,7 +133,7 @@ internal class InspectTools(private val project: Project) {
                 "filtered by a query.",
             listOf(
                 Param("query", "Part of an inspection id or name, case-insensitive (default: all)", required = false),
-                Param("max", "Maximum inspections to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("inspections", DEFAULT_MAX),
             ),
         )
 
@@ -146,7 +146,7 @@ internal class InspectTools(private val project: Project) {
                 Batch.paths("one result each"),
                 Param("inspection", "Run only this inspection id (default: every enabled inspection)", required = false),
                 Severities.PARAM,
-                Param("max", "Maximum findings to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("findings", DEFAULT_MAX),
             ),
         )
     }

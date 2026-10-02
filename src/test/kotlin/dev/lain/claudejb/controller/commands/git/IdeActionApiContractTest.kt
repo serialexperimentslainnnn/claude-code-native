@@ -4,8 +4,8 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.Presentation
-import com.intellij.openapi.project.Project
 import dev.lain.claudejb.MainSources
+import dev.lain.claudejb.SourceLayout
 import dev.lain.claudejb.model.bridge.JcefBridge
 import dev.lain.claudejb.model.bridge.Msg
 import dev.lain.claudejb.model.session.agents.AgentStatus
@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.awt.event.InputEvent
-import java.io.File
 import java.lang.reflect.Method
 import java.nio.file.Path
 
@@ -69,15 +68,15 @@ class IdeActionApiContractTest {
             "ActionUiKind.TOOLBAR is deprecated — IdeActionInvoker names it on every IDE invocation.",
         )
         assertTrue(
-            codeOf("controller/commands/git/IdeActionInvoker.kt").any { "ActionUiKind.TOOLBAR" in it },
-            "IdeActionInvoker no longer names ActionUiKind.TOOLBAR; pin the kind it does name instead of this one.",
+            codeOf("frontend/window/IdeActionRunner.kt").any { "ActionUiKind.TOOLBAR" in it },
+            "IdeActionRunner no longer names ActionUiKind.TOOLBAR; pin the kind it does name instead of this one.",
         )
     }
 
     @Test
-    fun `the project data context and the action lookup are still one call each`() {
-        load("com.intellij.openapi.actionSystem.impl.SimpleDataContext")
-            .getMethod("getProjectContext", Project::class.java)
+    fun `the component data context and the action lookup are still one call each`() {
+        load("com.intellij.ide.DataManager")
+            .getMethod("getDataContext", java.awt.Component::class.java)
             .assertNotDeprecated()
         load("com.intellij.openapi.actionSystem.ActionManager")
             .getMethod("getAction", String::class.java)
@@ -120,11 +119,11 @@ class IdeActionApiContractTest {
     }
 
     @Test
-    fun `IdeActionInvoker invokes actions through performAction and nothing else`() {
-        val source = source("src/main/kotlin/dev/lain/claudejb/controller/commands/git/IdeActionInvoker.kt")
+    fun `IdeActionRunner invokes actions through performAction and nothing else`() {
+        val source = source("frontend/window/IdeActionRunner.kt")
         assertTrue(
             "ActionUtil.performAction(" in source,
-            "IdeActionInvoker must invoke platform actions through ActionUtil.performAction.",
+            "IdeActionRunner must invoke platform actions through ActionUtil.performAction.",
         )
         assertFalse(
             "ActionUtil.invokeAction(" in source,
@@ -134,7 +133,7 @@ class IdeActionApiContractTest {
 
     @Test
     fun `the one command the plugin runs is a fixed argument vector, never a shell string`() {
-        val source = source("src/main/kotlin/dev/lain/claudejb/controller/commands/git/GitInit.kt")
+        val source = source("controller/commands/git/GitInit.kt")
         listOf("/bin/sh", "cmd.exe", "powershell", "-c\"", "ProcessBuilder", "Runtime.getRuntime").forEach {
             assertFalse(it in source, "GitInit must not reach a shell or spawn a process by hand: found '$it'")
         }
@@ -146,21 +145,25 @@ class IdeActionApiContractTest {
 
     @Test
     fun `the IDE invocation is given the tool window's own component, not the project alone`() {
-        val code = codeOf("controller/commands/git/IdeActionInvoker.kt")
         assertTrue(
-            code.any { "ClaudeToolWindowFactory.contextComponent(" in it },
-            "IdeActionInvoker no longer builds its data context from the tool window's component.",
+            codeOf("frontend/window/ChatView.kt").any { "IdeActionRunner.run(component" in it },
+            "The chat view no longer runs IDE actions with its own component as the context.",
         )
         assertTrue(
-            code.any { "DataManager.getInstance().getDataContext(" in it },
-            "IdeActionInvoker no longer asks DataManager for the component's context, so every key the tool " +
+            codeOf("frontend/window/IdeActionRunner.kt").any { "DataManager.getInstance().getDataContext(" in it },
+            "IdeActionRunner no longer asks DataManager for the component's context, so every key the tool " +
                 "window's providers contribute is gone and the actions are back to deciding on one key.",
+        )
+        val invoker = codeOf("controller/commands/git/IdeActionInvoker.kt")
+        assertTrue(
+            invoker.any { "runIdeAction(" in it } && invoker.none { "SimpleDataContext" in it },
+            "IdeActionInvoker must hand the action to the frontend, where the tool window's component lives.",
         )
     }
 
     @Test
     fun `nothing in this plugin decides how the IDE draws its popups`() {
-        val offenders = MainSources.files()
+        val offenders = SourceLayout.kotlinFiles()
             .flatMap { file -> MainSources.codeOf(file).map { file.name to it } }
             .filter { (_, line) -> "LightWeightPopupEnabled" in line || "System.setProperty(" in line }
             .map { (name, line) -> "$name: ${line.trim()}" }
@@ -187,14 +190,11 @@ class IdeActionApiContractTest {
 
     private fun actionUtil(): Class<*> = load("com.intellij.openapi.actionSystem.ex.ActionUtil")
 
-    private fun codeOf(relative: String): List<String> =
-        MainSources.codeOf(File(MainSources.root("src/main/kotlin"), "dev/lain/claudejb/$relative"))
+    private fun codeOf(relative: String): List<String> = MainSources.codeOf(SourceLayout.source(relative))
 
     private fun load(name: String): Class<*> = Class.forName(name, false, javaClass.classLoader)
 
-    private fun source(path: String): String =
-        sequenceOf(File(path), File("../$path")).firstOrNull { it.isFile }?.readText()
-            ?: error("could not locate $path from ${File("").absolutePath}")
+    private fun source(relative: String): String = SourceLayout.source(relative).readText()
 
     private fun Method.assertNotDeprecated(): Method = apply {
         assertFalse(

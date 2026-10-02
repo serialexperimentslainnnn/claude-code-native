@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.process
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -96,10 +97,6 @@ class EdtProcessTeardownContractTest {
         val CLAUDE_SESSION = source("controller/session/ClaudeSession.kt")
         val SESSION_LIFECYCLE = source("controller/session/SessionLifecycle.kt")
 
-        fun source(name: String): File {
-            val path = "src/main/kotlin/dev/lain/claudejb/$name"
-            return sequenceOf(File(path), File("../$path")).firstOrNull { it.isFile }
-                ?: error("could not locate $path from ${File("").absolutePath}")
-        }
+        fun source(name: String): File = SourceLayout.source(name)
     }
 }

@@ -76,7 +76,7 @@ internal class AnalyzeTools(private val project: Project, private val actions: I
 
     private suspend fun dependencies(args: ToolArgs): ToolResult {
         val direction = args.optionalString("direction") ?: "forward"
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         if (direction == "backward") {
             actions.dispatch(BACKWARD_DEPENDENCIES, TargetContext.target(args))
             return ToolResult.toon(
@@ -197,7 +197,7 @@ internal class AnalyzeTools(private val project: Project, private val actions: I
                     type = "integer",
                     required = false,
                 ),
-                Param("max", "Maximum files to return (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("files", DEFAULT_MAX),
             ),
         )
 

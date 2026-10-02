@@ -1,6 +1,7 @@
 package dev.lain.claudejb.controller.db
 
 import dev.lain.claudejb.MainSources
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -8,7 +9,7 @@ import java.io.File
 
 class DbGatewayContractTest {
 
-    private val sources: List<File> = MainSources.files()
+    private val sources: List<File> = SourceLayout.kotlinFiles()
 
     private val gateway: File = sources.single { it.name == GATEWAY }
 
@@ -80,6 +81,6 @@ class DbGatewayContractTest {
 
         val GUARD = Regex("""private fun $GUARD_NAME\(\) \{""")
         val AVAILABLE_DECLARATION = Regex("""fun $AVAILABLE\(\): Boolean""")
-        val ENTRY = Regex("""^ {4}fun \w+\(.*""")
+        val ENTRY = Regex("""^ {4}(override )?fun \w+\(.*""")
     }
 }

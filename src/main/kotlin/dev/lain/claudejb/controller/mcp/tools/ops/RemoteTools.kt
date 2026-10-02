@@ -1,14 +1,12 @@
 package dev.lain.claudejb.controller.mcp.tools.ops
 
-import com.intellij.analysis.problemsView.ProblemsCollector
-import com.intellij.analysis.problemsView.toolWindow.ProblemsViewTab
-import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.mcp.IdeActions
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.controller.mcp.TargetContext
+import dev.lain.claudejb.controller.mcp.tools.code.ProblemsViewAccess
 import dev.lain.claudejb.model.mcp.Param
 import dev.lain.claudejb.model.mcp.Tool
 import dev.lain.claudejb.model.mcp.ToolArgs
@@ -31,11 +29,11 @@ internal class RemoteTools(private val project: Project, private val actions: Id
         "remote",
         "The closed-source Tools menu entries the IDE may have: Deployment, SSH sessions, Qodana and the vulnerable " +
             "dependencies of the Problems view; each is reached through the actions the plugin registers on this IDE",
-        listOf(
+        listOfNotNull(
             Tool(DEPLOYMENT, ::deployment),
             Tool(SSH_SESSION, ::sshSession),
             Tool(QODANA, ::qodana),
-            Tool(VULNERABLE_DEPENDENCIES, ::vulnerable),
+            Tool(VULNERABLE_DEPENDENCIES, ::vulnerable).takeIf { ProblemsViewAccess.of(project) != null },
         ),
     )
 
@@ -84,14 +82,11 @@ internal class RemoteTools(private val project: Project, private val actions: Id
     }
 
     private suspend fun problems(group: String, tab: String, args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
+        val access = ProblemsViewAccess.of(project) ?: throw ToolException(ProblemsViewAccess.MISSING)
         val (rows, tabId) = withContext(Dispatchers.EDT) {
-            val collector = ProblemsCollector.getInstance(project)
-            val all = collector.getProblemFiles().flatMap { collector.getFileProblems(it) } + collector.getOtherProblems()
-            val matching = all.filter { it.group?.contains(group, ignoreCase = true) == true }
-            val window = ProblemsViewToolWindowUtils.getToolWindow(project)
-            val content = window?.contentManager?.contents?.firstOrNull { it.displayName?.contains(tab, ignoreCase = true) == true }
-            val id = (content?.component as? ProblemsViewTab)?.getTabId()
+            val matching = access.entries().filter { it.group?.contains(group, ignoreCase = true) == true }
+            val id = access.tabs()?.firstOrNull { it.title.contains(tab, ignoreCase = true) }?.id
             matching.map { problem ->
                 buildJsonObject {
                     put("text", problem.text)
@@ -174,7 +169,7 @@ internal class RemoteTools(private val project: Project, private val actions: Id
                 "Problems view; run and open fire the Qodana plugin's own actions, discovered on this IDE.",
             listOf(
                 Param("action", "results (default), run or open", required = false),
-                Param("max", "Maximum problems (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("problems", DEFAULT_MAX),
             ),
             mutates = true,
         )
@@ -183,7 +178,7 @@ internal class RemoteTools(private val project: Project, private val actions: Id
             "vulnerable_dependencies",
             "The vulnerable dependencies the Package Checker found, as the Problems view's Vulnerable Dependencies tab lists " +
                 "them; the tab is shown without focus.",
-            listOf(Param("max", "Maximum problems (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("problems", DEFAULT_MAX)),
         )
     }
 }

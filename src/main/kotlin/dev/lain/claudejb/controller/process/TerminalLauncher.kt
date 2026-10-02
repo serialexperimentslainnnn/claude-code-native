@@ -1,14 +1,16 @@
 package dev.lain.claudejb.controller.process
 
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.terminal.frontend.toolwindow.TerminalToolWindowTabsManager
 import dev.lain.claudejb.util.InstalledPlugins
-import dev.lain.claudejb.util.thisLogger
 
 object TerminalLauncher {
 
-    private val log = thisLogger()
+    interface Host {
+        fun open(workingDirectory: String?, tabName: String, command: String): Boolean
+    }
+
     private const val TERMINAL_PLUGIN_ID = "org.jetbrains.plugins.terminal"
 
     fun isAvailable(): Boolean = InstalledPlugins.isEnabled(TERMINAL_PLUGIN_ID)
@@ -31,20 +33,7 @@ object TerminalLauncher {
     fun openAndRunCommand(project: Project, argv: List<String>, tabName: String): Boolean {
         if (!isAvailable()) return false
         if (argv.isEmpty()) return false
-        return runCatching { openWithShellCommand(project, argv, tabName) }
-            .onFailure { log.warn("Failed to open IDE terminal for: $tabName", it) }
-            .getOrDefault(false)
-    }
-
-    private fun openWithShellCommand(project: Project, argv: List<String>, tabName: String): Boolean {
-        val tab = TerminalToolWindowTabsManager.getInstance(project)
-            .createTabBuilder()
-            .workingDirectory(project.basePath)
-            .tabName(tabName)
-            .requestFocus(true)
-            .deferSessionStartUntilUiShown(false)
-            .createTab()
-        tab.view.createSendTextBuilder().shouldExecute().send(commandLine(argv.first(), argv.drop(1)))
-        return true
+        val host = project.serviceOrNull<Host>() ?: return false
+        return host.open(project.basePath, tabName, commandLine(argv.first(), argv.drop(1)))
     }
 }

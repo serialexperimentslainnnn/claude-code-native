@@ -11,7 +11,6 @@ import dev.lain.claudejb.model.session.transcript.Speaker
 import dev.lain.claudejb.model.settings.ClaudeSettings
 import dev.lain.claudejb.model.settings.Provider
 import dev.lain.claudejb.model.settings.SecretStore
-import dev.lain.claudejb.model.settings.env.RemoteMounts
 import dev.lain.claudejb.model.settings.env.resolveEnv
 import java.io.File
 
@@ -25,6 +24,8 @@ class SessionLifecycle(
 ) {
 
     private val process = SessionProcess(s, edt, fireState, fireAttention, onEvent)
+
+    private val gates = SessionGates(s, project, edt, fireState, onBinary = ::markBinary)
 
     @Volatile private var starting = false
 
@@ -65,34 +66,25 @@ class SessionLifecycle(
 
     fun write(line: String): Boolean = process.write(line)
 
-    fun start(resume: Boolean): Boolean {
+    fun start(resume: Boolean, auto: Boolean = false): Boolean {
         if (disposed) return false
         if (isRunning() || starting) return true
-        val settings = ClaudeSettings.getInstance(project)
-        val binary = resolveBinary(settings) ?: return false
-        if (!passesLaunchGates(settings)) return false
-        when (auth.heldCredential(settings)) {
-            Credential.NONE -> {
-                onLoginNeeded()
-                return false
-            }
-
-            Credential.UNKNOWN -> return true
-
-            Credential.HELD -> Unit
-        }
-        val workDir = project.basePath?.let(::File) ?: File(System.getProperty("user.home"))
-
+        if (!auto) gates.forgive()
         ready = false
         s.catalog.initialized = false
         starting = true
         s.reconciler.onMessageBoundary()
         fireState()
         val launchGen = process.supersede()
-
         ApplicationManager.getApplication().executeOnPooledThread {
             try {
-                launch(launchGen, settings, binary, workDir, resume)
+                val settings = ClaudeSettings.getInstance(project)
+                val binary = gates.admit(settings) ?: return@executeOnPooledThread
+                when (auth.heldCredential(settings)) {
+                    Credential.NONE -> edt { onLoginNeeded() }
+                    Credential.UNKNOWN -> launchOnceProbed(launchGen, settings, binary, resume)
+                    Credential.HELD -> launch(launchGen, settings, binary, resume)
+                }
             } finally {
                 if (launchGen == process.generation) {
                     starting = false
@@ -110,35 +102,43 @@ class SessionLifecycle(
     }
 
     fun refreshBootState() {
-        if (starting) return
-        if (s.login.inProgress) return
-        auth.absorbExistingLoginOnce()
-        val settings = ClaudeSettings.getInstance(project)
-        val binary = ClaudeBinaryLocator.locate(settings.claudePath)
-        val missing = binary == null
-        edt {
-            if (missing && isRunning()) stop()
-            if (missing != binaryMissing) {
-                binaryMissing = missing
-                fireState()
-            }
-        }
-        if (binary == null) return
-        if (settings.claudePath != binary.absolutePath) {
-            settings.update { it.claudePath = binary.absolutePath }
-        }
-        val credentialed = auth.hasCredential(settings)
-        edt {
-            if (starting) return@edt
-            when {
-                !credentialed -> {
-                    if (isRunning()) stop()
-                    if (!needsLogin) onLoginNeeded()
+        if (starting || s.login.inProgress || !gates.tickStarted()) return
+        try {
+            auth.absorbExistingLoginOnce()
+            val settings = ClaudeSettings.getInstance(project)
+            val binary = ClaudeBinaryLocator.locate(settings.claudePath)
+            val missing = binary == null
+            edt {
+                if (missing && isRunning()) stop()
+                if (missing != binaryMissing) {
+                    binaryMissing = missing
+                    fireState()
                 }
-
-                !isRunning() -> s.start()
             }
+            if (binary == null) return
+            if (settings.claudePath != binary.absolutePath) {
+                settings.update { it.claudePath = binary.absolutePath }
+            }
+            if (isRunning() || starting) return
+            if (gates.backoff.exited()) announceGaveUp()
+            if (!gates.mayAutoStart()) return
+            autoStart(credentialed = auth.hasCredential(settings))
+        } finally {
+            gates.tickDone()
         }
+    }
+
+    private fun autoStart(credentialed: Boolean) = edt {
+        if (starting || isRunning() || disposed) return@edt
+        when {
+            !credentialed -> if (!needsLogin) onLoginNeeded()
+            else -> start(resume = s.sessionId != null, auto = true)
+        }
+    }
+
+    private fun announceGaveUp() = edt {
+        s.transcript.add(Speaker.ERROR, GAVE_UP)
+        fireState()
     }
 
     fun dismissLoginCard() {
@@ -146,36 +146,10 @@ class SessionLifecycle(
         edt { fireState() }
     }
 
-    private fun resolveBinary(settings: ClaudeSettings): File? {
-        val binary = ClaudeBinaryLocator.locate(settings.claudePath) ?: run {
-            binaryMissing = true
-            fireState()
-            s.notifier.missingBinary()
-            return null
-        }
-        binaryMissing = false
-        if (settings.claudePath != binary.absolutePath) {
-            settings.update { it.claudePath = binary.absolutePath }
-        }
-        return binary
-    }
-
-    private fun passesLaunchGates(settings: ClaudeSettings): Boolean {
-        if (!s.notifier.ensureExecTrust(settings)) return false
-        if (RemoteMounts.isRemote(project.basePath)) {
-            refuseRemoteProject(project.basePath)
-            return false
-        }
-        return true
-    }
-
-    private fun refuseRemoteProject(root: String?) {
-        val msg = SessionNotifier.remoteProjectRefusal(root)
-        edt {
-            s.transcript.add(Speaker.ERROR, msg)
-            fireState()
-        }
-        s.notifier.error(msg)
+    private fun markBinary(missing: Boolean) {
+        if (missing == binaryMissing) return
+        binaryMissing = missing
+        edt { fireState() }
     }
 
     internal fun effectiveLaunchEnv(base: Map<String, String>? = null): Map<String, String> {
@@ -189,13 +163,22 @@ class SessionLifecycle(
         return withSecrets + CredentialsVault.envOverlay(withSecrets.keys)
     }
 
-    private fun launch(launchGen: Int, settings: ClaudeSettings, binary: File, workDir: File, resume: Boolean) {
+    private fun launchOnceProbed(launchGen: Int, settings: ClaudeSettings, binary: File, resume: Boolean) {
+        if (auth.hasCredential(settings)) launch(launchGen, settings, binary, resume) else edt { onLoginNeeded() }
+    }
+
+    private fun launch(launchGen: Int, settings: ClaudeSettings, binary: File, resume: Boolean) {
         if (!auth.renew(binary, settings)) {
             edt { onLoginNeeded() }
             return
         }
+        val workDir = project.basePath?.let(::File) ?: File(System.getProperty("user.home"))
         val env = effectiveLaunchEnv(cachedEnv ?: settings.resolveEnv().also { cachedEnv = it })
-        if (!process.spawn(launchGen, binary, workDir, env, resume)) return
+        if (!process.spawn(launchGen, binary, workDir, env, resume)) {
+            if (launchGen == process.generation && gates.backoff.failed()) announceGaveUp()
+            return
+        }
+        gates.backoff.launched()
         s.catalog.request()
         edt {
             ready = true
@@ -214,6 +197,7 @@ class SessionLifecycle(
 
     fun stop() {
         process.supersede()
+        gates.backoff.stoppedOnPurpose()
         s.flushDeltas()
         s.poll.stopAll()
         s.turnControl.cancelPendingElicitations()
@@ -246,5 +230,10 @@ class SessionLifecycle(
         s.diffs.clear()
         process.terminate()
         s.controlClient.failAll("process gone")
+    }
+
+    private companion object {
+        const val GAVE_UP = "Claude Code kept exiting as it started, so it is no longer restarted on its own. " +
+            "Send a message or restart the chat to try again."
     }
 }

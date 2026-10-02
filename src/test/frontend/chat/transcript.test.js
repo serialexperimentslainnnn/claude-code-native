@@ -307,6 +307,30 @@ describe('transcript — the executed command renders as its own always-visible 
     expect(win.document.querySelectorAll('.tool.cmd-tool').length).toBe(2);
   });
 
+  it('an own shell card shows its command first, copied alone, and its other args in a block apart', () => {
+    const win = loadFrontend(['app-transcript.js']);
+    const sent = [];
+    win.CC.send = (m) => sent.push(m);
+    win.cc.batch([
+      row(22, 0, 'TOOL', 'run ▸ shell', {
+        meta: 'mcp__run__run',
+        toolUseId: 'tu-shell-args',
+        command: 'podman push img:v1',
+        message: 'tail: 15',
+      }),
+    ]);
+    const card = win.document.querySelector('.tool');
+    const blocks = Array.from(card.querySelectorAll('pre.command-src, pre.message-src')).map(
+      (b) => b.className
+    );
+    expect(blocks).toEqual(['command-src', 'message-src']);
+    expect(card.querySelector('pre.message-src code').textContent).toBe('tail: 15');
+    card.querySelector('pre.command-src .copy').click();
+    const copied = sent.filter((m) => m.type === 'copy').map((m) => m.text);
+    expect(copied.length).toBeGreaterThan(0);
+    expect(copied.every((t) => t === 'podman push img:v1')).toBe(true);
+  });
+
   it('a tool without entry.command (e.g. Read) gets no command-src block, no cmd-tool class, full label', () => {
     const win = loadFrontend(['app-transcript.js']);
     win.cc.batch([

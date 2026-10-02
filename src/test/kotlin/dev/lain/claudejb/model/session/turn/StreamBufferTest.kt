@@ -2,7 +2,9 @@ package dev.lain.claudejb.model.session.turn
 
 import dev.lain.claudejb.model.protocol.ClaudeEvent
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class StreamBufferTest {
@@ -32,6 +34,18 @@ class StreamBufferTest {
         buffer.buffer(ClaudeEvent.TextDelta("theirs", "tool-1"))
         buffer.buffer(ClaudeEvent.ThinkingDelta("theirs too", "tool-1"))
         assertNull(buffer.drain())
+    }
+
+    @Test
+    fun `a block stop buffers nothing and pending tells whether a drain would yield`() {
+        buffer.buffer(ClaudeEvent.BlockStop)
+        assertFalse(buffer.hasPending())
+        assertNull(buffer.drain())
+
+        buffer.buffer(ClaudeEvent.TextDelta("x", null))
+        assertTrue(buffer.hasPending())
+        buffer.drain()
+        assertFalse(buffer.hasPending())
     }
 
     @Test

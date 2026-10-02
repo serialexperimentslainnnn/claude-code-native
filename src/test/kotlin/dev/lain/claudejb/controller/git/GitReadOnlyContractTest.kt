@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.git
 
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -7,15 +8,14 @@ import java.io.File
 
 class GitReadOnlyContractTest {
 
-    private val sources: List<File> = File("src/main/kotlin/dev/lain/claudejb/controller/git")
-        .walkTopDown()
-        .filter { it.isFile && it.extension == "kt" }
-        .toList()
+    private val sources: List<File> = SourceLayout.roots("kotlin")
+        .map { File(it, "${SourceLayout.PACKAGE_ROOT}/controller/git") }
+        .flatMap { dir -> dir.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
         .sortedBy { it.name }
 
     @Test
     fun `the package exists and this test is actually looking at it`() {
-        assertTrue(sources.isNotEmpty(), "No Kotlin sources found under src/main/kotlin/dev/lain/claudejb/controller/git")
+        assertTrue(sources.isNotEmpty(), "No Kotlin sources found under any module's dev/lain/claudejb/controller/git")
         assertTrue(sources.any { it.name == GATEWAY }, "$GATEWAY is missing; the containment this test pins is gone")
     }
 

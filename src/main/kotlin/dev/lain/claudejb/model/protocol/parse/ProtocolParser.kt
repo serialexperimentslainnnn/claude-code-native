@@ -59,10 +59,9 @@ object ProtocolParser {
     }
 
     fun parse(line: String): List<ClaudeEvent> {
-        val trimmed = line.trim()
-        if (trimmed.isEmpty()) return emptyList()
-        val root = runCatching { ClaudeJson.parseToJsonElement(trimmed) }.getOrNull() as? JsonObject
-            ?: return listOf(ClaudeEvent.Other("?", null, JsonObject(emptyMap()), "malformed JSON (${trimmed.length} chars)"))
+        if (line.isBlank()) return emptyList()
+        val root = runCatching { ClaudeJson.parseToJsonElement(line) }.getOrNull() as? JsonObject
+            ?: return listOf(ClaudeEvent.Other("?", null, JsonObject(emptyMap()), "malformed JSON (${line.length} chars)"))
         val type = root.str("type") ?: return listOf(ClaudeEvent.Other("?", null, root, "no type field"))
 
         val decoder = TOP_LEVEL_DECODERS[type]

@@ -44,7 +44,7 @@ internal class RunTools(private val project: Project, scope: CoroutineScope) {
     }
 
     private suspend fun runConfigurations(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (rows, total) = readAction {
             val manager = RunManager.getInstance(project)
             val selected = manager.selectedConfiguration?.uniqueID
@@ -92,7 +92,7 @@ internal class RunTools(private val project: Project, scope: CoroutineScope) {
         ?: throw ToolException("executor must be one of ${EXECUTORS.keys.joinToString()}")
 
     private suspend fun processes(args: ToolArgs): ToolResult = when (val action = args.optionalString("action") ?: "list") {
-        "list" -> list(args.int("max", DEFAULT_MAX))
+        "list" -> list(args.max(DEFAULT_MAX, Param.MAX_CEILING))
         "stop" -> stop(args.string("name"))
         else -> throw ToolException("action must be list or stop, not $action")
     }
@@ -145,7 +145,7 @@ internal class RunTools(private val project: Project, scope: CoroutineScope) {
             "run_configurations",
             "Lists the project's run configurations as the Run/Debug combo shows them: name, type, folder, whether temporary " +
                 "and which one is selected.",
-            listOf(Param("max", "Maximum configurations to return (default $DEFAULT_MAX)", type = "integer", required = false)),
+            listOf(Param.max("configurations", DEFAULT_MAX)),
         )
 
         val RUN_CONFIGURATION = ToolSpec(
@@ -171,7 +171,7 @@ internal class RunTools(private val project: Project, scope: CoroutineScope) {
             listOf(
                 Param("action", "list (default) or stop", required = false),
                 Param("name", "The tab name to stop, as list shows it", required = false),
-                Param("max", "Maximum processes to list (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("processes to list", DEFAULT_MAX),
             ),
             mutates = true,
         )

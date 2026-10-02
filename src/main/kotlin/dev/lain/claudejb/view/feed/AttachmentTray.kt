@@ -2,21 +2,19 @@ package dev.lain.claudejb.view.feed
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import dev.lain.claudejb.controller.context.EditorContextProvider
 import dev.lain.claudejb.controller.context.FilePickerHelper
 import dev.lain.claudejb.model.context.Attachment
+import dev.lain.claudejb.rpc.PagePush
 import dev.lain.claudejb.util.PluginIdentity
-import dev.lain.claudejb.util.edt
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 internal class AttachmentTray(
     private val project: Project,
-    private val exec: (String) -> Unit,
+    private val emit: (PagePush) -> Unit,
     private val focusInput: () -> Unit,
 ) {
 
@@ -69,7 +67,7 @@ internal class AttachmentTray(
 
     fun addSelection() = EditorContextProvider.selectionAsAttachment(project)?.let { add(it) }
 
-    fun push() = exec("window.cc.attachments && window.cc.attachments(" + json() + ")")
+    fun push() = emit(PagePush("attachments", json()))
 
     fun pushMenuData() {
         val recent = FilePickerHelper.recentFiles(project, RECENT_FILES_LIMIT).map { path ->
@@ -84,48 +82,7 @@ internal class AttachmentTray(
             put("hasSelection", EditorContextProvider.currentSelection(project) != null)
             put("hasFile", EditorContextProvider.currentFilePath(project) != null)
         }
-        exec("window.cc.attachData && window.cc.attachData($payload)")
-    }
-
-    fun pasteFromClipboard() {
-        offEdt {
-            val img = EditorContextProvider.imageFromClipboard()
-            val text = if (img == null) EditorContextProvider.clipboardText() else null
-            val help = if (img == null && text.isNullOrEmpty()) EditorContextProvider.clipboardImageHelp() else null
-            edt {
-                when {
-                    img != null -> add(img)
-
-                    !text.isNullOrEmpty() ->
-                        exec("window.cc.insertText && window.cc.insertText(" + JsonPrimitive(text) + ")")
-
-                    else -> notify(
-                        if (help != null) "Couldn't read the clipboard — $help" else "Clipboard is empty or unreadable.",
-                    )
-                }
-            }
-        }
-    }
-
-    fun pasteImageFromClipboard(alwaysNotify: Boolean) {
-        offEdt {
-            val img = EditorContextProvider.imageFromClipboard()
-            val shouldNotify = img == null && (alwaysNotify || !EditorContextProvider.clipboardHasText())
-            val help = if (shouldNotify) EditorContextProvider.clipboardImageHelp() else null
-            edt {
-                when {
-                    img != null -> add(img)
-
-                    shouldNotify -> notify(
-                        if (help != null) {
-                            "Couldn't read an image from the clipboard — $help"
-                        } else {
-                            "No image found in the clipboard."
-                        },
-                    )
-                }
-            }
-        }
+        emit(PagePush("attachData", payload.toString()))
     }
 
     fun notify(message: String) {
@@ -151,8 +108,6 @@ internal class AttachmentTray(
             }
         },
     ).toString()
-
-    private fun offEdt(block: () -> Unit) = ApplicationManager.getApplication().executeOnPooledThread(block)
 
     private companion object {
         const val RECENT_FILES_LIMIT = 14

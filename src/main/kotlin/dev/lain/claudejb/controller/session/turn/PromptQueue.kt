@@ -1,5 +1,6 @@
 package dev.lain.claudejb.controller.session.turn
 
+import com.intellij.util.concurrency.AppExecutorUtil
 import dev.lain.claudejb.model.protocol.control.ControlProtocol
 import dev.lain.claudejb.model.session.transcript.Speaker
 import dev.lain.claudejb.model.session.transcript.TranscriptModel
@@ -13,11 +14,14 @@ class PromptQueue(
     private val canSend: () -> Boolean,
     private val onSent: () -> Unit,
     private val fireState: () -> Unit,
+    private val offload: (Runnable) -> Unit = AppExecutorUtil.createBoundedApplicationPoolExecutor(WRITER, 1)::execute,
 ) {
 
     private data class Outgoing(val text: String, val images: List<Pair<String, String>>, val displayText: String)
 
     private val queue = ArrayDeque<Outgoing>()
+
+    private var inFlight: Outgoing? = null
 
     private val toolUseTurn = ConcurrentHashMap<String, String>()
 
@@ -27,7 +31,7 @@ class PromptQueue(
     @Volatile var suggestion: String? = null
         private set
 
-    fun queued(): List<String> = queue.map { it.displayText }
+    fun queued(): List<String> = listOfNotNull(inFlight?.displayText) + queue.map { it.displayText }
 
     fun userMessageIdFor(toolUseId: String): String? = toolUseTurn[toolUseId]
 
@@ -42,24 +46,38 @@ class PromptQueue(
     }
 
     fun remove(index: Int) = edt {
-        if (index in queue.indices) {
-            queue.removeAt(index)
+        val at = if (inFlight != null) index - 1 else index
+        if (at in queue.indices) {
+            queue.removeAt(at)
             fireState()
         }
     }
 
     fun pump() {
-        while (canSend() && queue.isNotEmpty()) {
-            val next = queue.first()
-            val msgUuid = UUID.randomUUID().toString()
-            if (!write(ControlProtocol.userMessageWithImages(next.text, next.images, uuid = msgUuid))) return
-            queue.removeFirst()
-            transcript.add(Speaker.USER, next.displayText)
-            currentUserMessageId = msgUuid
-            onSent()
-            dropSuggestion()
-            fireState()
+        if (inFlight != null || !canSend() || queue.isEmpty()) return
+        val next = queue.removeFirst()
+        inFlight = next
+        val msgUuid = UUID.randomUUID().toString()
+        offload(
+            Runnable {
+                val sent = write(ControlProtocol.userMessageWithImages(next.text, next.images, uuid = msgUuid))
+                edt { settle(next, msgUuid, sent) }
+            },
+        )
+    }
+
+    private fun settle(next: Outgoing, msgUuid: String, sent: Boolean) {
+        inFlight = null
+        if (!sent) {
+            queue.addFirst(next)
+            return
         }
+        transcript.add(Speaker.USER, next.displayText)
+        currentUserMessageId = msgUuid
+        onSent()
+        dropSuggestion()
+        fireState()
+        pump()
     }
 
     fun dropSuggestion() {
@@ -82,5 +100,9 @@ class PromptQueue(
     fun forgetTurn() {
         toolUseTurn.clear()
         currentUserMessageId = null
+    }
+
+    private companion object {
+        const val WRITER = "Claude Code prompt writer"
     }
 }

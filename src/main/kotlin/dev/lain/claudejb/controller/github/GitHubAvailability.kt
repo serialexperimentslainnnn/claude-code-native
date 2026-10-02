@@ -3,7 +3,7 @@ package dev.lain.claudejb.controller.github
 import dev.lain.claudejb.model.mcp.ToolException
 import dev.lain.claudejb.util.InstalledPlugins
 
-internal object GitHubAvailability {
+object GitHubAvailability {
 
     const val PLUGIN_ID = "org.jetbrains.plugins.github"
 

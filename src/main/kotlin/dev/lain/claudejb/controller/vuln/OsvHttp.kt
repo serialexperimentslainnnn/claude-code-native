@@ -3,9 +3,6 @@ package dev.lain.claudejb.controller.vuln
 import dev.lain.claudejb.model.vuln.ScanSilence
 import dev.lain.claudejb.util.PluginIdentity
 import dev.lain.claudejb.util.logger
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.io.InputStream
 import java.net.ProxySelector
 import java.net.URI
 import java.net.http.HttpClient
@@ -13,6 +10,9 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets
 import java.time.Duration
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 internal sealed interface OsvAnswer {
 
@@ -25,9 +25,9 @@ internal object OsvHttp {
 
     const val MAX_RESPONSE_BYTES = 4 * 1024 * 1024
 
-    private const val CHUNK_BYTES = 8 * 1024
     private const val CONNECT_TIMEOUT_SECONDS = 5L
     private const val REQUEST_TIMEOUT_SECONDS = 20L
+    private const val BODY_TIMEOUT_SECONDS = 20L
 
     private const val HTTP_OK_MIN = 200
     private const val HTTP_OK_MAX = 299
@@ -58,33 +58,31 @@ internal object OsvHttp {
             .header("Accept", "application/json")
             .build()
 
+        val exchange = client.sendAsync(request, ::subscriberFor)
         return try {
-            val response = client.send(request, HttpResponse.BodyHandlers.ofInputStream())
-            response.body().use { body -> bodyOrSilence(response.statusCode(), body) }
+            val response = exchange.get(REQUEST_TIMEOUT_SECONDS + BODY_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            answerOf(response.statusCode(), response.body())
         } catch (e: InterruptedException) {
+            exchange.cancel(true)
             Thread.currentThread().interrupt()
             OsvAnswer.Silent(ScanSilence.UNREACHABLE)
-        } catch (e: IOException) {
-            LOG.warn("The vulnerability database could not be reached; no findings are shown", e)
+        } catch (e: TimeoutException) {
+            exchange.cancel(true)
+            LOG.warn("The vulnerability database did not answer in time; no findings are shown", e)
+            OsvAnswer.Silent(ScanSilence.UNREACHABLE)
+        } catch (e: ExecutionException) {
+            LOG.warn("The vulnerability database could not be reached; no findings are shown", e.cause ?: e)
             OsvAnswer.Silent(ScanSilence.UNREACHABLE)
         }
     }
 
-    private fun bodyOrSilence(status: Int, body: InputStream): OsvAnswer = when {
+    private fun subscriberFor(info: HttpResponse.ResponseInfo): HttpResponse.BodySubscriber<ByteArray?> =
+        if (info.statusCode() in HTTP_OK_MIN..HTTP_OK_MAX) BoundedBody(MAX_RESPONSE_BYTES) else HttpResponse.BodySubscribers.replacing(null)
+
+    internal fun answerOf(status: Int, body: ByteArray?): OsvAnswer = when {
         status == HTTP_TOO_MANY_REQUESTS -> OsvAnswer.Silent(ScanSilence.REFUSED)
         status !in HTTP_OK_MIN..HTTP_OK_MAX -> OsvAnswer.Silent(ScanSilence.REFUSED)
-        else -> readBounded(body)
-    }
-
-    private fun readBounded(body: InputStream): OsvAnswer {
-        val collected = ByteArrayOutputStream()
-        val chunk = ByteArray(CHUNK_BYTES)
-        while (true) {
-            val read = body.read(chunk)
-            if (read < 0) break
-            if (collected.size() + read > MAX_RESPONSE_BYTES) return OsvAnswer.Silent(ScanSilence.OVERSIZED)
-            collected.write(chunk, 0, read)
-        }
-        return OsvAnswer.Body(collected.toString(StandardCharsets.UTF_8))
+        body == null -> OsvAnswer.Silent(ScanSilence.OVERSIZED)
+        else -> OsvAnswer.Body(String(body, StandardCharsets.UTF_8))
     }
 }

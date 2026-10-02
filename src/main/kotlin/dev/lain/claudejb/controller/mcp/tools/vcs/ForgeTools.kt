@@ -6,7 +6,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindowId
 import dev.lain.claudejb.controller.git.ForgeViewNavigator
 import dev.lain.claudejb.controller.github.GitHubAvailability
-import dev.lain.claudejb.controller.github.GitHubGateway
 import dev.lain.claudejb.controller.mcp.IdeActions
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.controller.mcp.TargetContext
@@ -28,10 +27,10 @@ internal class ForgeTools(
     private val project: Project,
     private val actions: IdeActions,
     private val reveal: Reveal,
-    gateway: () -> GitHubGateway = { GitHubGateway(project) },
+    gateway: () -> GitHubAccess = { GitHubAccess.of(project) },
 ) {
 
-    private val github: GitHubGateway by lazy { GitHubAvailability.require().let { gateway() } }
+    private val github: GitHubAccess by lazy { GitHubAvailability.require().let { gateway() } }
 
     fun domain(): ToolDomain = ToolDomain(
         "forge",
@@ -42,7 +41,7 @@ internal class ForgeTools(
 
     private suspend fun pullRequests(args: ToolArgs): ToolResult {
         val state = args.optionalString("state") ?: "open"
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val filter = STATES[state] ?: throw ToolException("state must be one of ${STATES.keys.joinToString()}")
         val repository = github.repository()
         val requests = github.pullRequests(filter, max)
@@ -90,7 +89,7 @@ internal class ForgeTools(
         return "none"
     }
 
-    private fun row(request: GitHubGateway.Request): JsonObject = buildJsonObject {
+    private fun row(request: GitHubAccess.Request): JsonObject = buildJsonObject {
         put("number", request.head.number)
         put("title", request.head.title)
         put("state", request.head.state)
@@ -164,7 +163,7 @@ internal class ForgeTools(
                 "Requests view is shown. Refused when the GitHub plugin, an account or a GitHub remote is missing.",
             listOf(
                 Param("state", "open (default), closed, merged or all", required = false),
-                Param("max", "Maximum pull requests (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("pull requests", DEFAULT_MAX),
             ),
         )
 

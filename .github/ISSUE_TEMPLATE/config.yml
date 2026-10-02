@@ -9,9 +9,9 @@ contact_links:
 
   # TODO: replace with the GitHub Discussions URL once enabled for the repo.
   - name: GitHub Discussions
-    url: https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains/discussions
+    url: https://github.com/serialexperimentslainnnn/claude-code-native/discussions
     about: Ask a question, share a workflow, or discuss ideas before filing an issue.
 
   - name: Security vulnerability
-    url: https://github.com/serialexperimentslainnnn/claude-code-for-jetbrains/security/advisories/new
+    url: https://github.com/serialexperimentslainnnn/claude-code-native/security/advisories/new
     about: Do NOT open a public issue. Report it privately here; see SECURITY.md.

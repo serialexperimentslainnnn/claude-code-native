@@ -35,7 +35,7 @@ internal class PsiTools(private val project: Project, private val reveal: Reveal
     private suspend fun tree(args: ToolArgs): ToolResult {
         val path = args.string("path")
         val depth = args.int("depth", DEFAULT_DEPTH)
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val rows = smartReadAction(project) {
             val psiFile = Locations.psiFile(project, path)
             val root = args.optionalString("line")?.let { elementAt(psiFile, args) } ?: psiFile
@@ -178,7 +178,7 @@ internal class PsiTools(private val project: Project, private val reveal: Reveal
                 Param("line", "1-based line whose element is the root (default: the whole file)", type = "integer", required = false),
                 COLUMN,
                 Param("depth", "Levels below the root (default $DEFAULT_DEPTH)", type = "integer", required = false),
-                Param("max", "Maximum elements (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("elements", DEFAULT_MAX),
             ),
         )
 

@@ -467,7 +467,7 @@ mirrored in the IDE without taking the user's focus.
 | Terminal tabs | `terminal_tabs` (`terminal`) | ☑ |
 | Javadoc, launchers, XML, Markdown | `javadoc`, `launcher`, `xml`, `markdown` (`tools_menu`) | ☑ (dialogs the user finishes; javadoc headless needs the Java plugin's `JavadocGeneratorRunProfile`, which is not public) |
 | Groovy console, Kotlin bytecode and configuration, Python console | `groovy_console`, `kotlin_bytecode`, `kotlin_configure`, `python_console` (`consoles`) | ☑ by action, discovered where the Kotlin and Python ids are plugin-defined; the bytecode text stays in the IDE's panel (no public document accessor) |
-| Any MCP client drives the IDE (Q10); split mode (S6) | `McpClient` (test source) + `McpClientHeadlessTest`, [`MCP_CLIENT.md`](MCP_CLIENT.md); split mode = the chat page failing to arrive, then the servers start without a chat and the notification carries the MCP configuration | ☑ |
+| Any MCP client drives the IDE (Q10); Remote Development (S6) | `McpClient` (test source) + `McpClientHeadlessTest`, [`MCP_CLIENT.md`](MCP_CLIENT.md); Remote Development = the split plugin: the chat is drawn in JetBrains Client over the platform RPC, the servers run on the host | ☑ |
 
 **Out, on record**: `completion` (its parameters have no public constructor), LSP (commercial IDEs; runtime
 detection if ever needed), `sdk_set` (a global change that goes through the dialog), `structure_select`

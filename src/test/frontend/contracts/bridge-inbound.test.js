@@ -4,7 +4,12 @@ const { loadFrontend, appJsFiles, readApp } = require('../helpers/load');
 const { stripComments } = require('../helpers/source');
 
 const KOTLIN_SRC = path.resolve(__dirname, '../../../main/kotlin');
+const FRONTEND_KOTLIN_SRC = path.resolve(__dirname, '../../../../frontend/src/main/kotlin');
+const SHARED_KOTLIN_SRC = path.resolve(__dirname, '../../../../shared/src/main/kotlin');
 const BRIDGE_KT = path.join(KOTLIN_SRC, 'dev/lain/claudejb/model/bridge/JcefBridge.kt');
+
+const KOTLIN_CONST = /const\s+val\s+([A-Z_][A-Z0-9_]*)\s*=\s*"([^"]+)"/g;
+const KOTLIN_TYPE_PUT = /put\(\s*"type"\s*,\s*(?:"([^"]+)"|(?:[A-Za-z_][\w]*\.)?([A-Z_][A-Z0-9_]*))\s*\)/g;
 
 const PARSED_TYPE = /^\s*"([A-Za-z_][A-Za-z0-9_]*)"\s*->/gm;
 
@@ -29,16 +34,41 @@ function pageTypeStrings(sources = pageSources()) {
   return strings;
 }
 
+function kotlinUnder(roots) {
+  return roots
+    .filter((root) => fs.existsSync(root))
+    .flatMap((root) =>
+      fs
+        .readdirSync(root, { recursive: true })
+        .filter((f) => f.endsWith('.kt'))
+        .map((rel) => stripComments(fs.readFileSync(path.join(root, rel), 'utf8')))
+    )
+    .join('\n');
+}
+
+function frontendTypeStrings(
+  frontend = kotlinUnder([FRONTEND_KOTLIN_SRC]),
+  shared = kotlinUnder([SHARED_KOTLIN_SRC])
+) {
+  const consts = new Map([...(frontend + '\n' + shared).matchAll(KOTLIN_CONST)].map((m) => [m[1], m[2]]));
+  const strings = new Set();
+  for (const m of frontend.matchAll(KOTLIN_TYPE_PUT)) {
+    const value = m[1] || consts.get(m[2]);
+    if (value) strings.add(value);
+  }
+  return strings;
+}
+
+function union(a, b) {
+  return new Set([...a, ...b]);
+}
+
 function unsent(parsed, sent) {
   return parsed.filter((type) => !sent.has(type)).map((type) => '"' + type + '"');
 }
 
 function kotlinText() {
-  return fs
-    .readdirSync(KOTLIN_SRC, { recursive: true })
-    .filter((f) => f.endsWith('.kt'))
-    .map((rel) => stripComments(fs.readFileSync(path.join(KOTLIN_SRC, rel), 'utf8')))
-    .join('\n');
+  return kotlinUnder([KOTLIN_SRC, FRONTEND_KOTLIN_SRC]);
 }
 
 function pageCallsTo(name, sources) {
@@ -50,7 +80,7 @@ function uncalled(registry, hostText, sources = pageSources()) {
   const host = stripComments(hostText);
   return Object.keys(registry)
     .filter((name) => typeof registry[name] === 'function')
-    .filter((name) => !host.includes('window.cc.' + name))
+    .filter((name) => !host.includes('window.cc.' + name) && !host.includes('"' + name + '"'))
     .filter((name) => !pageCallsTo(name, sources))
     .map((name) => 'cc.' + name);
 }
@@ -60,8 +90,19 @@ describe('Kotlin↔JS bridge — page→host', () => {
     expect(parsedTypes().length).toBeGreaterThan(20);
   });
 
-  it('has no parsed message type the page never sends', () => {
-    expect(unsent(parsedTypes(), pageTypeStrings())).toEqual([]);
+  it('has no parsed message type that neither the page nor the frontend on its behalf sends', () => {
+    expect(unsent(parsedTypes(), union(pageTypeStrings(), frontendTypeStrings()))).toEqual([]);
+  });
+
+  it('counts a type the frontend builds only through a literal or a named constant', () => {
+    const frontend = [
+      'fun image() = buildJsonObject { put("type", Channel.ATTACH) }',
+      'fun open() = buildJsonObject { put("type", "openUrl") }',
+      'val label = "notAType"',
+    ].join('\n');
+    const shared = 'object Channel { const val ATTACH = "attachImageData" }';
+
+    expect([...frontendTypeStrings(frontend, shared)].sort()).toEqual(['attachImageData', 'openUrl']);
   });
 
   it('reports a parsed type nothing sends', () => {
@@ -97,6 +138,12 @@ describe('Kotlin↔JS bridge — host→page', () => {
     const registry = { __ccNobodyCallsThis: function () {}, trimRows: function () {} };
 
     expect(uncalled(registry, 'exec("window.cc.trimRows()")')).toEqual(['cc.__ccNobodyCallsThis']);
+  });
+
+  it('a method the host pushes by name, with strict JSON, counts as called', () => {
+    const registry = { trimRows: function () {} };
+
+    expect(uncalled(registry, 'exec("trimRows", json)', [])).toEqual([]);
   });
 
   it('a method whose only mention on either side is a comment is still uncalled', () => {

@@ -80,6 +80,8 @@ sealed interface ClaudeEvent {
 
     data class ThinkingDelta(val text: String, val parentToolUseId: String?) : Stream
 
+    data object BlockStop : Stream
+
     data class LiveUsage(
         val inputTokens: Int = 0,
         val cacheCreationTokens: Int = 0,

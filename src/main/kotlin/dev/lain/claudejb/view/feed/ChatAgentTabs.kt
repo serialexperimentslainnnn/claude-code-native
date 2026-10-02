@@ -3,24 +3,21 @@ package dev.lain.claudejb.view.feed
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.wm.ToolWindowManager
 import dev.lain.claudejb.controller.session.history.PluginAgentIndex
 import dev.lain.claudejb.model.bridge.JcefBridge
 import dev.lain.claudejb.model.bridge.Msg
+import dev.lain.claudejb.model.session.agents.AgentStatus
 import dev.lain.claudejb.model.settings.ClaudeSettings
-import dev.lain.claudejb.util.logger
+import dev.lain.claudejb.rpc.ChatId
 import dev.lain.claudejb.view.payload.chat.JcefTabsData
-import dev.lain.claudejb.view.window.ClaudeToolWindowFactory
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
 
-internal class ChatAgentTabs(private val panel: JcefChatPanel) {
+internal class ChatAgentTabs(private val presenter: ChatPresenter) {
 
-    private val project get() = panel.project
-    private val session get() = panel.session
+    private val project get() = presenter.project
+    private val session get() = presenter.session
 
     private val hiddenAgents = HashSet<String>()
-
-    private var chats: List<JcefTabsData.Chat> = emptyList()
 
     init {
         session.sessionId?.let { id ->
@@ -30,41 +27,30 @@ internal class ChatAgentTabs(private val panel: JcefChatPanel) {
     }
 
     fun render() {
-        val strip = panel.chatStrip()
-        val chats = strip?.chatList() ?: this.chats
-        if (chats.isEmpty()) {
-            LOG.warn("Claude Code tab bar: nothing to draw (strip=${strip != null}, cached=${this.chats.size})")
-        }
         val windowMinutes = ClaudeSettings.getInstance(project).workloadWindowMinutes
-        panel.host.exec(
-            "window.cc.tabs && window.cc.tabs(" +
-                JcefTabsData.tabsJson(
-                    session,
-                    chats,
-                    hiddenAgents,
-                    windowMinutes,
-                    System.currentTimeMillis(),
-                ) + ")",
+        presenter.exec(
+            "tabs",
+            JcefTabsData.tabsJson(
+                session,
+                presenter.registry.chatList(),
+                hiddenAgents,
+                windowMinutes,
+                System.currentTimeMillis(),
+            ),
         )
-    }
-
-    fun setChats(list: List<JcefTabsData.Chat>) {
-        chats = list
-        render()
     }
 
     fun onAgentsScanned(freshlyAdmitted: List<String>) {
         render()
         val fresh = freshlyAdmitted
             .filterNot { it in hiddenAgents }
-            .filter { session.runningAgents.nodes[it]?.status == dev.lain.claudejb.model.session.agents.AgentStatus.RUNNING }
+            .filter { session.runningAgents.nodes[it]?.status == AgentStatus.RUNNING }
         if (fresh.isEmpty()) return
         notifyAgentsSpawned(fresh)
     }
 
     private fun notifyAgentsSpawned(fresh: List<String>) {
-        val tw = ToolWindowManager.getInstance(project).getToolWindow(ClaudeToolWindowFactory.TOOL_WINDOW_ID)
-        if (tw != null && tw.isVisible && panel.isShowing) return
+        if (presenter.registry.onScreen(presenter)) return
         val names = fresh.mapNotNull { session.runningAgents.nodes[it]?.meta?.label() }
         val text = when {
             names.size == 1 -> "Agent started in \"${session.title}\": ${names.first()}"
@@ -75,26 +61,25 @@ internal class ChatAgentTabs(private val panel: JcefChatPanel) {
             .createNotification("Claude Code", text, NotificationType.INFORMATION)
             .addAction(
                 NotificationAction.createSimpleExpiring("Open") {
+                    presenter.registry.reveal(presenter)
                     fresh.firstOrNull()?.let { revealAgent(it) }
-                    ToolWindowManager.getInstance(project).getToolWindow(ClaudeToolWindowFactory.TOOL_WINDOW_ID)?.activate(null)
                 },
             )
             .notify(project)
     }
 
-    fun revealElsewhere(chatId: String, reveal: (JcefChatPanel) -> Unit) {
-        val strip = panel.chatStrip()
-        val target = chatId.takeIf { it.isNotBlank() }?.let { strip?.panelOf(it) }
-        if (target == null || target === panel) {
-            reveal(panel)
+    fun revealElsewhere(chatId: String, reveal: (ChatPresenter) -> Unit) {
+        val target = chatId.takeIf { it.isNotBlank() }?.let { presenter.registry.presenter(ChatId(it)) }
+        if (target == null || target === presenter) {
+            reveal(presenter)
             return
         }
-        strip?.selectById(chatId)
+        presenter.registry.select(target.id)
         reveal(target)
     }
 
     fun revealFromHost(m: Msg.RevealAgent) {
-        resolveAgentId(m)?.let { revealAgent(it) } ?: panel.transcript.showTranscript(null)
+        resolveAgentId(m)?.let { revealAgent(it) } ?: presenter.transcript.showTranscript(null)
     }
 
     private fun revealAgent(agentId: String) {
@@ -102,16 +87,14 @@ internal class ChatAgentTabs(private val panel: JcefChatPanel) {
             session.sessionId?.let { PluginAgentIndex.getInstance(project).setTabOpen(it, agentId, true) }
             render()
         }
-        panel.host.exec(
-            "window.cc.revealAgentTab && window.cc.revealAgentTab(" + JcefBridge.jsString(agentId) + ")",
-        )
-        panel.transcript.showTranscript(agentId)
+        presenter.exec("revealAgentTab", JcefBridge.jsString(agentId))
+        presenter.transcript.showTranscript(agentId)
     }
 
     fun closeAgent(agentId: String) {
         hiddenAgents += agentId
         session.sessionId?.let { PluginAgentIndex.getInstance(project).setTabOpen(it, agentId, false) }
-        panel.transcript.showTranscript(null)
+        presenter.transcript.showTranscript(null)
         render()
     }
 
@@ -119,9 +102,5 @@ internal class ChatAgentTabs(private val panel: JcefChatPanel) {
         m.agentId.takeIf { it.isNotBlank() }?.let { return it }
         val tool = m.toolUseId.takeIf { it.isNotBlank() } ?: return null
         return session.runningAgents.nodes.values.firstOrNull { it.meta.toolUseId == tool }?.agentId
-    }
-
-    private companion object {
-        val LOG = logger<ChatAgentTabs>()
     }
 }

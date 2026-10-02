@@ -1,10 +1,13 @@
 package dev.lain.claudejb.controller.mcp.tools.code
 
+import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.ide.scratch.ScratchRootType
 import com.intellij.lang.Language
+import com.intellij.lang.LanguageUtil
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.WindowManager
 import dev.lain.claudejb.controller.mcp.Reveal
 import dev.lain.claudejb.model.mcp.Items
@@ -81,20 +84,31 @@ internal class PresenceTools(private val project: Project, private val reveal: R
         val content = args.optionalString("content").orEmpty()
         val languageId = args.optionalString("language")
         val language = languageId?.let { Language.findLanguageByID(it) ?: throw ToolException("this IDE has no language with id $it") }
-        val file = withContext(Dispatchers.EDT) { ScratchRootType.getInstance().createScratchFile(project, name, language, content) }
+        val file = withContext(Dispatchers.EDT) { createScratch(name, language, content) }
             ?: throw ToolException("the IDE did not create the scratch file $name")
         reveal.file(file)
+        val resolved = readAction { LanguageUtil.getFileLanguage(file)?.id }
         return ToolResult.toon(
             buildJsonObject {
                 put("name", file.name)
                 put("path", file.path)
-                put("language", language?.id ?: "")
+                resolved?.let { put("language", it) }
                 put("created", true)
             },
         )
     }
 
+    private fun createScratch(name: String, language: Language?, content: String): VirtualFile? {
+        val root = ScratchRootType.getInstance()
+        val taken = ScratchFileService.getInstance().findFile(root, name, ScratchFileService.Option.existing_only) != null
+        val merged = name.substringAfterLast('/').startsWith(MERGED_PREFIX)
+        val option = if (taken || merged) ScratchFileService.Option.create_new_always else ScratchFileService.Option.create_if_missing
+        return root.createScratchFile(project, name, language, content, option)
+    }
+
     companion object {
+
+        private const val MERGED_PREFIX = "buffer"
 
         val BANNER_SHOW = ToolSpec(
             "banner_show",
@@ -127,7 +141,9 @@ internal class PresenceTools(private val project: Project, private val reveal: R
         val SCRATCH_CREATE = ToolSpec(
             "scratch_create",
             "Creates a scratch file (Scratches and Consoles) with a name, an optional language for highlighting and initial " +
-                "content, and opens it in the editor without focus; it lives outside the project and is never committed.",
+                "content, and opens it in the editor without focus; it lives outside the project and is never committed. The file " +
+                "gets exactly the name given unless a scratch with that exact name exists, in which case the IDE numbers it; " +
+                "the answer carries the name used and the language the IDE resolved.",
             listOf(
                 Param("name", "File name with extension, e.g. notes.md, query.sql"),
                 Param("language", "Language id for highlighting (default: from the extension)", required = false),

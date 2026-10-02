@@ -1,10 +1,11 @@
 package dev.lain.claudejb.controller.mcp.tools.code
 
+import dev.lain.claudejb.PluginModules
+import dev.lain.claudejb.SourceLayout
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.io.File
 
 class RoadmapToolSpecsTest {
 
@@ -39,17 +40,23 @@ class RoadmapToolSpecsTest {
     }
 
     @Test
-    fun `UAST rides on the Java plugin, declared optional with its config file, and only UastTools names it`() {
-        val descriptor = File("src/main/resources/META-INF/plugin.xml").readText()
-        val match = Regex("""<depends[^>]*>com\.intellij\.modules\.java</depends>""").find(descriptor)
-        assertTrue(match != null && "optional=\"true\"" in match.value, "the Java module dependency must be optional")
-        val configFile = Regex("""config-file="([^"]+)"""").find(match!!.value)?.groupValues?.get(1)
-        assertTrue(configFile != null && File("src/main/resources/META-INF/$configFile").isFile, "config-file $configFile is missing")
-        assertTrue(Regex("""bundledPlugin\(\s*"com\.intellij\.java"\s*\)""").containsMatchIn(File("build.gradle.kts").readText()))
-        val users = File("src/main/kotlin").walkTopDown()
-            .filter { it.isFile && it.extension == "kt" && "org.jetbrains.uast" in it.readText() }
-            .map { it.name }
-            .toList()
+    fun `UAST rides on the Java plugin, declared by an optional content module, and only UastTools names it`() {
+        val declaring = PluginModules.declaring(JAVA_PLUGIN)
+        assertTrue(declaring.isNotEmpty(), "No descriptor declares <plugin id=\"$JAVA_PLUGIN\"/>")
+        declaring.forEach { descriptor ->
+            val entry = PluginModules.content()[PluginModules.moduleName(descriptor)]
+            assertTrue(entry != null && PluginModules.isOptional(entry), "the Java dependency must be optional: ${descriptor.path} is $entry")
+        }
+        assertTrue(
+            SourceLayout.buildScripts().any { script ->
+                Regex("""bundledPlugins?\(([^)]*)\)""").findAll(script.readText()).any { "\"$JAVA_PLUGIN\"" in it.groupValues[1] }
+            },
+        )
+        val users = SourceLayout.kotlinFiles().filter { "org.jetbrains.uast" in it.readText() }.map { it.name }
         assertEquals(listOf("UastTools.kt"), users)
+    }
+
+    private companion object {
+        const val JAVA_PLUGIN = "com.intellij.java"
     }
 }

@@ -12,10 +12,10 @@ import dev.lain.claudejb.controller.session.diff.WorkspaceDiffReview
 import dev.lain.claudejb.model.diff.DiffPresenter
 import dev.lain.claudejb.util.edt
 import dev.lain.claudejb.view.diff.DiffEditors
-import dev.lain.claudejb.view.window.ChatTabsPanel
+import dev.lain.claudejb.view.window.ChatRegistry
 import java.io.File
 
-internal class SessionDiffAction(private val project: Project, private val tabs: ChatTabsPanel) :
+internal class SessionDiffAction(private val project: Project) :
     AnAction("Review This Session's Changes…", "Diff everything this session has changed, against its base", null) {
 
     override fun getActionUpdateThread() = ActionUpdateThread.EDT
@@ -73,7 +73,7 @@ internal class SessionDiffAction(private val project: Project, private val tabs:
         }
     }
 
-    private fun session(): ClaudeSession? = tabs.selectedChat?.session
+    private fun session(): ClaudeSession? = ChatRegistry.getInstance(project).selected()?.session
 
     private fun info(message: String) = Messages.showInfoMessage(project, message, TITLE)
 

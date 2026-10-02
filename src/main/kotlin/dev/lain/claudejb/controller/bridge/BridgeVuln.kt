@@ -6,20 +6,23 @@ import dev.lain.claudejb.controller.vuln.VulnService
 import dev.lain.claudejb.model.bridge.Msg
 import dev.lain.claudejb.util.thisLogger
 import dev.lain.claudejb.view.payload.JcefVulnData
-import dev.lain.claudejb.view.window.JcefChatPanel
+import dev.lain.claudejb.view.window.ChatPresenter
+import dev.lain.claudejb.view.window.ChatSnapshots.Kind
 
-internal class BridgeVuln(private val panel: JcefChatPanel) {
+internal class BridgeVuln(private val presenter: ChatPresenter) {
 
     private val log = thisLogger()
 
-    private val service: VulnService get() = VulnService.getInstance(panel.project)
+    private val service: VulnService get() = VulnService.getInstance(presenter.project)
+
+    private val repaint = { presenter.snapshots.mark(Kind.SESSION) }
 
     fun handle(m: Msg.Vuln) {
         when (m) {
-            Msg.OpenVulnView -> panel.security.showVulnView()
-            is Msg.VulnConsentChoice -> service.setConsent(m.granted) { panel.pushSession() }
-            Msg.VulnScan -> service.scan { panel.pushSession() }
-            Msg.VulnCancel -> service.cancel { panel.pushSession() }
+            Msg.OpenVulnView -> presenter.security.showVulnView()
+            is Msg.VulnConsentChoice -> service.setConsent(m.granted, repaint)
+            Msg.VulnScan -> service.scan(repaint)
+            Msg.VulnCancel -> service.cancel(repaint)
             Msg.VulnInventoryRequest -> inventory()
             is Msg.VulnFix -> fix(m.findingId)
             is Msg.VulnPlan -> plan(m.tiers)
@@ -29,7 +32,7 @@ internal class BridgeVuln(private val panel: JcefChatPanel) {
     private fun inventory() {
         val current = service
         val endpoint = current.snapshot().endpoint
-        panel.host.execBuilt("window.cc.vulnInventory") { JcefVulnData.inventoryJson(current.inventory(), endpoint).toString() }
+        presenter.execBuilt("vulnInventory") { JcefVulnData.inventoryJson(current.inventory(), endpoint).toString() }
     }
 
     private fun fix(findingId: String) {
@@ -63,6 +66,6 @@ internal class BridgeVuln(private val panel: JcefChatPanel) {
     }
 
     private fun inNewChat(title: String, text: String) {
-        if (!PromptInNewChat.open(panel.project, title, text)) panel.session.send(text)
+        if (!PromptInNewChat.open(presenter.project, title, text)) presenter.session.send(text)
     }
 }

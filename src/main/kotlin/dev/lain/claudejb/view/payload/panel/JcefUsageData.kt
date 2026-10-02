@@ -26,7 +26,7 @@ internal object JcefUsageData {
         val windows = fromReport + fromEvents
         if (windows.isEmpty() && report?.extra == null) return null
         return buildJsonObject {
-            put("plan", report?.subscriptionType ?: session.catalog.account.subscriptionType?.ifBlank { null })
+            put("plan", report?.subscriptionType ?: session.catalog.account.subscriptionType.ifBlank { null })
             put(
                 "windows",
                 buildJsonArray {

@@ -31,7 +31,7 @@ class SessionControlClient(
         }
     }
 
-    private class Pending(val watchdog: Cancellable, val onOutcome: (ClaudeEvent.ControlResult) -> Unit)
+    private class Pending(@Volatile var watchdog: Cancellable, val onOutcome: (ClaudeEvent.ControlResult) -> Unit)
 
     private val pending = ConcurrentHashMap<String, Pending>()
 
@@ -39,6 +39,7 @@ class SessionControlClient(
 
     private companion object {
         const val DEFAULT_TIMEOUT_SECONDS = 30L
+        const val LONG_RUNNING_FACTOR = 20L
     }
 
     private fun requestSubtype(line: String): String =
@@ -48,7 +49,12 @@ class SessionControlClient(
         buildRequest: (requestId: String) -> String,
         onResult: (T?) -> Unit,
         decode: (JsonObject?) -> T?,
-    ) = send(buildRequest) { res -> onResult(decode(res.payload)) }
+    ) = send(buildRequest) { res ->
+        val decoded = runCatching { decode(res.payload) }
+            .onFailure { log.warn("a control reply could not be decoded; answering with nothing", it) }
+            .getOrNull()
+        onResult(decoded)
+    }
 
     fun send(
         buildRequest: (requestId: String) -> String,
@@ -56,10 +62,7 @@ class SessionControlClient(
     ) {
         val id = newRequestId()
         val requestLine = buildRequest(id)
-        val watchdog = scheduler.schedule(timeoutSeconds) {
-            settle(id, ClaudeEvent.ControlResult(requestId = id, success = false, payload = null, error = "control request timed out"))
-        }
-        pending[id] = Pending(watchdog) { res ->
+        pending[id] = Pending(watchdog(id, timeoutSeconds)) { res ->
             log.debug {
                 "control reply ${requestSubtype(requestLine)} id=$id success=${res.success}" +
                     " err=${res.error ?: "-"} payload=${res.payload ?: "null"}"
@@ -75,7 +78,12 @@ class SessionControlClient(
     fun onProgress(requestId: String) {
         val entry = pending[requestId] ?: return
         entry.watchdog.cancel()
-        log.debug { "control request $requestId is long-running; its watchdog is off" }
+        entry.watchdog = watchdog(requestId, timeoutSeconds * LONG_RUNNING_FACTOR)
+        log.debug { "control request $requestId is long-running; its watchdog is extended" }
+    }
+
+    private fun watchdog(id: String, seconds: Long): Cancellable = scheduler.schedule(seconds) {
+        settle(id, ClaudeEvent.ControlResult(requestId = id, success = false, payload = null, error = "control request timed out"))
     }
 
     fun failAll(reason: String) {
@@ -87,6 +95,6 @@ class SessionControlClient(
     private fun settle(id: String, result: ClaudeEvent.ControlResult) {
         val entry = pending.remove(id) ?: return
         entry.watchdog.cancel()
-        entry.onOutcome(result)
+        runCatching { entry.onOutcome(result) }.onFailure { log.warn("a control reply handler failed", it) }
     }
 }

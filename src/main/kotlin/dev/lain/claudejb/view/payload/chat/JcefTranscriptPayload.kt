@@ -1,11 +1,14 @@
 package dev.lain.claudejb.view.payload.chat
 
+import dev.lain.claudejb.model.diff.DiffPresenter
 import dev.lain.claudejb.model.permission.vocab.SecurityRule
 import dev.lain.claudejb.model.session.transcript.EntryDTO
 import dev.lain.claudejb.model.session.transcript.Speaker
 import dev.lain.claudejb.model.session.transcript.TranscriptEntry
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -24,15 +27,10 @@ object JcefTranscriptPayload {
         e.filePath?.let { put("filePath", it) }
         e.commandText?.let { put("command", it) }
         e.messageText?.let { put("message", it) }
-        e.blockedRule?.let { rule ->
-            put("blockedRule", rule)
-            put("blockedRuleWarns", SecurityRule.from(rule)?.whitelistable == false)
-        }
-        e.bypassedRule?.let { put("bypassedRule", it) }
-        e.bypassAction?.let { put("bypassAction", it) }
+        guardFields(e.blockedRule, e.bypassedRule, e.bypassAction)
         put("state", e.toolState.name)
         put("elapsed", e.elapsedSeconds)
-        cardFlags(e)
+        reviewableFlag(e.speaker == Speaker.TOOL && e.toolUseId != null && e.reviewable)
         if (e.places.isNotEmpty()) {
             put(
                 "places",
@@ -50,14 +48,31 @@ object JcefTranscriptPayload {
         }
     }
 
-    private fun kotlinx.serialization.json.JsonObjectBuilder.cardFlags(e: TranscriptEntry) {
-        if (e.speaker == Speaker.TOOL && e.toolUseId != null && e.reviewable) put("reviewable", true)
+    private fun JsonObjectBuilder.reviewableFlag(reviewable: Boolean) {
+        if (reviewable) put("reviewable", true)
     }
 
-    private val REVIEWABLE_TOOLS = setOf("Edit", "Write", "MultiEdit")
+    private fun JsonObjectBuilder.guardFields(blockedRule: String?, bypassedRule: String?, bypassAction: String?) {
+        blockedRule?.let { rule ->
+            put("blockedRule", rule)
+            put("blockedRuleWarns", SecurityRule.from(rule)?.whitelistable == false)
+        }
+        bypassedRule?.let { put("bypassedRule", it) }
+        bypassAction?.let { put("bypassAction", it) }
+    }
 
     fun batchJson(items: List<Pair<TranscriptEntry, Int>>): String =
         JsonArray(items.map { (e, order) -> entryJson(e, order) }).toString()
+
+    fun appendJson(id: Long, delta: String): String = buildJsonObject {
+        put("id", id)
+        put("delta", delta)
+    }.toString()
+
+    fun trimJson(removedIds: List<Long>, total: Int): String = buildJsonObject {
+        put("ids", buildJsonArray { removedIds.forEach { add(JsonPrimitive(it)) } })
+        put("total", total)
+    }.toString()
 
     fun agentRowsJson(
         entries: List<EntryDTO>,
@@ -86,24 +101,15 @@ object JcefTranscriptPayload {
                 dto.filePath?.let { put("filePath", it) }
                 dto.commandText?.let { put("command", it) }
                 dto.messageText?.let { put("message", it) }
-                guardFields(dto)
+                guardFields(dto.blockedRule, dto.bypassedRule, dto.bypassAction)
                 put("state", agentRowState(dto, running, ownerRunning))
                 if (expanded) put("open", true)
                 put("elapsed", 0)
-                if (dto.speaker == "TOOL" && dto.toolUseId != null && dto.meta in REVIEWABLE_TOOLS) {
-                    put("reviewable", true)
-                }
+                reviewableFlag(
+                    dto.speaker == Speaker.TOOL.name && dto.toolUseId != null && dto.meta in DiffPresenter.REVIEWABLE_TOOLS,
+                )
             }
         }
-
-    private fun kotlinx.serialization.json.JsonObjectBuilder.guardFields(dto: EntryDTO) {
-        dto.blockedRule?.let { rule ->
-            put("blockedRule", rule)
-            put("blockedRuleWarns", SecurityRule.from(rule)?.whitelistable == false)
-        }
-        dto.bypassedRule?.let { put("bypassedRule", it) }
-        dto.bypassAction?.let { put("bypassAction", it) }
-    }
 
     private fun agentRowState(dto: EntryDTO, running: Set<String>, ownerRunning: Boolean): String = when {
         dto.failed -> "ERROR"

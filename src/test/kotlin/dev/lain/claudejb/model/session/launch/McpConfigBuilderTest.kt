@@ -70,7 +70,8 @@ class McpConfigBuilderTest {
         assertEquals("stdio", code["type"]!!.jsonPrimitive.content)
         assertEquals(helper.javaBin.absolutePath, code["command"]!!.jsonPrimitive.content)
         assertEquals(
-            listOf("-cp", helper.lib.absolutePath + File.separator + "*", McpConfigBuilder.HELPER_MAIN, "/run/x/code.sock"),
+            McpConfigBuilder.HELPER_JVM_FLAGS +
+                listOf("-cp", helper.classpath.absolutePath, McpConfigBuilder.HELPER_MAIN, "/run/x/code.sock"),
             code["args"]!!.jsonArray.map { it.jsonPrimitive.content },
         )
         assertNull(code["env"], "the credential never travels by environment")
@@ -97,8 +98,16 @@ class McpConfigBuilderTest {
 
     private fun helper(tmp: Path): McpConfigBuilder.HelperParams {
         val javaBin = File(tmp.toFile(), "java").apply { writeText("#!/bin/sh\n") }
-        val lib = File(tmp.toFile(), "lib").apply { mkdirs() }
-        return McpConfigBuilder.HelperParams(javaBin, lib)
+        val jar = File(tmp.toFile(), "helper.jar").apply { writeText("") }
+        return McpConfigBuilder.HelperParams(javaBin, jar)
+    }
+
+    @Test
+    fun `the helper is a small, quick-starting JVM`() {
+        val flags = McpConfigBuilder.HELPER_JVM_FLAGS
+        listOf("-Xshare:auto", "-XX:TieredStopAtLevel=1", "-XX:+UseSerialGC", "-Xmx32m", "-Xss512k").forEach {
+            assertEquals(true, it in flags, it)
+        }
     }
 
     @Test

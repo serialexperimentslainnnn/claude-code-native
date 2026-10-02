@@ -25,7 +25,9 @@ object BackgroundTaskReplay {
         isLenient = true
     }
 
-    fun parse(lines: List<String>): List<Replayed> {
+    fun parse(lines: List<String>): List<Replayed> = parse(lines.asSequence())
+
+    fun parse(lines: Sequence<String>): List<Replayed> {
         val commands = HashMap<String, String>()
         val tasks = LinkedHashMap<String, Replayed>()
 

@@ -93,6 +93,13 @@ class EnvScriptLoaderTest {
     }
 
     @Test
+    fun `the script is sourced by the POSIX shell, whatever the user's login shell is`() {
+        val argv = EnvScriptLoader.posixArgv("/home/u/env.sh")
+        assertEquals("/bin/sh", argv.first())
+        assertEquals("/home/u/env.sh", argv.last())
+    }
+
+    @Test
     fun `line starting with '=' is ignored (empty key)`() {
         val env = EnvScriptLoader.parse("=novalue")
         assertNull(env["="])

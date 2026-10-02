@@ -20,6 +20,8 @@ object JcefBridge {
 
     const val SCOPE_GIT = "git"
 
+    private const val HELP_MAX = 200
+
     private class Fields(val obj: JsonObject) {
         fun str(key: String): String? = (obj[key] as? JsonPrimitive)?.contentOrNull
         fun text(key: String): String = str(key).orEmpty()
@@ -113,9 +115,9 @@ object JcefBridge {
         "attachPath" -> Msg.AttachPath(f.text("path"))
         "attachSelection" -> Msg.AttachSelection
         "attachCurrentFile" -> Msg.AttachCurrentFile
-        "pasteClipboardImage" -> Msg.PasteClipboardImage(f.bool("notify"))
-        "pasteClipboard" -> Msg.PasteClipboard
         "attach" -> Msg.Attach(f.text("name"), f.text("mediaType"), f.text("base64"))
+        "attachImageData" -> Msg.AttachImageData(f.text("mime"), f.text("base64"))
+        "clipboardEmpty" -> Msg.ClipboardEmpty(f.bool("image"), f.text("help").take(HELP_MAX))
         "treeChildren" -> Msg.TreeChildren(f.text("path"), f.text("mode"))
         "treeExpand" -> Msg.TreeExpand(f.text("path"), f.text("mode"))
         "attachPaths" -> Msg.AttachPaths(f.strings("paths"))

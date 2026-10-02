@@ -37,7 +37,17 @@ object ClaudeBinaryLocator {
             )
         }
 
+    private class Located(val override: String, val file: File)
+
+    @Volatile private var located: Located? = null
+
     fun locate(override: String? = null): File? {
+        val key = override.orEmpty()
+        located?.takeIf { it.override == key && it.file.isFile && it.file.canExecute() }?.let { return it.file }
+        return scan(override).also { found -> located = found?.let { Located(key, it) } }
+    }
+
+    private fun scan(override: String?): File? {
         override?.takeIf { it.isNotBlank() }?.let { path ->
             File(path).takeIf { it.isFile && it.canExecute() }?.let { return it }
         }

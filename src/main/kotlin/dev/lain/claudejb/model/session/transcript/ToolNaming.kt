@@ -1,5 +1,6 @@
 package dev.lain.claudejb.model.session.transcript
 
+import dev.lain.claudejb.model.mcp.OwnTools
 import dev.lain.claudejb.model.protocol.str
 import kotlinx.serialization.json.JsonObject
 
@@ -21,7 +22,7 @@ object ToolNaming {
     fun mayHaveWrittenUnknownFiles(toolName: String?): Boolean {
         val name = toolName?.takeIf { it.isNotBlank() } ?: return false
         if (name == "Bash") return true
-        if (name in FILE_TOOLS || name in BUILTIN_TOOLS) return false
+        if (name in FILE_TOOLS || name in BUILTIN_TOOLS || OwnTools.isOwn(name)) return false
         return MUTATING_TOOL_NAME.containsMatchIn(name)
     }
 

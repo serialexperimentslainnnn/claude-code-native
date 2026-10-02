@@ -5,6 +5,7 @@ import dev.lain.claudejb.model.session.launch.IdeServer
 import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.PosixFilePermissions
 import java.security.SecureRandom
@@ -17,12 +18,16 @@ internal class SocketHome private constructor(val dir: Path) {
     fun socket(server: IdeServer): Path = dir.resolve("${server.key}$SOCKET_SUFFIX")
 
     fun writeToken(token: String) {
-        val file = dir.resolve(StdioBridge.TOKEN_FILE)
+        val staging = dir.resolve(StdioBridge.TOKEN_FILE + STAGING_SUFFIX)
         if (POSIX) {
-            file.deleteIfExists()
-            Files.createFile(file, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------")))
+            if (Files.notExists(staging)) {
+                Files.createFile(staging, PosixFilePermissions.asFileAttribute(TOKEN_OWNER_ONLY))
+            } else {
+                Files.setPosixFilePermissions(staging, TOKEN_OWNER_ONLY)
+            }
         }
-        Files.writeString(file, token, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+        Files.writeString(staging, token, StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
+        Files.move(staging, dir.resolve(StdioBridge.TOKEN_FILE), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
     }
 
     fun remove() {
@@ -38,6 +43,8 @@ internal class SocketHome private constructor(val dir: Path) {
         private const val ID_BYTES = 16
         private val POSIX = FileSystems.getDefault().supportedFileAttributeViews().contains("posix")
         private val OWNER_ONLY = PosixFilePermissions.fromString("rwx------")
+        private val TOKEN_OWNER_ONLY = PosixFilePermissions.fromString("rw-------")
+        private const val STAGING_SUFFIX = ".next"
 
         fun create(bases: List<Path>): SocketHome {
             val id = Base64.getUrlEncoder().withoutPadding().encodeToString(ByteArray(ID_BYTES).also(SecureRandom()::nextBytes))

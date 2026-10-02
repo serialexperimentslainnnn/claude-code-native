@@ -10,10 +10,11 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && vitest run",
     "test:watch": "vitest",
+    "bench": "npm run build && vitest run --mode bench",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"src/main/resources/jcef/**/*.{js,css,html}\" \"src/main/ts/**/*.ts\" \"src/test/frontend/**/*.js\"",
-    "format:check": "prettier --check \"src/main/resources/jcef/**/*.{js,css,html}\" \"src/main/ts/**/*.ts\" \"src/test/frontend/**/*.js\""
+    "format": "prettier --write \"frontend/src/main/resources/jcef/**/*.{js,css,html}\" \"frontend/src/main/ts/**/*.ts\" \"src/test/frontend/**/*.js\"",
+    "format:check": "prettier --check \"frontend/src/main/resources/jcef/**/*.{js,css,html}\" \"frontend/src/main/ts/**/*.ts\" \"src/test/frontend/**/*.js\""
   },
   "license": "GPL-3.0-only",
   "type": "commonjs",

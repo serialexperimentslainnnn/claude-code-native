@@ -1,10 +1,14 @@
 package dev.lain.claudejb.controller.commands
 
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.util.concurrency.AppExecutorUtil
 import dev.lain.claudejb.controller.session.ChatSessionManager
 import dev.lain.claudejb.controller.session.ClaudeSession
 import dev.lain.claudejb.controller.session.history.SessionHistory
@@ -15,19 +19,17 @@ import dev.lain.claudejb.model.session.history.SessionTranscriptReader
 import dev.lain.claudejb.model.session.transcript.EntryDTO
 import dev.lain.claudejb.model.session.transcript.SessionRef
 import dev.lain.claudejb.model.settings.ClaudeSettings
+import dev.lain.claudejb.util.PluginIdentity
 import dev.lain.claudejb.util.edt
-import dev.lain.claudejb.view.window.ChatTabsPanel
+import dev.lain.claudejb.view.window.ChatRegistry
 import javax.swing.JList
 
 internal class TabSessionCommands(
     private val project: Project,
-    private val tabs: ChatTabsPanel,
-    private val openTab: (ClaudeSession, Boolean) -> Unit,
+    private val registry: ChatRegistry,
 ) {
 
-    private fun openChat(session: ClaudeSession) = openTab(session, true)
-
-    fun newChat() = openChat(ChatSessionManager.getInstance(project).create())
+    private fun openChat(session: ClaudeSession) = registry.open(session, true)
 
     fun newChatWith(title: String, prompt: String) {
         val session = ChatSessionManager.getInstance(project).create()
@@ -36,45 +38,38 @@ internal class TabSessionCommands(
         session.send(prompt)
     }
 
-    private fun activeSession(): ClaudeSession? = tabs.selectedChat?.session
-
-    private data class RestoredSession(val id: String, val title: String?, val entries: List<EntryDTO>)
+    private fun activeSession(): ClaudeSession? = registry.selected()?.session
 
     fun restoreOrCreate() {
         val manager = ChatSessionManager.getInstance(project)
-        if (!ClaudeSettings.getInstance(project).restoreOpenChatsOnStartup) {
-            openChat(manager.create())
-            return
-        }
-        ApplicationManager.getApplication().executeOnPooledThread {
+        val quiet = !registry.isEmpty()
+        ClaudeSettings.getInstance(project).warm().thenAcceptAsync({ settings ->
+            if (!settings.restoreOpenChatsOnStartup) {
+                edt(project) { if (registry.isEmpty()) openChat(manager.create()) }
+                return@thenAcceptAsync
+            }
             val ids = SessionHistory.getInstance(project).openSessions()
+                .distinct()
                 .filter { SessionStore.exists(it) }
                 .ifEmpty { listOfNotNull(SessionListing.list(project).firstOrNull()?.sessionId) }
-            val restored = ids
-                .map {
-                    RestoredSession(
-                        it,
-                        SessionTitleReader.readTitle(it),
-                        SessionTranscriptReader.readEntries(
-                            it,
-                            SessionTranscriptReader.DEFAULT_RESTORE_CAP,
-                            project.basePath,
-                        ),
-                    )
-                }
-            edt {
-                if (restored.isEmpty()) {
-                    openChat(manager.create())
-                } else {
-                    for (r in restored) {
-                        val s = manager.create()
-                        s.title = r.title ?: s.title
-                        s.persistence.restore(r.id, r.entries)
-                        openChat(s)
-                    }
-                }
+            if (ids.isEmpty()) {
+                edt(project) { if (registry.isEmpty()) openChat(manager.create()) }
+                return@thenAcceptAsync
             }
-        }
+            ids.forEachIndexed { index, id ->
+                val title = SessionTitleReader.readTitle(id)
+                val entries = SessionTranscriptReader.readEntries(id, SessionTranscriptReader.DEFAULT_RESTORE_CAP, project.basePath)
+                edt(project) { restore(manager, id, title, entries, select = !quiet && index == ids.lastIndex) }
+            }
+        }, AppExecutorUtil.getAppExecutorService())
+    }
+
+    private fun restore(manager: ChatSessionManager, id: String, title: String?, entries: List<EntryDTO>, select: Boolean) {
+        if (opened(id) != null) return
+        val s = manager.create()
+        s.title = title ?: s.title
+        s.persistence.restore(id, entries)
+        registry.open(s, select)
     }
 
     fun renameActiveSession() {
@@ -117,37 +112,57 @@ internal class TabSessionCommands(
     fun openPreviousSession() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val refs = SessionListing.list(project)
-            edt {
-                if (refs.isEmpty()) {
-                    Messages.showInfoMessage(project, "No previous sessions have been saved yet.", "Claude Code")
-                    return@edt
-                }
-                JBPopupFactory.getInstance()
-                    .createPopupChooserBuilder(refs)
-                    .setTitle("Open Previous Session")
-                    .setRenderer(SessionRefRenderer())
-                    .setItemChosenCallback { ref ->
-                        ApplicationManager.getApplication().executeOnPooledThread {
-                            val entries = SessionTranscriptReader.readEntries(
-                                ref.sessionId,
-                                SessionTranscriptReader.DEFAULT_RESTORE_CAP,
-                                project.basePath,
-                            )
-                            edt {
-                                val manager = ChatSessionManager.getInstance(project)
-                                val s = manager.create()
-                                s.title = ref.title
-                                s.persistence.restore(ref.sessionId, entries)
-                                openChat(s)
-                            }
-                        }
-                    }
-                    .setRequestFocus(true)
-                    .createPopup()
-                    .showCenteredInCurrentWindow(project)
+            ApplicationManager.getApplication().invokeLater({ if (!project.isDisposed) choosePrevious(refs) }, ModalityState.nonModal())
+        }
+    }
+
+    private fun choosePrevious(refs: List<SessionRef>) {
+        if (refs.isEmpty()) {
+            Messages.showInfoMessage(project, "No previous sessions have been saved yet.", "Claude Code")
+            return
+        }
+        JBPopupFactory.getInstance()
+            .createPopupChooserBuilder(refs)
+            .setTitle("Open Previous Session")
+            .setRenderer(SessionRefRenderer())
+            .setItemChosenCallback(::reopen)
+            .setRequestFocus(true)
+            .createPopup()
+            .showCenteredInCurrentWindow(project)
+    }
+
+    fun reopen(ref: SessionRef) {
+        if (revealOpened(ref.sessionId)) return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val entries = SessionTranscriptReader.readEntries(
+                ref.sessionId,
+                SessionTranscriptReader.DEFAULT_RESTORE_CAP,
+                project.basePath,
+            )
+            edt(project) {
+                if (revealOpened(ref.sessionId)) return@edt
+                val s = ChatSessionManager.getInstance(project).create()
+                s.title = ref.title
+                s.persistence.restore(ref.sessionId, entries)
+                openChat(s)
             }
         }
     }
+
+    private fun revealOpened(sessionId: String): Boolean {
+        val tab = opened(sessionId) ?: return false
+        if (registry.selected() === tab) alreadyOpen(tab.session.title)
+        registry.reveal(tab)
+        return true
+    }
+
+    private fun alreadyOpen(title: String) =
+        NotificationGroupManager.getInstance().getNotificationGroup(PluginIdentity.NOTIFICATION_GROUP)
+            .createNotification("\"$title\" is already open in the chat on screen.", NotificationType.INFORMATION)
+            .notify(project)
+
+    private fun opened(sessionId: String) =
+        registry.all().firstOrNull { it.session.sessionId == sessionId && !it.session.launch.fork }
 
     private class SessionRefRenderer : SimpleListCellRenderer<SessionRef>() {
         override fun customize(

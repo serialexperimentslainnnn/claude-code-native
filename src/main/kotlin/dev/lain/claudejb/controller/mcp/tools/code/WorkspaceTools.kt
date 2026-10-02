@@ -32,7 +32,7 @@ internal class WorkspaceTools(private val project: Project) {
 
     private suspend fun workspace(args: ToolArgs): ToolResult {
         val kind = args.optionalString("entity_type") ?: "module"
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val type = ENTITY_TYPES[kind] ?: throw ToolException("entity_type must be one of ${ENTITY_TYPES.keys.joinToString()}")
         val rows = readAction {
             WorkspaceModel.getInstance(project).currentSnapshot.entities(type).map(::row).toList()
@@ -106,7 +106,7 @@ internal class WorkspaceTools(private val project: Project) {
                 "the user's edits).",
             listOf(
                 Param("entity_type", "module (default), content_root, source_root, library or sdk", required = false),
-                Param("max", "Maximum entities (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("entities", DEFAULT_MAX),
             ),
         )
     }

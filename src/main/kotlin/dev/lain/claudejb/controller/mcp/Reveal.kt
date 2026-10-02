@@ -1,6 +1,5 @@
 package dev.lain.claudejb.controller.mcp
 
-import com.intellij.analysis.problemsView.toolWindow.ProblemsViewToolWindowUtils
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
@@ -9,6 +8,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import dev.lain.claudejb.controller.git.ForgeViewNavigator
 import dev.lain.claudejb.controller.git.GitLogNavigator
+import dev.lain.claudejb.controller.mcp.tools.code.ProblemsViewAccess
 import dev.lain.claudejb.model.settings.ClaudeSettings
 
 internal class Reveal(private val project: Project) {
@@ -46,8 +46,9 @@ internal class Reveal(private val project: Project) {
     suspend fun requests(): Boolean = FocusKeeper.keep(project) { ForgeViewNavigator.open(project, focus = false) }
 
     suspend fun problems(tab: String): Boolean = FocusKeeper.keep(project) {
-        val window = ProblemsViewToolWindowUtils.getToolWindow(project) ?: return@keep false
-        val content = if (tab.isEmpty()) null else ProblemsViewToolWindowUtils.getContentById(project, tab) ?: return@keep false
+        val view = ProblemsViewAccess.of(project) ?: return@keep false
+        val window = view.window() ?: return@keep false
+        val content = if (tab.isEmpty()) null else view.content(tab) ?: return@keep false
         window.activate({ if (content != null) window.contentManager.setSelectedContent(content, false) }, false)
         true
     }

@@ -3,9 +3,13 @@ const path = require('node:path');
 const { loadFrontend, appJsFiles, readApp } = require('../helpers/load');
 const { stripComments } = require('../helpers/source');
 
-const KOTLIN_SRC = path.resolve(__dirname, '../../../main/kotlin');
+const KOTLIN_ROOTS = [
+  path.resolve(__dirname, '../../../main/kotlin'),
+  path.resolve(__dirname, '../../../../frontend/src/main/kotlin'),
+];
 
-const BRIDGE_CALL = /window\.cc\.([A-Za-z_$][A-Za-z0-9_$]*)/g;
+const BRIDGE_CALL =
+  /window\.cc\.([A-Za-z_$][A-Za-z0-9_$]*)|\b(?:exec|PagePush)\(\s*"([A-Za-z_$][A-Za-z0-9_$]*)"\s*,/g;
 
 const NO_OP = /^function\s*[A-Za-z0-9_$]*\s*\(\s*\)\s*\{\s*\}$/;
 
@@ -17,8 +21,10 @@ function scanCalls(sources) {
     const code = stripComments(text);
     code.split('\n').forEach((line, index) => {
       for (const match of line.matchAll(BRIDGE_CALL)) {
-        if (!calls.has(match[1])) calls.set(match[1], new Set());
-        calls.get(match[1]).add(`${file}:${index + 1}`);
+        const name = match[1] || match[2];
+        if (name.charAt(0) === '$') continue;
+        if (!calls.has(name)) calls.set(name, new Set());
+        calls.get(name).add(`${file}:${index + 1}`);
       }
     });
   }
@@ -26,10 +32,12 @@ function scanCalls(sources) {
 }
 
 function kotlinSources() {
-  return fs
-    .readdirSync(KOTLIN_SRC, { recursive: true })
-    .filter((f) => f.endsWith('.kt'))
-    .map((rel) => ({ file: rel, text: fs.readFileSync(path.join(KOTLIN_SRC, rel), 'utf8') }));
+  return KOTLIN_ROOTS.filter((root) => fs.existsSync(root)).flatMap((root) =>
+    fs
+      .readdirSync(root, { recursive: true })
+      .filter((f) => f.endsWith('.kt'))
+      .map((rel) => ({ file: rel, text: fs.readFileSync(path.join(root, rel), 'utf8') }))
+  );
 }
 
 function unimplemented(calls, registry) {
@@ -81,6 +89,22 @@ describe('Kotlin↔JS bridge — every host call reaches a real implementation',
 
     expect(fallbacks).not.toEqual([]);
     expect(fallbacks.filter((m) => !isNoOp(m[2])).map((m) => `cc.${m[1]}`)).toEqual([]);
+  });
+
+  it('skips a Kotlin string template, which names no method', () => {
+    const calls = scanCalls([
+      { file: 'Host.kt', text: 'exec("window.cc.$method && window.cc.$method($json)")' },
+    ]);
+
+    expect([...calls.keys()]).toEqual([]);
+  });
+
+  it('reads a push by method name with strict JSON as a call too', () => {
+    const calls = scanCalls([
+      { file: 'Push.kt', text: 'exec("append", json)\nemit(PagePush("setGitSubView", x))' },
+    ]);
+
+    expect([...calls.keys()]).toEqual(['append', 'setGitSubView']);
   });
 
   it('reports a call whose method no module implements', () => {

@@ -33,7 +33,7 @@ class ControlEvents(
 
             is ClaudeEvent.UnsupportedControlRequest -> s.guard.broker.rejectUnsupported(event.requestId, event.subtype)
 
-            is ClaudeEvent.ControlCancel -> edt { s.cards.withdraw(event.requestId) }
+            is ClaudeEvent.ControlCancel -> s.guard.inOrder { edt { s.cards.withdraw(event.requestId) } }
 
             is ClaudeEvent.ControlResult -> s.controlClient.onControlResult(event)
         }

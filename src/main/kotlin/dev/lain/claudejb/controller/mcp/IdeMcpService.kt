@@ -22,20 +22,20 @@ import dev.lain.claudejb.util.PluginIdentity
 import dev.lain.claudejb.util.thisLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.awt.datatransfer.StringSelection
 import java.nio.file.Path
-import java.util.concurrent.atomic.AtomicInteger
 
 @Service(Service.Level.PROJECT)
 internal class IdeMcpService(private val project: Project, private val scope: CoroutineScope) : Disposable {
 
     private val log = thisLogger()
     private val tokens = TokenRing()
-    private val expected = AtomicInteger()
+    private val credits = AdmissionCredits(ADMISSION_TTL_MILLIS)
     private var home: SocketHome? = null
     private var endpoints: List<ServerEndpoint> = emptyList()
     private var rotation: Job? = null
@@ -69,21 +69,29 @@ internal class IdeMcpService(private val project: Project, private val scope: Co
         notification.notify(project)
     }
 
-    fun expectConnections(count: Int) {
-        expected.addAndGet(count)
+    fun expectConnections(count: Int): AdmissionGrant = credits.grant(count)
+
+    fun admitReconnect(name: String): AdmissionGrant? {
+        val ours = synchronized(this) { endpoints.any { it.server.mcpName == name } }
+        return if (ours) credits.grant(1) else null
+    }
+
+    fun prewarm() {
+        if (!ClaudeSettings.getInstance(project).state.ideMcp.enabled) return
+        scope.launch(Dispatchers.IO) {
+            runCatching { sockets() }.onFailure { log.warn("The IDE MCP servers could not be started ahead of a session", it) }
+        }
     }
 
     private fun start() {
         if (home != null) return
         val home = SocketHome.create(listOf(Path.of(PathManager.getTempPath()), Path.of(System.getProperty("java.io.tmpdir"))))
-        home.writeToken(tokens.token)
-        val gate = GuardGate { ClaudeSettings.getInstance(project).sensitiveDecision(it, project.basePath) }
-        endpoints = IdeServer.entries.mapNotNull { server ->
-            val catalog = IdeToolCatalog.catalog(server, project, scope)
-            if (catalog.domains.isEmpty()) return@mapNotNull null
-            val mcp = McpServer(server.key, PluginIdentity.PLUGIN_VERSION, MetaTools(catalog, gate, OutputBudget()))
-            ServerEndpoint(server, home.socket(server), mcp, tokens, scope, ::connected).also { it.start() }
-        }
+        val opened = mutableListOf<ServerEndpoint>()
+        runCatching { open(home, opened) }.onFailure {
+            opened.forEach(ServerEndpoint::close)
+            home.remove()
+        }.getOrThrow()
+        endpoints = opened
         rotation = scope.launch {
             while (isActive) {
                 delay(TokenRing.ROTATION_MILLIS)
@@ -94,8 +102,21 @@ internal class IdeMcpService(private val project: Project, private val scope: Co
         log.info("IDE MCP servers listening under ${home.dir}: ${endpoints.joinToString { it.server.key }}")
     }
 
+    private fun open(home: SocketHome, opened: MutableList<ServerEndpoint>) {
+        home.writeToken(tokens.token)
+        val gate = GuardGate { ClaudeSettings.getInstance(project).sensitiveDecision(it, project.basePath) }
+        IdeServer.entries.forEach { server ->
+            val catalog = IdeToolCatalog.catalog(server, project, scope)
+            if (catalog.domains.isEmpty()) return@forEach
+            val mcp = McpServer(server.key, PluginIdentity.PLUGIN_VERSION, MetaTools(catalog, gate, OutputBudget()))
+            val endpoint = ServerEndpoint(server, home.socket(server), mcp, tokens, scope, ::connected)
+            opened += endpoint
+            endpoint.start()
+        }
+    }
+
     private suspend fun connected(): Boolean {
-        if (expected.getAndUpdate { if (it > 0) it - 1 else 0 } > 0) return true
+        if (credits.consume()) return true
         log.warn("an MCP client connected that no chat tab of this project announced")
         val mustApprove = ClaudeSettings.getInstance(project).state.ideMcp.approveClients
         val verdict = CompletableDeferred<Boolean>()
@@ -123,6 +144,7 @@ internal class IdeMcpService(private val project: Project, private val scope: Co
 
     companion object {
 
+        const val ADMISSION_TTL_MILLIS = 2 * 60 * 1000L
         const val INFORMED_TEXT = "Something other than this project's chat tabs opened a connection. If that was not you, close the " +
             "project: the sockets and their token die with it."
         const val HELD_TEXT = "Something other than this project's chat tabs opened a connection. It is held until you answer; " +
@@ -134,5 +156,39 @@ internal class IdeMcpService(private val project: Project, private val scope: Co
             "MCP servers (claude takes it with --mcp-config). docs/MCP_CLIENT.md describes the wire."
 
         fun getInstance(project: Project): IdeMcpService = project.service()
+    }
+}
+
+internal fun interface AdmissionGrant {
+    fun withdraw()
+}
+
+internal class AdmissionCredits(private val ttlMillis: Long, private val clock: () -> Long = System::currentTimeMillis) {
+
+    private class Ticket(var left: Int, val until: Long)
+
+    private val tickets = ArrayDeque<Ticket>()
+
+    @Synchronized
+    fun grant(count: Int): AdmissionGrant {
+        if (count <= 0) return AdmissionGrant {}
+        val ticket = Ticket(count, clock() + ttlMillis)
+        tickets.addLast(ticket)
+        return AdmissionGrant { withdraw(ticket) }
+    }
+
+    @Synchronized
+    fun consume(): Boolean {
+        val now = clock()
+        tickets.removeAll { it.left <= 0 || it.until < now }
+        val ticket = tickets.firstOrNull() ?: return false
+        ticket.left--
+        return true
+    }
+
+    @Synchronized
+    private fun withdraw(ticket: Ticket) {
+        ticket.left = 0
+        tickets.remove(ticket)
     }
 }

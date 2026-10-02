@@ -32,7 +32,15 @@ class DiffTabCleanupWiringTest {
         check(ours.isNotEmpty()) {
             "No plugin.xml with id '$PLUGIN_ID' on the test classpath (scanned ${urls.size} descriptors)"
         }
-        return ours
+        return ours + ours.flatMap(::contentModules)
+    }
+
+    private fun contentModules(root: Element): List<Element> {
+        val modules = root.getElementsByTagName("module")
+        return (0 until modules.length)
+            .map { (modules.item(it) as Element).getAttribute("name") }
+            .mapNotNull { name -> javaClass.classLoader.getResource("$name.xml") }
+            .map { url -> url.openStream().use { parser().parse(it).documentElement } }
     }
 
     private fun listeners(tag: String): List<Element> = ourDescriptors().flatMap { descriptor ->

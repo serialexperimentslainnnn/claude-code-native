@@ -2,32 +2,29 @@ package dev.lain.claudejb.view.log
 
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.util.SystemInfo
 import dev.lain.claudejb.util.LogRing
 import dev.lain.claudejb.util.PluginIdentity
 import dev.lain.claudejb.util.PluginLog
 import dev.lain.claudejb.util.edt
 import dev.lain.claudejb.util.logger
-import dev.lain.claudejb.view.log.JcefLogData
-import dev.lain.claudejb.view.window.JcefChatPanel
-import java.awt.datatransfer.StringSelection
+import dev.lain.claudejb.view.window.ChatPresenter
 
-internal class LogFeed(private val panel: JcefChatPanel) {
+internal class LogFeed(private val presenter: ChatPresenter) {
 
     fun push(since: Long) = offEdt {
         val json = JcefLogData.logJson(LogRing.since(since), PluginLog.debugOn)
-        edt(panel.project) { panel.host.exec("window.cc.log && window.cc.log($json)") }
+        edt(presenter.project) { presenter.exec("log", json.toString()) }
     }
 
     fun setDebug(on: Boolean) = PluginLog.setDebug(on)
 
     fun copy(level: String) {
-        val binary = panel.session.catalog.binaryVersion ?: "unknown"
+        val binary = presenter.session.catalog.binaryVersion ?: "unknown"
         offEdt {
             val lines = LogRing.snapshot(JcefLogData.levelOf(level))
             val text = JcefLogData.reportText(lines, header(binary, level, lines.size, LogRing.since(-1).dropped))
-            edt(panel.project) { CopyPasteManager.getInstance().setContents(StringSelection(text)) }
+            edt(presenter.project) { presenter.frontend.copyToClient(text) }
         }
     }
 

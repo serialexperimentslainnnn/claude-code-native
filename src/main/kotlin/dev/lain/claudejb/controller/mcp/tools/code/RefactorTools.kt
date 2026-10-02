@@ -44,7 +44,7 @@ internal class RefactorTools(private val project: Project, private val refactori
 
     private suspend fun rename(args: ToolArgs): ToolResult {
         val newName = args.string("new_name")
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (element, from, refactoring) = readAction {
             val element = refactorings.target(args)
             val from = refactorings.name(element)
@@ -122,7 +122,7 @@ internal class RefactorTools(private val project: Project, private val refactori
     }
 
     private suspend fun safeDelete(args: ToolArgs): ToolResult {
-        val max = args.int("max", DEFAULT_MAX)
+        val max = args.max(DEFAULT_MAX, Param.MAX_CEILING)
         val (target, refactoring) = readAction {
             val element = refactorings.target(args)
             if (!SafeDeleteProcessor.validElement(element)) {
@@ -164,7 +164,7 @@ internal class RefactorTools(private val project: Project, private val refactori
             "Renames the symbol at a position, or the file when no line is given, updating every reference as the IDE's " +
                 "Rename does. Fails, changing nothing, when the new name is invalid or would conflict.",
             listOf(Param("path", PATH), Param("new_name", "The new name")) + SYMBOL +
-                Param("max", "Maximum changed usages to list (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("changed usages to list", DEFAULT_MAX),
             mutates = true,
         )
 
@@ -181,7 +181,7 @@ internal class RefactorTools(private val project: Project, private val refactori
             "Deletes the symbol at a position, or the file when no line is given, only when nothing else uses it; " +
                 "otherwise deletes nothing and lists the usages that block it.",
             listOf(Param("path", PATH)) + SYMBOL +
-                Param("max", "Maximum blocking usages to list (default $DEFAULT_MAX)", type = "integer", required = false),
+                Param.max("blocking usages to list", DEFAULT_MAX),
             mutates = true,
         )
     }

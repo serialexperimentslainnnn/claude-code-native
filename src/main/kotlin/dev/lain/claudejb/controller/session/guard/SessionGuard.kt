@@ -26,7 +26,7 @@ import dev.lain.claudejb.model.settings.guard.GuardCommandApprovals
 import dev.lain.claudejb.model.settings.guard.guardSuspended
 import dev.lain.claudejb.model.settings.guard.sensitiveDecision
 import dev.lain.claudejb.util.thisLogger
-import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executor
 
 class SessionGuard(
     private val session: ClaudeSession,
@@ -43,7 +43,9 @@ class SessionGuard(
 
     val guardLog = GuardLogTally()
 
-    private val alerts = CopyOnWriteArrayList<GuardAlert>()
+    private val alerts = BoundedRing<GuardAlert>(MAX_ALERTS)
+
+    private val decisions: Executor = AppExecutorUtil.createBoundedApplicationPoolExecutor(DECISIONS, 1)
 
     val broker = PermissionBroker(
         permissionMode = { session.launch.permissionMode },
@@ -62,7 +64,13 @@ class SessionGuard(
         onSensitiveBypassed = ::onBypassed,
     )
 
-    fun onPermission(requestId: String, request: CanUseToolRequest) {
+    fun onPermission(requestId: String, request: CanUseToolRequest) = inOrder { decide(requestId, request) }
+
+    fun inOrder(action: () -> Unit) = decisions.execute {
+        runCatching(action).onFailure { log.warn("a guard step failed off the protocol reader", it) }
+    }
+
+    private fun decide(requestId: String, request: CanUseToolRequest) {
         if (ToolFilters.isDisallowed(ClaudeSettings.getInstance(project).state, request.toolName)) {
             write(ControlProtocol.permissionDeny(requestId, "${request.toolName} is a disallowed tool in this project's settings."))
             edt { session.transcript.add(Speaker.SYSTEM, "Refused ${request.toolName}: it is on the disallowed tools list.") }
@@ -173,7 +181,7 @@ class SessionGuard(
             command = command,
             inAgent = inAgent,
         )
-        alerts += alert
+        alerts.add(alert)
         val scope = settings.scope
         val retention = settings.state.guardLogRetentionDays
         AppExecutorUtil.getAppExecutorService().execute {
@@ -215,8 +223,12 @@ class SessionGuard(
 
     fun restore(savedSessionId: String): List<GuardAlert> {
         val saved = GuardAlertLog.forSession(ClaudeSettings.getInstance(project).scope, savedSessionId)
-        alerts.clear()
-        alerts.addAll(saved)
+        alerts.replaceAll(saved)
         return saved
+    }
+
+    private companion object {
+        const val MAX_ALERTS = 1_000
+        const val DECISIONS = "Claude Code guard decisions"
     }
 }

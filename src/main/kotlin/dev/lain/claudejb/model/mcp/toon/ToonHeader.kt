@@ -22,7 +22,7 @@ internal object ToonHeader {
         if (content.getOrNull(at) == '{') {
             val end = ToonScan.matchingBrace(content, at)
             if (end < 0) return reject(strict, "unmatched brace in the field list of: $content")
-            fields = fields(content.substring(at + 1, end), segment.delimiter, strict)
+            fields = fields(content.substring(at + 1, end), segment.delimiter, strict, 1)
                 ?: return reject(strict, "malformed field list in: $content")
             at = end + 1
         }
@@ -60,13 +60,14 @@ internal object ToonHeader {
         return Segment(length, keyed, delimiter)
     }
 
-    private fun fields(text: String, delimiter: Char, strict: Boolean): List<Field>? {
+    private fun fields(text: String, delimiter: Char, strict: Boolean, level: Int): List<Field>? {
+        if (level > ToonLines.MAX_DEPTH) toonError("a field list nests deeper than ${ToonLines.MAX_DEPTH} levels")
         val out = ArrayList<Field>()
         for (entry in entries(text, delimiter)) {
             val brace = ToonScan.indexOfUnquoted(entry, '{')
             val raw = ToonScan.trimSpaces(if (brace < 0) entry else entry.substring(0, brace))
             if (raw.isEmpty() || mismatched(raw, delimiter)) return null
-            val children = if (brace < 0) null else nested(entry, brace, delimiter, strict) ?: return null
+            val children = if (brace < 0) null else nested(entry, brace, delimiter, strict, level) ?: return null
             val name = ToonText.keyOf(raw)
             if (strict && out.any { it.name == name }) toonError("duplicate field name $name in {$text}")
             out += Field(name, children)
@@ -74,10 +75,10 @@ internal object ToonHeader {
         return out
     }
 
-    private fun nested(entry: String, brace: Int, delimiter: Char, strict: Boolean): List<Field>? {
+    private fun nested(entry: String, brace: Int, delimiter: Char, strict: Boolean, level: Int): List<Field>? {
         val end = ToonScan.matchingBrace(entry, brace)
         if (end != entry.lastIndex) return null
-        return fields(entry.substring(brace + 1, end), delimiter, strict)
+        return fields(entry.substring(brace + 1, end), delimiter, strict, level + 1)
     }
 
     private fun mismatched(name: String, delimiter: Char): Boolean =
