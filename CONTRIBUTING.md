@@ -4,11 +4,11 @@ Thanks for considering a contribution. This plugin is GPLv3 and community
 driven; PRs that improve correctness, UX parity with the original Claude
 Code, or coverage of the stream-json/control protocol are very welcome.
 
-Please skim [`CLAUDE.md`](CLAUDE.md) before writing code — it documents the
+Please skim [`CLAUDE.md`](CLAUDE.md) and [`DIRECTIVES.md`](DIRECTIVES.md)
+before writing code — the first holds what is forbidden, the second the
 architectural decisions and the behavioural contract with the `claude`
 binary. Doing so will save a review round-trip.
-[`PROJECTMAP.md`](PROJECTMAP.md) is the shorter answer to "where does this live",
-and [`AGENTS.md`](AGENTS.md) lists the commands CI runs.
+[`AGENTS.md`](AGENTS.md) lists the commands CI runs.
 
 ## Branching model
 

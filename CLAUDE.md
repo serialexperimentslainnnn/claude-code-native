@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Project rules
 
 > **Read [`DIRECTIVES.md`](DIRECTIVES.md) before starting.** It holds every standing directive for this

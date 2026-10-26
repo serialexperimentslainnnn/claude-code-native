@@ -18,6 +18,26 @@ class JcefModelLabelTest {
     }
 
     @Test
+    fun `a description without the model name never becomes the label`() {
+        assertEquals("Haiku 4.5", JcefModelLabels.modelDisplayLabel(ModelInfo("haiku", "Haiku 4.5", "Fastest for quick answers")))
+        assertEquals(
+            "Sonnet 5",
+            JcefModelLabels.modelDisplayLabel(ModelInfo("claude-sonnet-5", "Sonnet", "For complex work and everyday tasks")),
+        )
+        assertEquals("Sonnet", JcefModelLabels.modelDisplayLabel(ModelInfo("sonnet", "Sonnet", "For complex work and everyday tasks")))
+    }
+
+    @Test
+    fun `the named segment wins wherever it sits in the description`() {
+        assertEquals("Opus 5.5", JcefModelLabels.modelDisplayLabel(ModelInfo("opus", "Opus", "Best for complex work · Opus 5.5")))
+    }
+
+    @Test
+    fun `a context size is not mistaken for a version`() {
+        assertEquals("Opus 4.8", JcefModelLabels.modelDisplayLabel(ModelInfo("claude-opus-4-8[1m]", "Opus (1M context)", "For long sessions")))
+    }
+
+    @Test
     fun `label falls back to displayName when there is no description`() {
         assertEquals("Sonnet", JcefModelLabels.modelDisplayLabel(ModelInfo("sonnet", "Sonnet", "")))
     }

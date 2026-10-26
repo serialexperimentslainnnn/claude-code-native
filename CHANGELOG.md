@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **The model's name and version are shown once Claude is connected**, not its tagline. The label took
+  whatever came before ` · ` in the catalog's description, so a description that carries only a tagline
+  ("Fastest for quick answers") became the label. It now takes the description's segment that names the
+  model with a version, else a display name or the id's derived name that carries a version, and never a
+  bare description.
+
+### Added
+- **Every question Claude asks ends with an Other choice.** Picking it opens a text field, and the answer
+  sent back is what was typed, joined with any options also chosen on a multi-select. An `Other` the model
+  supplied itself is folded into this one, so the card never shows two.
+
 ## [6.0.1] — 2026-09-22
 
 ### Fixed

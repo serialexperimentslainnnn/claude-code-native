@@ -7,13 +7,20 @@ import dev.lain.claudejb.model.session.history.LegacyModels
 object JcefModelLabels {
 
     fun modelDisplayLabel(m: ModelInfo): String {
-        val descHead = m.description.substringBefore(" · ").trim()
-        return when {
-            descHead.isNotBlank() -> descHead
-            m.displayName.isNotBlank() -> m.displayName
-            else -> deriveModelLabel(m.value)
-        }
+        val derived = deriveModelLabel(m.value)
+        val name = m.displayName.ifBlank { derived }
+        val family = name.substringBefore(' ')
+        val described = m.description.split(" · ").map { it.trim() }
+            .firstOrNull { it.startsWith(family, ignoreCase = true) && hasVersion(it) }
+        return described
+            ?: m.displayName.takeIf { hasVersion(it) }
+            ?: derived.takeIf { hasVersion(it) }
+            ?: name
     }
+
+    private val VERSION = Regex("""\b\d+(\.\d+)?\b""")
+
+    private fun hasVersion(label: String): Boolean = VERSION.containsMatchIn(label)
 
     fun modelLabel(session: ClaudeSession): String {
         val id = session.launch.model ?: session.catalog.preferredDefaultModel()

@@ -7,6 +7,7 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.Key
+import com.intellij.util.concurrency.AppExecutorUtil
 import dev.lain.claudejb.model.protocol.ClaudeEvent
 import dev.lain.claudejb.model.protocol.parse.ProtocolParser
 import dev.lain.claudejb.util.LogRedaction
@@ -24,7 +25,7 @@ class ClaudeProcess(
     private val extraEnv: Map<String, String> = emptyMap(),
 ) {
     private val log = thisLogger()
-    private val writeLock = Any()
+    private val stdin = StdinWriter(AppExecutorUtil.createBoundedApplicationPoolExecutor("Claude stdin", 1))
     private val stdoutBuffer = StringBuilder()
     private var stderrLines = 0
 
@@ -116,14 +117,8 @@ class ClaudeProcess(
             log.warn("Dropping a ${line.length}-char line to dead claude stdin")
             return false
         }
-        return runCatching {
-            synchronized(writeLock) {
-                stream.write(line.toByteArray(StandardCharsets.UTF_8))
-                stream.write('\n'.code)
-                stream.flush()
-            }
-        }.onFailure { log.warn("Could not write to claude stdin; the process is gone or its pipe is closed", it) }
-            .isSuccess
+        stdin.enqueue(stream, line)
+        return true
     }
 
     fun isRunning(): Boolean = handler?.let { !it.isProcessTerminated } ?: false
@@ -141,7 +136,7 @@ class ClaudeProcess(
     }
 
     private fun endProcess(dying: KillableProcessHandler) {
-        runCatching { synchronized(writeLock) { dying.processInput?.close() } }
         dying.destroyProcess()
+        runCatching { dying.processInput?.close() }
     }
 }

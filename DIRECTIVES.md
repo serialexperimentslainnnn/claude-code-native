@@ -74,6 +74,30 @@ requests are not killed.
 It reaches the helper on the **first line of stdin**, never through an environment variable:
 `/proc/<pid>/environ` is readable by any process running as the same user.
 
+## How the plugin is put together
+
+The commands that build and test it are in [`AGENTS.md`](AGENTS.md).
+
+- **Each chat tab runs the user's own `claude` binary** over stream-json
+  (`model/session/launch/SessionLauncher`), one process per tab. `controller/session/ClaudeSession` stays a
+  **delegating orchestrator**: behaviour goes into its collaborators, not into it.
+- **Never mirror raw CLI output.** State is rebuilt from structured stream-json fields;
+  `system/local_command_output` is the antipattern.
+- **The permission mode is the plugin's.** The binary is always launched with `default`, so every tool call
+  arrives as a control request and `SensitiveGuard` decides before any auto-approval.
+- **The UI is JCEF; diffs are the only native UI.** `view/jcef/JcefHost` loads scripts and stylesheets it
+  names explicitly (`appNames`, `CSS_PARTS`) and globs nothing. JS↔Kotlin goes through
+  `model/bridge/JcefBridge` and `controller/bridge/*`, routed by `ChatBridgeRouter`. The TypeScript in
+  `src/main/ts/jcef` compiles to `build/web/jcef` and is packaged with the resources.
+- **The MCP servers live in `controller/mcp/`.** A domain is one row in `IdeToolCatalog`, per server.
+  `ToolDomain` enforces the four-tool ceiling and that every list parameter is declared in
+  `Batch.ONE_CALL_LISTS`. Results are TOON (`model/mcp/toon`), and the guard runs at `GuardGate`.
+- **The layering is a test.** `PackageDependencyContractTest` holds the allowed imports per package:
+  `model/` never imports `controller/` or `view/`, and `model/protocol`, `model/permission`, `model/bridge`
+  and `model/mcp` import nothing from the platform so they test on a plain JVM. A new package is added to its
+  `ALLOWED` map. The other `*ContractTest.kt` files at the root of `src/test/kotlin/dev/lain/claudejb/`
+  enforce no comments, the file-size ceiling, no internal platform API and reachability.
+
 ## Code
 
 - **No comments.** The reasoning goes into a name, a test, or the commit message. See `CLAUDE.md`.

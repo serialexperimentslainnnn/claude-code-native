@@ -23,6 +23,7 @@
   color: var(--dim);
 }
 .elicit-card input,
+.q-card .q-other-input,
 .elicit-card select,
 .boot-path-controls input,
 .auth-row input {
@@ -38,6 +39,7 @@
     box-shadow 0.14s;
 }
 .elicit-card input:focus,
+.q-card .q-other-input:focus,
 .elicit-card select:focus,
 .boot-path-controls input:focus,
 .auth-row input:focus {
@@ -45,6 +47,7 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .elicit-card input::placeholder,
+.q-card .q-other-input::placeholder,
 .boot-path-controls input::placeholder,
 .auth-row input::placeholder {
   color: var(--dim);

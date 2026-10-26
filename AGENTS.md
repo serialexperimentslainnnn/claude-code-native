@@ -6,8 +6,9 @@ how to verify, and what you must not do.
 
 Division of labour, so neither file rots:
 
-- **[`CLAUDE.md`](CLAUDE.md)** — the *architecture*: what the plugin is, the protocol contract, the
-  collaborator layout, and the history of why things are the way they are. Read it before changing code.
+- **[`CLAUDE.md`](CLAUDE.md)** — the absolute prohibitions. Read it first.
+- **[`DIRECTIVES.md`](DIRECTIVES.md)** — the standing directives and the *architecture*: what the plugin is,
+  the protocol contract and the collaborator layout. Read it before changing code.
 - **`AGENTS.md`** (this file) — the *operations*: commands, gates, conventions, boundaries.
 - **[`docs/adr/`](docs/adr/README.md)** — the decisions that are hard to reverse or easy to reverse by
   accident. If a change contradicts an ADR, the ADR is updated in the same change or the change is wrong.
@@ -29,7 +30,10 @@ will miss and report as a successful build.
 
 ```sh
 ./gradlew test                 # unit + headless component + integration. The gate.
+./gradlew test --tests "dev.lain.claudejb.model.mcp.BatchTest"   # one class; a * glob works too
+./gradlew integrationTest      # only the headless + fake-claude integration packages
 npm test                       # frontend tests (vitest + jsdom) over the real resources/jcef/*.js
+npm run build && npx vitest run src/test/frontend/chat   # one directory or file of the frontend suite
 ./gradlew detekt spotlessCheck # static analysis + formatting, both gated in CI
 npm run lint && npm run format:check   # the same two, for the shipped JCEF JavaScript
 ./gradlew buildPlugin          # → build/distributions/*.zip
@@ -38,6 +42,9 @@ npm run lint && npm run format:check   # the same two, for the shipped JCEF Java
 ./gradlew checkDrift           # protocol drift vs the live binary + SDK (updates both, then reports)
 ./gradlew koverHtmlReport      # coverage (koverVerify is the gate, and runs with `test` in CI)
 ```
+
+Inside Claude Code Native, the same builds and tests go through the IDE's `run` server rather than Gradle by
+hand.
 
 Test counts are deliberately not written here: they change every release and a number in a runbook is a
 claim nobody re-checks. `./gradlew test` and `npm test` report their own.
@@ -152,8 +159,8 @@ enforced rather than trusted.
 
 The architectural rules — `ClaudeSession` stays a delegating orchestrator, never mirror raw CLI output,
 diffs stay native while everything else is the JCEF web app, no Swing in the UI — live in
-**[`CLAUDE.md`](CLAUDE.md)** and are **not repeated here**. Two documents saying the same thing is how both
-end up stale, and CLAUDE.md is the one that carries the reasoning. Read it; the rules below are the ones
+**[`DIRECTIVES.md`](DIRECTIVES.md)** and are **not repeated here**. Two documents saying the same thing is how
+both end up stale, and DIRECTIVES.md is the one that carries the reasoning. Read it; the rules below are the ones
 that are about *working*, not about the design.
 
 - **Frontend changes need frontend tests.** The JS↔CSS class contract test exists because a missing CSS rule

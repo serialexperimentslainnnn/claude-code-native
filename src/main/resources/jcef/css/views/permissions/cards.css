@@ -219,3 +219,12 @@
   color: var(--dim);
   line-height: 1.45;
 }
+.q-other-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin: -3px 0 10px;
+}
+.q-other-input[hidden] {
+  display: none;
+}
