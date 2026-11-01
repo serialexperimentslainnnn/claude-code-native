@@ -139,7 +139,7 @@ jobs:
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: jvm-test-reports
           path: |
@@ -221,7 +221,7 @@ jobs:
 
       - name: Upload analysis reports
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: static-analysis-reports
           path: |
@@ -268,7 +268,7 @@ jobs:
 
       - name: Upload frontend report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontend-test-report
           path: build/reports/frontend/
@@ -443,7 +443,7 @@ jobs:
       # properties OF the artifact, and asserting them on a DIFFERENT build than the one just verified was
       # both wasteful and subtly wrong — the bytes checked were never the bytes verified.
       - name: Hand the built distributable to the assertions job
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verified-distribution
           path: build/distributions/*.zip
@@ -452,7 +452,7 @@ jobs:
 
       - name: Upload verifier report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plugin-verifier-report
           path: build/reports/pluginVerifier/
@@ -491,7 +491,7 @@ jobs:
           sparse-checkout: LICENSES
 
       - name: Fetch the verified distributable
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: verified-distribution
           path: build/distributions
@@ -596,7 +596,7 @@ jobs:
           echo "attribution present in $jar: LICENSE, THIRD-PARTY-NOTICES.md, and $texts licence text(s) matching LICENSES/"
 
       - name: Upload plugin zip
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: plugin-distribution
           path: build/distributions/*.zip
@@ -769,7 +769,7 @@ jobs:
 
       - name: Upload UI test reports and the IDE log
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-test-reports
           path: |
